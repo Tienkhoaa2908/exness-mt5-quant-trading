@@ -13,7 +13,7 @@ Latest local Git commit: `fc2f5a56b9e2d4ce3d91014323655ee653eb427c` — `researc
 Complete Git bundle SHA-256: `8ebeb8b4dd27081da1dcdb60c2c0aafe6daec2cbd89791613b396ceab47ba68d`.
 Source snapshot SHA-256: `0046dea695adfe2fabf7f489241d7baf5d45a07985925c14ec489e9d7b0fe8f6`.
 Next research kit SHA-256: `ee35cf2bf5430d7021326b18c70bccbeb8ff4744fd55aa7ec6c8620f1dbf695a`.
-Rolling uploaded bundle SHA-256: `498dffbfa1600714584747a73342b93a53d2fcc6c029ab2eafba2c454352c9f4`.
+Rolling uploaded bundle SHA-256: `2313416609be0aeeac587e10647864b16d75b5eb818e2923032f181c4298ff1f`.
 
 ## Accepted strategy state
 
