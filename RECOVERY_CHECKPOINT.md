@@ -8,75 +8,69 @@ REAL-MONEY LIVE TRADING remains forbidden. Current work is offline research and 
 
 ## Canonical local history
 
-Latest local Git commit: `a43d4bdee5c8805f2054bb37975aa7405b33d3e1` — `research: accept session preflight and add rolling 1-3m gate`.
+Latest local Git commit: `fc2f5a56b9e2d4ce3d91014323655ee653eb427c` — `research: add quality exit lab after rolling validation`.
 
-Complete Git bundle SHA-256: `59776f8040384c08be8d3deea933653ac7e67cde708bf76c1ab3642dacddd59c`.
-Source snapshot SHA-256: `643cfadd8b204d88e4e7de18898ac652b528b9adc16dffa2213b700f5033f177`.
-Next research kit SHA-256: `e03b9025735a2ae4106bed9598dc690262534b5a29ea60c200586f8702052fcc`.
-Session-preflight uploaded bundle SHA-256: `44488930085c45bf7dfd16c68622b511d84e2ff765734ef7174e73c78b7305d5`.
+Complete Git bundle SHA-256: `8ebeb8b4dd27081da1dcdb60c2c0aafe6daec2cbd89791613b396ceab47ba68d`.
+Source snapshot SHA-256: `0046dea695adfe2fabf7f489241d7baf5d45a07985925c14ec489e9d7b0fe8f6`.
+Next research kit SHA-256: `ee35cf2bf5430d7021326b18c70bccbeb8ff4744fd55aa7ec6c8620f1dbf695a`.
+Rolling uploaded bundle SHA-256: `498dffbfa1600714584747a73342b93a53d2fcc6c029ab2eafba2c454352c9f4`.
 
 ## Accepted strategy state
 
-Tier A remains:
+Tier A remains frozen:
 - `trend_breakout_20_regime300`
 - `ema_pullback_fast10`
 
-Parameters remain FROZEN.
+Session preflight remains accepted: all previously observed MARKET_CLOSED failures became broker-session skips and native order_fail=0 in the targeted gate.
 
-Long native validation (2025-01-10 through 2026-08-15, XAUUSDm/M15, generated Every Tick):
-- Trend: $10,000 -> $15,889.99, +$5,889.99 (+58.90%), 788 filled trades, win 38.20%, PF 1.206, MTM DD 8.53%.
-- EMA: $10,000 -> $14,802.02, +$4,802.02 (+48.02%), 772 filled trades, win 37.82%, PF 1.174, MTM DD 11.00%.
+## Rolling 1–3M Validation V1 — PASS integrity, mixed return quality
 
-## Session Preflight V1 — PASS
+Seven non-overlapping windows were tested from 2025-01-10 through 2026-08-15.
 
-Canonical evidence: `evidence/mt5_runs/2026-08-15_session_preflight_v1/` in local history.
+Normalized native MT5 results:
+- Trend: positive 7/7; median return +6.72%; range +0.24% to +13.05%; median PF about 1.167; maximum observed MTM DD 7.93%.
+- EMA: positive 6/7; median return +5.35%; range -1.25% to +9.69%; median PF about 1.174; maximum observed MTM DD 9.78%.
 
-- Every internal SHA-256 in the uploaded bundle passed.
-- All 15 previously observed `10018 MARKET_CLOSED` timestamps became dynamic broker-session skips using `SymbolInfoSessionTrade`.
-- 17 total session skips were observed: the 15 known timestamps plus 2 additional closed-session signals.
-- All four targeted native runs had `order_fail=0`.
-- No alpha parameters were changed.
+USD 40 strict 0.50% Standard-Cent-equivalent replay returns by window:
+- Trend: +2.99%, +13.94%, +5.77%, +3.33%, +1.59%, -0.39%, +3.33%.
+- EMA: +7.61%, +6.93%, +7.44%, +3.17%, +0.54%, approximately 0.00%, +2.16%.
 
-Targeted normalized-account results:
-- 2025 window (~5 weeks): Trend +6.97%, PF 1.479, win 45.10%, MTM DD 4.07%; EMA +7.01%, PF 1.464, win 44.23%, MTM DD 2.46%.
-- 2026 window (~7.5 weeks): Trend +4.35%, PF 1.275, win 39.06%, MTM DD 2.78%; EMA -0.03%, PF 0.998, win 34.33%, MTM DD 3.35%.
+The current strategies therefore do not robustly achieve the user's 15–20% aspiration over each 1–3 month holding period.
 
-## Capital policy and practical horizon
+## Risk / leverage decision
 
-Canonical small-capital comparison set: USD 20 / USD 30 / USD 40. Maximum intended first deposit is USD 40.
+A USD 40 replay at 0.75% and 1.00% target stop-risk increases signal participation and return in some windows. At 1.00%, each family reached at least +15% in only 3/7 windows; difficult windows remained weak or negative. Closed-equity DD reached about 13.35% for Trend and 18.02% for EMA; MTM DD must remain the primary promotion metric.
 
-Risk contract:
-- target risk = 0.50% equity per trade;
-- hard cap = 1.00% only as a rejection ceiling, not a target;
-- never round volume upward;
-- skip if minimum lot violates the target under strict-target analysis.
+Do not use leverage as a substitute for edge. In the rolling native evidence, margin rejects were zero while risk/volume-floor rejects appeared in difficult high-volatility windows. Higher leverage can lower required margin but does not reduce minimum-lot loss-at-stop.
 
-Practical decision horizon is now **1–3 months**. Long-history results remain robustness context, but promotion decisions must also show repeated non-overlapping 1–3 month windows.
+Risk policy for research:
+- 0.50% = baseline;
+- 0.75% = moderate research overlay;
+- 1.00% = aggressive research ceiling only;
+- no risk target above 1.00% in the current project phase.
 
-Important period dependence from Session Preflight evidence under Standard-Cent-equivalent strict 0.50% replay:
-- 2025 window: USD 40 executed essentially all accepted native signals and ended around $42.57 Trend / $42.20 EMA.
-- 2026 window: USD 40 could execute only about 42% of Trend and 31% of EMA accepted native signals, ending around $40.88 Trend / $40.42 EMA.
-- USD 20 executed zero accepted native signals in that early-2026 window at strict 0.50%, illustrating strong lot-granularity dependence on XAU price/volatility.
+## Next gate — QualityExitLabV1
 
-These are historical capital-mechanics replays, not live projections and not native XAUUSDc backtests.
+Run `scripts/run_quality_exit_lab_v1.cmd` from the V14 one-click kit.
 
-## Next gate — Rolling 1–3M Validation V1
+The lab is tester-only and virtual: no CTrade and no broker orders. It runs seven 1–3 month windows. Each run evaluates 16 pre-registered variants x four independent books:
+- normalized continuous 0.50% risk;
+- USD 40 cent-equivalent 0.50%;
+- USD 40 cent-equivalent 0.75%;
+- USD 40 cent-equivalent 1.00%.
 
-Run `scripts/run_rolling_1to3m_v1.cmd` from the V13 one-click kit.
+Variants test:
+- baseline 2 ATR / 2R;
+- tighter 1.5 ATR stop;
+- 2.5R / 3R targets;
+- break-even runner;
+- ADX(14) >= 20;
+- H1 EMA trend alignment;
+- price-quality confirmation;
+- combined quality + tighter-exit variants.
 
-Two frozen Tier-A strategies × seven non-overlapping windows = 14 native generated-tick tests:
-- 2025-01-10 -> 2025-04-01
-- 2025-04-01 -> 2025-07-01
-- 2025-07-01 -> 2025-10-01
-- 2025-10-01 -> 2026-01-01
-- 2026-01-01 -> 2026-04-01
-- 2026-04-01 -> 2026-07-01
-- 2026-07-01 -> 2026-08-15
-
-The MQL source is byte-identical to the Session Preflight V1 source that just passed. New native order rejections are evidence and do not abort the batch unless artifact integrity fails.
-
-After upload, report each window separately for normalized native performance and USD 20/30/40 capital translation.
+USD 40 books use 0.0001 standard-lot-equivalent minimum/step and a conservative theoretical 1:200 margin stress. Finalists must return to native MT5 parity before promotion.
 
 ## Recovery rule
 
-GitHub is a required checkpoint after every material milestone. Local source snapshot + complete Git bundle remain the second recovery layer until the full source tree/history is mirrored on remote. Never claim remote sync is complete without verifying the remote commit/files.
+GitHub is a required checkpoint after every material milestone. Local source snapshot + complete Git bundle remain the complete-history recovery layer until the full source tree/history is mirrored on remote. Never claim remote sync is complete without verifying it.
