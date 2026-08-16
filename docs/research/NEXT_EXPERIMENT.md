@@ -1,42 +1,42 @@
-# NEXT EXPERIMENT — Monthly Quality / Exit Re-screen V1
+# NEXT EXPERIMENT — Profit Protection Lab V1
 
-## Why
+The previous monthly Quality/Exit re-screen is superseded because its 18-terminal-start runner encountered broker-service synchronization failure and had no bounded watchdog.
 
-Monthly H1 Native V1 is complete. USD 40 at 1.00% stop-risk produced median monthly returns of only about +2.43% (Trend) and +3.69% (EMA). Hit rates for >=15% were 3/18 and 1/18.
+## Objective
 
-The practical monthly target is therefore not met. Exploratory 2.00% replay still produced median monthly returns below 10% while increasing worst-month losses and drawdown materially, so risk escalation is not the next step.
+Keep the two H1-aligned entry families fixed and test whether explicit profit protection improves the one-calendar-month USD 40 profile without raising stop-risk above the current 1.00% research ceiling.
 
-## Goal
+The target failure mode is measurable: trades that reach material open profit and later give back most of it or finish non-positive.
 
-Re-rank the already pre-registered entry-quality and exit variants for the one-month horizon before inventing new parameters.
+## Catalog
 
-## Batch
+Two entry families x eight exit policies = 16 candidates:
 
-Run the exact Windows-proven `QualityExitLabV1.mq5` source over 18 independent calendar months, 2025-02 through 2026-07.
+1. fixed 2R control;
+2. BE at +0.75R;
+3. lock +0.25R at +0.75R;
+4. lock +0.50R at +1R;
+5. stepped locks, TP 2.5R;
+6. trail 0.75R behind peak after +1R, TP 3R;
+7. lock 50% of peak R after +1R, TP 4R;
+8. take 50% at +1R, move remainder to BE, TP 3R.
 
-Each monthly run evaluates 16 variants x four independent books:
-- normalized USD 10,000 continuous @0.50%;
-- USD 40 cent-equivalent @0.50%;
-- USD 40 cent-equivalent @0.75%;
-- USD 40 cent-equivalent @1.00%.
+Initial stop is fixed at 2 ATR for all candidates.
 
-The catalog includes baseline 2ATR/2R, 1.5ATR stops, 2.5R/3R exits, break-even runner, ADX, H1 alignment, price-quality filters, and combined quality variants.
+Each candidate runs four books: normalized 10k @0.50%, USD40 @0.50%, USD40 @0.75%, USD40 @1.00%.
 
-## Decision metrics
+## Monthly evidence
 
-- median/mean monthly USD 40 return;
-- positive-month ratio;
-- >=15% and >=20% hit rates;
-- worst/best month;
-- MTM DD;
-- PF / AvgR / win rate;
-- signal participation under tiny-capital lot quantization;
-- 2025 vs 2026 stability.
+The EA resets all candidate books at every calendar-month boundary and records 18 independent months from 2025-02 through 2026-07.
 
-No virtual candidate is deployable. Any finalist returns to native MT5 validation.
+Per-trade path metrics include MFE, MAE, giveback R, capture efficiency, and whether MFE >= +1R later finished <=0R.
 
-## Reliability
+## Runtime
 
-Runner uses a LocalAppData checkpoint and reuses validated completed months after interruption. One infrastructure failure must not force all 18 runs to rerun. Diagnostic ZIP includes checkpoint and recent MT5 logs.
+Three MT5 starts only, each covering six months. The runner has heartbeat, watchdog, broker-unavailable detection, one retry, checkpoint reuse and Common Files recovery.
 
-REAL-MONEY LIVE TRADING remains forbidden.
+Run:
+
+`scripts/run_profit_protection_lab_v1.cmd`
+
+Virtual screening only; any finalist must return to native MT5. Real-money live trading remains forbidden.
