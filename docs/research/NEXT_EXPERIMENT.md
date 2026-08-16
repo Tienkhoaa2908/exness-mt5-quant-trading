@@ -1,13 +1,15 @@
-# NEXT EXPERIMENT — Signal Intelligence Lab V1
+# NEXT EXPERIMENT — Regime Router Lab V1 (V23)
 
-Chạy `RUN_SIGNAL_INTELLIGENCE_LAB_V1.cmd`.
+Signal Intelligence V22 đã hoàn tất runtime validation. Soft score, global exhaustion guard và telemetry meta-labeling không được promote.
 
-Một lần chạy → ba MT5 chunk sáu tháng có watchdog → 18 monthly resets độc lập → một ZIP.
+Gate kế tiếp là `Regime Router Lab V1`:
+- 26 candidates x 4 books = 104 virtual books;
+- 18 independent monthly resets trong 3 six-month chunks;
+- EMA session ablations + targeted SHORT exhaustion;
+- MACD/Trend/BOS family-specific H1 trend-separation gates;
+- selective one-position-at-time routers;
+- một one-click runner -> một output ZIP.
 
-Catalog: 30 candidates = 5 retained families × 6 pre-registered variants. Mỗi candidate có bốn virtual risk books.
+Conditional trade-ledger thresholds chỉ là hypothesis discovery; V23 phải re-simulate trong Strategy Tester trước mọi promotion claim.
 
-Câu hỏi chính: soft entry-state scoring + exhaustion guard thực sự được exercised + bounded adaptive profit protection có nâng AvgR/return đáng kể mà không tăng stop-risk vượt 1%, không làm drawdown/turnover xấu đi mù quáng hay không?
-
-Xem `signal_intelligence_lab_v1_workflow.md` và ADR-029.
-
-REAL-MONEY LIVE TRADING vẫn bị cấm.
+REAL-MONEY LIVE TRADING vẫn bị cấm. Stop-risk research ceiling 1.00%/trade.
