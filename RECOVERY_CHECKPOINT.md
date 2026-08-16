@@ -1,65 +1,45 @@
-# Recovery checkpoint — 2026-08-16
+# Recovery checkpoint — V21 Multi-Factor Edge Lab V1
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Safety
 
-REAL-MONEY LIVE TRADING remains forbidden. Current work is offline research and MT5 Strategy Tester/demo only. No Martingale, uncontrolled grid, loss-doubling, or risk escalation above the documented ceiling.
+REAL-MONEY LIVE TRADING vẫn bị cấm. Chỉ offline research / MT5 Strategy Tester / PAPER-DEMO sau safety gates. Không Martingale, uncontrolled grid, doubling after loss, không tăng stop-risk vượt ceiling 1.00%/trade và không commit secret.
 
-## Canonical local milestone
+## Bằng chứng mới nhất đã xác minh
 
-Implementation commit: `581ccd26cee29f9faca478b8fd9ecf61d68417b8` — `research: add churn-control gate after fusion turnover`.
+Churn Control Lab V1 output ZIP SHA-256:
+`2579e7806855bdb608cdc9f3987699ad625bf94dd9494467cea6e388ccd5a9ba`
 
-V20 recovery artifacts generated from that commit:
-- one-click Churn Control kit SHA-256: `e42d4a225cc845b58084d0bc6099d8a4ac1c73b1b913adba04ef956f77b9cf55`;
-- source snapshot SHA-256: `9b68dc458ca81e7f4108745bc28a4d5298d5f4ce25391c59aa8dd8301707b281`;
-- complete Git bundle SHA-256: `7ae504893c16ce01dbbff946e4c7d86b50ae210c8ee8ec19fa98efc915f47706`.
+- internal SHA-256: PASS 22/22;
+- MetaEditor: 0 errors, 0 warnings;
+- 18 tháng độc lập 2025-02 → 2026-07;
+- tester-only virtual books; native/external broker orders = 0.
 
-Uploaded Opportunity Fusion Lab V1 ZIP SHA-256: `1cf1dd45bfe5ee93658f65dec59e72229942a9494f3519a70ace9698b8a7445c`.
+`ema_h1_control` USD40@1% vẫn là control mạnh nhất theo median monthly return: +6.3236%, positive 13/18, max MTM DD 9.0171%. Generic cooldown/re-arm giảm churn nhưng không cải thiện joint return/turnover/DD đủ để promote.
 
-## Opportunity Fusion Lab V1 — COMPLETE
+Sequence diagnostic: 50 trường hợp SHORT thứ ba sau hai SHORT thắng cùng hướng có loss-rate 52%; 41 trường hợp tái vào trong <=4 giờ có loss-rate ~53.7%, AvgR ~-0.109 và aggregate PnL âm. Đây là targeted exhaustion hypothesis của gate kế tiếp.
 
-Integrity: 22/22 internal SHA-256 entries PASS. Three chunks covered 18 independent calendar months. Tester-only virtual books; no native/external broker orders.
+V21 one-click research kit SHA-256: `ecb0d2acee3c30a2b5e61e79372f48b831a7a293b2957ee63717d74e88cf4c79` (17/17 internal kit manifest entries PASS).
 
-USD 40 @1.00% stop-risk research ceiling:
-- `ema_h1_peaklock`: median +6.32%/month, positive 13/18, worst -4.59%, best +14.74%, max MTM DD 9.02%, median 34.5 trades/month.
-- `fusion_all_h1_peaklock`: median only +1.41%, positive 10/18, worst -16.16%, max MTM DD 17.41%, median 65.5 trades/month.
-- No fusion candidate robustly beat standalone EMA H1.
+Remote clean-clone recovery payload: `recovery/v21_impl_payload.zip`, SHA-256 `3be6159fa9600820f46d8a025c30d0704482a75d456a01adb9c3db43dc710c7f`. Root `RUN_MULTI_FACTOR_EDGE_LAB_V1.cmd` tự giải nén payload khi source/scripts chưa materialize.
 
-Sequence-level churn evidence on EMA USD40/1%:
-- 607 trades; 589 within-month consecutive pairs;
-- 161 winner -> next-trade loser pairs;
-- 102 winner -> loser re-entries occurred within four hours;
-- all 102 were same-direction re-entries;
-- 94/102 followed a profitable `PROTECT_STOP`;
-- median gap for that protected-profit -> rapid-loss subset was about 83 minutes.
+## Next gate
 
-Turnover proxy (gross entry+exit notional / USD40 starting capital): EMA median ~149x/month; fusion-all ~294x/month. This is turnover intensity, not a fee estimate.
+**Multi-Factor Edge Lab V1**:
 
-Decision: do not promote Opportunity Fusion. More opportunities increased churn faster than expectancy.
+- 8 signal families;
+- 4 bounded filter variants/family;
+- 32 candidates × 4 books = 128 virtual books;
+- 18 independent monthly resets trong 3 generated-Every-Tick chunks;
+- một runner → một ZIP;
+- exit đóng băng: 2 ATR initial stop, TP4R, sau +1R bảo vệ 50% peak R;
+- stop-risk ceiling 1.00%.
 
-## Next gate — Churn Control Lab V1
+Các family: EMA H1, Trend20 H1, RSI2 H1, MACD H1, Donchian55 H1, Bollinger+RSI range reversion, liquidity sweep H1, BOS+FVG H1. ICT/SMC được chuyển thành rule OHLC cơ học, không coi tên phương pháp là evidence edge.
 
-Run `scripts/run_churn_control_lab_v1.cmd` from the V20 one-click kit.
-
-Two entry families are retained as controls: EMA H1 pullback/reclaim and Trend H1 breakout. Exit is frozen to initial 2 ATR stop, TP4R, and 50%-of-peak R protection after +1R.
-
-Ten bounded re-entry policies per family (20 candidates total):
-- control;
-- cooldown after any exit: 4 / 8 / 16 M15 bars;
-- cooldown after profitable exit: 8 / 16 bars;
-- same-direction re-arm after 0.25 / 0.50 ATR adverse move from a profitable exit;
-- 8-bar profit cooldown + 0.25 ATR re-arm;
-- max 2 entries/day + 8-bar profit cooldown.
-
-Four books: normalized USD10k @0.50%; USD40 @0.50%, @0.75%, @1.00%. Risk ceiling stays 1.00%. Margin stress stays 1:200.
-
-Required metrics include return, PF, MTM DD, trades/month, gross-notional turnover/start-capital, rapid re-entries, rapid post-profit losses, churn rejects, volume/margin rejects, and monthly hit rates. A rule is not promoted merely for reducing trades; it must improve the return/turnover/drawdown trade-off.
-
-The V20 runner uses three six-month starts, heartbeat, bounded 20-minute watchdog per chunk, broker-unavailable detection, one retry, LocalAppData checkpoint reuse, Common Files recovery, and diagnostic ZIP packaging.
-
-The new MQL is static-QA PASS locally but is not Windows MetaEditor runtime-PASS until the user's machine compiles/runs it. Any virtual finalist must return to native MT5 validation.
+V21 source/runner/analyzer đã qua static QA và pytest cục bộ; **chưa được phép ghi Windows MetaEditor/runtime PASS cho V21 trước khi user chạy kit trên MT5**.
 
 ## Recovery rule
 
-GitHub is a required checkpoint after every material milestone. The V20 source snapshot + complete Git bundle remain the complete-history recovery layer until full local history mirroring on remote is explicitly verified.
+Đọc `docs/handover/CURRENT_STATE.md`, `docs/handover/RECOVERY_PROMPT.md`, `docs/research/RESEARCH_OPERATING_MODEL.md`, ADR và workflow trước khi thay đổi code. Sau run quan trọng, chỉ cần upload ZIP do runner tạo; verify manifest/hash trước khi phân tích.
