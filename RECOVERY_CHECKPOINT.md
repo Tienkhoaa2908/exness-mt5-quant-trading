@@ -1,76 +1,61 @@
-# Recovery checkpoint — 2026-08-15
+# Recovery checkpoint — 2026-08-16
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Safety
 
-REAL-MONEY LIVE TRADING remains forbidden. Current work is offline research and MT5 Strategy Tester/demo only. No Martingale, uncontrolled grid, or doubling after loss.
+REAL-MONEY LIVE TRADING remains forbidden. Current work is offline research and MT5 Strategy Tester/demo only. No Martingale, uncontrolled grid, doubling after loss, or risk escalation above the documented ceiling.
 
 ## Canonical local history
 
-Latest local Git commit: `fc2f5a56b9e2d4ce3d91014323655ee653eb427c` — `research: add quality exit lab after rolling validation`.
+Latest local Git commit: `35e325ba293601ce48c98ee6de0077c11994f846` — `research: promote H1 finalists to native rolling gate`.
 
-Complete Git bundle SHA-256: `8ebeb8b4dd27081da1dcdb60c2c0aafe6daec2cbd89791613b396ceab47ba68d`.
-Source snapshot SHA-256: `0046dea695adfe2fabf7f489241d7baf5d45a07985925c14ec489e9d7b0fe8f6`.
-Next research kit SHA-256: `ee35cf2bf5430d7021326b18c70bccbeb8ff4744fd55aa7ec6c8620f1dbf695a`.
-Rolling uploaded bundle SHA-256: `2313416609be0aeeac587e10647864b16d75b5eb818e2923032f181c4298ff1f`.
+Complete Git bundle SHA-256: `505f0b6c49c12c6b5de25ab0d0427cea8776aab93e59df98af5b2fcda2fca3a2`.
+Source snapshot SHA-256: `3b1f1b34719156b31287839a3d4a5481e9ce71db6c77c8af19f0b2847729d325`.
+Next research kit SHA-256: `7c9801fcc7b18e441b0e397dabd0d00e48f7c6ffe99f3cdd4cc11318ccc65e46`.
+QualityExitLab uploaded bundle SHA-256: `81832a5917c96f323837e20d9f498c84e401d8e5ab72c6ea690f4910a1757b7d`.
 
-## Accepted strategy state
+## Accepted prior state
 
-Tier A remains frozen:
-- `trend_breakout_20_regime300`
-- `ema_pullback_fast10`
+Session preflight remains accepted. The practical decision horizon remains repeated non-overlapping 1–3 month windows. Canonical small-capital analysis uses USD 40 as the maximum initial deposit, with USD 20/30 retained as sensitivity references.
 
-Session preflight remains accepted: all previously observed MARKET_CLOSED failures became broker-session skips and native order_fail=0 in the targeted gate.
+## Quality / Exit Lab V1 — COMPLETE
 
-## Rolling 1–3M Validation V1 — PASS integrity, mixed return quality
+Integrity: PASS; 34 internal hashes matched. Windows MetaEditor compile: 0 errors / 0 warnings.
 
-Seven non-overlapping windows were tested from 2025-01-10 through 2026-08-15.
+Sixteen pre-registered variants x four independent books were evaluated over seven non-overlapping 1–3 month windows. The strongest robust improvement came from H1 trend alignment, not from simply widening TP or tightening SL.
 
-Normalized native MT5 results:
-- Trend: positive 7/7; median return +6.72%; range +0.24% to +13.05%; median PF about 1.167; maximum observed MTM DD 7.93%.
-- EMA: positive 6/7; median return +5.35%; range -1.25% to +9.69%; median PF about 1.174; maximum observed MTM DD 9.78%.
+USD 40 / 1.00% virtual research-ceiling results:
+- `ema_h1_2atr_2r`: median +17.27%; positive 6/7; >=15% in 4/7; worst -3.33%; best +31.79%; max MTM DD 12.33%; median PF 1.345.
+- `trend_h1_2atr_2r`: median +14.84%; positive 7/7; >=15% in 3/7; worst +2.27%; best +23.87%; max MTM DD 15.64%; median PF 1.359.
+- `trend_tight_1p5atr_2r`: median +15.64% but worst -6.38% and max MTM DD 20.28%; not promoted.
+- `trend_quality_2atr_2r`: positive 7/7, worst +4.80%, but median only +10.58%; stable control, not return finalist.
 
-USD 40 strict 0.50% Standard-Cent-equivalent replay returns by window:
-- Trend: +2.99%, +13.94%, +5.77%, +3.33%, +1.59%, -0.39%, +3.33%.
-- EMA: +7.61%, +6.93%, +7.44%, +3.17%, +0.54%, approximately 0.00%, +2.16%.
+The virtual H1 books have very low exact entry-time+direction overlap (Jaccard about 0.009) but moderate daily realized-PnL correlation (~0.52). This supports a future shared-risk portfolio test but does not prove diversification.
 
-The current strategies therefore do not robustly achieve the user's 15–20% aspiration over each 1–3 month holding period.
+Important limitation: the virtual QualityExitLab baseline did not reproduce every native rolling cash result exactly. No lab candidate is promoted directly to capital deployment.
 
 ## Risk / leverage decision
 
-A USD 40 replay at 0.75% and 1.00% target stop-risk increases signal participation and return in some windows. At 1.00%, each family reached at least +15% in only 3/7 windows; difficult windows remained weak or negative. Closed-equity DD reached about 13.35% for Trend and 18.02% for EMA; MTM DD must remain the primary promotion metric.
+- 0.50% stop-risk = baseline.
+- 0.75% = moderate research overlay.
+- 1.00% = aggressive research ceiling only.
+- No >1.00% stop-risk research in the current phase.
 
-Do not use leverage as a substitute for edge. In the rolling native evidence, margin rejects were zero while risk/volume-floor rejects appeared in difficult high-volatility windows. Higher leverage can lower required margin but does not reduce minimum-lot loss-at-stop.
+Higher leverage lowers margin required but does not reduce minimum-lot loss-at-stop. Previous native rolling runs had zero margin rejects, so leverage was not the binding constraint. Do not use leverage as a substitute for expectancy.
 
-Risk policy for research:
-- 0.50% = baseline;
-- 0.75% = moderate research overlay;
-- 1.00% = aggressive research ceiling only;
-- no risk target above 1.00% in the current project phase.
+## Next gate — H1 Finalist Native V1
 
-## Next gate — QualityExitLabV1
+Run `scripts/run_h1_finalist_native_v1.cmd` from the V15 one-click kit.
 
-Run `scripts/run_quality_exit_lab_v1.cmd` from the V14 one-click kit.
+Finalists only:
+- `trend_h1_2atr_2r` — stability finalist.
+- `ema_h1_2atr_2r` — return finalist.
 
-The lab is tester-only and virtual: no CTrade and no broker orders. It runs seven 1–3 month windows. Each run evaluates 16 pre-registered variants x four independent books:
-- normalized continuous 0.50% risk;
-- USD 40 cent-equivalent 0.50%;
-- USD 40 cent-equivalent 0.75%;
-- USD 40 cent-equivalent 1.00%.
+Keep stop = 2 ATR and TP = 2R frozen. Batch: 2 finalists x 7 non-overlapping 1–3 month windows = 14 native MT5 Strategy Tester runs, XAUUSDm/M15, generated Every Tick, ExecutionMode=0, normalized USD 10,000 risk 0.50%, tester leverage 1:200, dynamic broker-session preflight, tester-only CTrade, external broker orders=0.
 
-Variants test:
-- baseline 2 ATR / 2R;
-- tighter 1.5 ATR stop;
-- 2.5R / 3R targets;
-- break-even runner;
-- ADX(14) >= 20;
-- H1 EMA trend alignment;
-- price-quality confirmation;
-- combined quality + tighter-exit variants.
-
-USD 40 books use 0.0001 standard-lot-equivalent minimum/step and a conservative theoretical 1:200 margin stress. Finalists must return to native MT5 parity before promotion.
+After upload, translate native ledgers to USD 40 strict-target books at 0.50%, 0.75%, and 1.00%. If native H1 evidence survives, next research is a shared-risk Trend+EMA portfolio/adaptive-risk overlay rather than a wider parameter grid.
 
 ## Recovery rule
 
-GitHub is a required checkpoint after every material milestone. Local source snapshot + complete Git bundle remain the complete-history recovery layer until the full source tree/history is mirrored on remote. Never claim remote sync is complete without verifying it.
+GitHub is a required checkpoint after every material milestone. The local source snapshot + complete Git bundle remain the complete-history recovery layer until full source/history mirroring on remote is verified. Never claim remote history sync is complete without verification.
