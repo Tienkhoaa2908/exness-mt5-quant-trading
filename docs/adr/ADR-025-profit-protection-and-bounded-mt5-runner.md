@@ -29,3 +29,7 @@ The subsequent monthly QualityExit rescreen runner also exposed a reliability pr
 The experiment directly tests the observed failure mode and should reduce Windows runtime/startup fragility. It does not guarantee that earlier profit capture improves expectancy; overly aggressive trailing can cut trend winners, so selection remains evidence-driven.
 
 Real-money live trading remains forbidden.
+
+## Netting-account implementation note
+
+The user's current MT5 header shows a Netting account. `CTrade::PositionClosePartial()` is documented for hedging accounting, so the virtual partial-profit candidate is screening logic only. A native promotion must detect `ACCOUNT_MARGIN_MODE` and, for netting, reduce position volume with a correctly sized opposite deal/request (or equivalent netting-compatible close request), then verify the trade-server retcode. Do not blindly reuse the hedging-only helper.
