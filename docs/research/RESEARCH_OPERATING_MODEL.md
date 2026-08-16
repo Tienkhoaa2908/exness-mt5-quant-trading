@@ -27,7 +27,7 @@ Mọi broad search phải chịu kỷ luật multiple testing: catalog pre-regis
 ### Intraday seasonality
 
 - Cotter & Dowd (2010), *Intra-day seasonality in foreign exchange market transactions*, International Review of Economics & Finance. DOI: 10.1016/j.iref.2009.08.003.
-- Breedon & Ranaldo (2013), *Intraday Patterns in FX Returns and Order Flow*, Journal of Money, Credit and Banking. DOI: 10.1111/jmcb.12032.
+- Ito & Hashimoto (2006), *Intraday seasonality in activities of the foreign exchange markets*, Journal of the Japanese and International Economies. DOI: 10.1016/j.jjie.2006.06.005.
 
 Các paper này chỉ biện minh cho việc **đo** time-of-day/session effect. Không hard-code session winner từ literature; phải kiểm tra riêng trên XAUUSDm/server time của broker.
 
@@ -36,12 +36,12 @@ Các paper này chỉ biện minh cho việc **đo** time-of-day/session effect.
 - Sullivan, Timmermann & White (1999), *Data-Snooping, Technical Trading Rule Performance, and the Bootstrap*, Journal of Finance. DOI: 10.1111/0022-1082.00163.
 - White (2000), *A Reality Check for Data Snooping*, Econometrica. DOI: 10.1111/1468-0262.00152.
 
-Vì Multi-Factor Edge Lab chạy 32 candidates trong một sample, mọi ranking chỉ là screening. Candidate mạnh phải qua holdout/forward và native parity.
+Multi-Factor Edge Lab V1 đã chạy 32 candidates trong cùng sample và cho rank stability 2025/2026 thấp; mọi ranking của V21 chỉ là screening. Signal Intelligence Lab V1 tiếp tục dùng catalog pre-register 30 candidates, không mở optimizer. Candidate mạnh vẫn phải qua holdout/forward, native parity và cost/spread/delay stress.
 
 ### ICT / SMC reference
 
 - `joshyattridge/smart-money-concepts` trên GitHub, MIT license.
-  - Chỉ dùng như reference để chuẩn hóa các khái niệm định lượng như Fair Value Gap, swing high/low, liquidity, BOS/CHoCH.
+  - Chỉ dùng như reference để chuẩn hóa các khái niệm định lượng như Fair Value Gap, swing high/low, liquidity.
   - Không copy source code.
 - Các repo SMC không có license rõ hoặc chỉ phát hành binary `.ex5` không được copy vào core.
 

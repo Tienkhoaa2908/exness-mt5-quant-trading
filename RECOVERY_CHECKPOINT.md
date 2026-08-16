@@ -1,45 +1,81 @@
-# Recovery checkpoint — V21 Multi-Factor Edge Lab V1
+# Recovery checkpoint — V22 Signal Intelligence Lab V1
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Safety
 
-REAL-MONEY LIVE TRADING vẫn bị cấm. Chỉ offline research / MT5 Strategy Tester / PAPER-DEMO sau safety gates. Không Martingale, uncontrolled grid, doubling after loss, không tăng stop-risk vượt ceiling 1.00%/trade và không commit secret.
+REAL-MONEY LIVE TRADING vẫn bị cấm. Chỉ offline research / MT5 Strategy Tester; PAPER/DEMO chỉ sau các safety gate riêng. Không Martingale, uncontrolled grid, doubling after loss, không tháo LIVE/tester guard, không tăng stop-risk vượt ceiling 1.00%/trade và không commit password/token/secret.
 
-## Bằng chứng mới nhất đã xác minh
+## Bằng chứng hoàn tất gần nhất — Multi-Factor Edge Lab V1 (V21)
 
-Churn Control Lab V1 output ZIP SHA-256:
-`2579e7806855bdb608cdc9f3987699ad625bf94dd9494467cea6e388ccd5a9ba`
+Output ZIP SHA-256:
+`c539c2be6ce3b134c78b5e4a1f20cdecaccc268a7fb44c46a81a12ae938489c0`
 
 - internal SHA-256: PASS 22/22;
-- MetaEditor: 0 errors, 0 warnings;
-- 18 tháng độc lập 2025-02 → 2026-07;
-- tester-only virtual books; native/external broker orders = 0.
+- Windows MetaEditor: 0 errors, 0 warnings;
+- 3 chunk hoàn tất, 18 tháng độc lập 2025-02 → 2026-07;
+- 32 candidates × 4 books = 2,304 monthly rows;
+- 29,472 executed virtual trades;
+- `tester_only=1`, `native_broker_orders=0`, `external_broker_orders=0`.
 
-`ema_h1_control` USD40@1% vẫn là control mạnh nhất theo median monthly return: +6.3236%, positive 13/18, max MTM DD 9.0171%. Generic cooldown/re-arm giảm churn nhưng không cải thiện joint return/turnover/DD đủ để promote.
+`ema_h1_base` USD40@1% vẫn là control mạnh nhất theo median monthly return: +6.3236%, positive 13/18, max MTM DD 9.0171%. Chưa có candidate nào hỗ trợ claim robust 15–20%/tháng.
 
-Sequence diagnostic: 50 trường hợp SHORT thứ ba sau hai SHORT thắng cùng hướng có loss-rate 52%; 41 trường hợp tái vào trong <=4 giờ có loss-rate ~53.7%, AvgR ~-0.109 và aggregate PnL âm. Đây là targeted exhaustion hypothesis của gate kế tiếp.
+Các kết luận thiết kế chính:
+- hard quality conjunction over-filter: EMA PF/DD tốt hơn nhưng median return giảm ~6.32% → ~2.31%;
+- V21 `quality_streak` là no-op trong observed sample: `streak_guard_reject=0`, nên không được gọi là exhaustion hypothesis đã fail;
+- rapid SHORT third-entry sau hai same-direction winners vẫn là subset đáng ngờ; global third-trade block sẽ over-filter;
+- rank stability 2025 vs 2026 yếu, nên phải siết multiple-testing discipline.
 
-V21 one-click research kit SHA-256: `ecb0d2acee3c30a2b5e61e79372f48b831a7a293b2957ee63717d74e88cf4c79` (17/17 internal kit manifest entries PASS).
+## Gate hiện tại — Signal Intelligence Lab V1 (V22)
 
-Remote clean-clone recovery payload: `recovery/v21_impl_payload.zip`, SHA-256 `3be6159fa9600820f46d8a025c30d0704482a75d456a01adb9c3db43dc710c7f`. Root `RUN_MULTI_FACTOR_EDGE_LAB_V1.cmd` tự giải nén payload khi source/scripts chưa materialize.
-
-## Next gate
-
-**Multi-Factor Edge Lab V1**:
-
-- 8 signal families;
-- 4 bounded filter variants/family;
-- 32 candidates × 4 books = 128 virtual books;
+Một lần chạy:
+- 5 retained families: EMA H1, MACD H1, Trend20 H1, BOS+FVG H1, RSI2 H1 diagnostic;
+- 6 pre-registered variants/family;
+- 30 candidates × 4 books = 120 virtual books trên cùng tick stream;
 - 18 independent monthly resets trong 3 generated-Every-Tick chunks;
-- một runner → một ZIP;
-- exit đóng băng: 2 ATR initial stop, TP4R, sau +1R bảo vệ 50% peak R;
-- stop-risk ceiling 1.00%.
+- một runner → một ZIP.
 
-Các family: EMA H1, Trend20 H1, RSI2 H1, MACD H1, Donchian55 H1, Bollinger+RSI range reversion, liquidity sweep H1, BOS+FVG H1. ICT/SMC được chuyển thành rule OHLC cơ học, không coi tên phương pháp là evidence edge.
+Variants:
+- `base`;
+- `score3`;
+- `score4`;
+- `score3_exhaust`;
+- `score3_adaptive`;
+- `score3_exhaust_adaptive`.
 
-V21 source/runner/analyzer đã qua static QA và pytest cục bộ; **chưa được phép ghi Windows MetaEditor/runtime PASS cho V21 trước khi user chạy kit trên MT5**.
+Entry telemetry ghi ADX/DI, ATR ratio, candle body, direction-adjusted close location, EMA200 distance, RSI2/RSI14, MACD histogram, H1 EMA gap, server hour, prior profit-streak state, bars since exit và adaptive mode.
+
+Exhaustion V2:
+- count consecutive profitable exits cùng hướng dù trade trước có rapid hay không;
+- sau streak >=2, same-direction re-entry trong 32 M15 bars (8h) cần ít nhất 1.00 ATR adverse reset;
+- reject được đếm riêng bằng `streak_guard_reject`.
+
+Adaptive exit là bounded ablation:
+- default vẫn initial stop 2 ATR, TP4R, sau +1R protect 50% peak R;
+- chỉ non-RSI2 entry có score>=4 và ADX>=25 dùng 0.75R peak-distance trail sau +1R; TP vẫn 4R.
+
+## V22 evidence status trước Windows run
+
+Static QA hiện tại:
+- Python analyzer `py_compile` PASS;
+- pytest 9/9 PASS;
+- MQL delimiter balance PASS;
+- trade/summary CSV argument-count QA PASS;
+- tester guard PASS;
+- `AllowLiveTrading=0`, `AllowDllImport=0` PASS;
+- order-path scan PASS: không `OrderSend`, không `CTrade`, không native/external broker order path;
+- secret scan PASS;
+- PowerShell parser không có trong Linux environment nên không claim parser/runtime PASS.
+
+**Windows MetaEditor compile/runtime V22 chưa được xác nhận** cho đến khi one-click kit chạy trên máy user. Không fabricated evidence.
 
 ## Recovery rule
 
-Đọc `docs/handover/CURRENT_STATE.md`, `docs/handover/RECOVERY_PROMPT.md`, `docs/research/RESEARCH_OPERATING_MODEL.md`, ADR và workflow trước khi thay đổi code. Sau run quan trọng, chỉ cần upload ZIP do runner tạo; verify manifest/hash trước khi phân tích.
+Đọc `docs/handover/CURRENT_STATE.md`, `docs/handover/RECOVERY_PROMPT.md`, `docs/research/RESEARCH_OPERATING_MODEL.md`, ADR và workflow trước khi thay đổi code. Sau run quan trọng, user chỉ upload ZIP do runner tạo; phải verify manifest/hash trước khi phân tích.
+
+## V22 one-click kit
+
+- File: `mt5_quant_v22_signal_intelligence_lab_one_click.zip`
+- SHA-256: `aec1cd45168a671c63183dcbf832dbf768f89de896a5264638d2cf1c2cfcaae0`
+- Internal kit manifest: 20/20 PASS.
+- Windows MetaEditor/runtime V22 vẫn chưa được claim cho đến khi user chạy kit.
