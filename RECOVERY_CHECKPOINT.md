@@ -8,11 +8,11 @@ REAL-MONEY LIVE TRADING remains forbidden. Current work is offline research and 
 
 ## Canonical local history
 
-Latest local Git commit: `32860fab4064dec44dba321d7fc0e3d96d793074` — `research: add profit-protection exit lab and bounded runner`.
+Latest local Git commit: `8b40dc9ef5ca758dbda4a37483ee0b72cb61193e` — `docs: record netting partial-exit constraint`.
 
-Complete Git bundle SHA-256: `f2d5197b05fdc0722db9bb314465dd8fe34dcdcc29dcc0fcc103530baa418440`.
-Source snapshot SHA-256: `8cda02266c091ee7d4d87c9398c448ce6ec398fb541962feba99ffbd6da3735d`.
-Next research kit SHA-256: `72c951242b4399b303452ce83c501e8e81df73c9d0dfb033d837a0098f21a92a`.
+Complete Git bundle SHA-256: `2ab53cc1a6ed74630d4eeca1fa50f363e59e2c00208cedbb2cf8a82b18c94503`.
+Source snapshot SHA-256: `29c5387111ba8635033df0962d8403568b08824be0985d23a17c3b67e269a482`.
+Next research kit SHA-256: `8e2cd177846042917d26c3f6713e140022b68b07ba08dc0ea33f02070f7f9185`.
 Uploaded Monthly Quality/Exit diagnostic ZIP SHA-256: `1248ea05553b71f484d186cc640323a918ec715a8b1324c18f17966da0897fc4`.
 
 ## Monthly objective
@@ -42,6 +42,10 @@ Per-trade path evidence includes MFE, MAE, realized R, MFE-to-exit giveback, cap
 Runtime is reduced to three six-month MT5 starts while the EA performs 18 independent monthly resets internally. The runner adds 30-second heartbeat, bounded watchdog, broker-unavailable detection, one retry, checkpoint reuse and recovery from validated Common Files artifacts. Diagnostic packaging now captures the checkpoint and correct `mt5_quant/runs` paths.
 
 This is tester-only virtual screening with no CTrade/native broker orders. Any finalist must return to native MT5 dynamic-stop/partial-close validation before promotion.
+
+## Netting execution constraint
+
+The current MT5 header shows Netting. The partial-profit candidate is virtual screening only. Native promotion must detect `ACCOUNT_MARGIN_MODE`; on Netting, it must use a netting-compatible volume-reduction request rather than blindly calling the hedging-oriented `CTrade::PositionClosePartial()`, and every modification/close request must be validated with the trade-server retcode.
 
 ## Recovery rule
 
