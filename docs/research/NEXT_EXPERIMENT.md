@@ -1,15 +1,11 @@
-# NEXT EXPERIMENT — Regime Router Lab V1 (V23)
+# NEXT EXPERIMENT — V24 ML/DL Feature Lake + Regime Router Lab V1
 
-Signal Intelligence V22 đã hoàn tất runtime validation. Soft score, global exhaustion guard và telemetry meta-labeling không được promote.
+Chạy `RUN_ML_DL_FEATURE_LAKE_LAB_V1.cmd` một lần.
 
-Gate kế tiếp là `Regime Router Lab V1`:
-- 26 candidates x 4 books = 104 virtual books;
-- 18 independent monthly resets trong 3 six-month chunks;
-- EMA session ablations + targeted SHORT exhaustion;
-- MACD/Trend/BOS family-specific H1 trend-separation gates;
-- selective one-position-at-time routers;
-- một one-click runner -> một output ZIP.
+Run này gom hai mục tiêu:
+- re-simulate toàn bộ V23 regime-router catalog;
+- xuất causal M15 feature lake cho ML/DL.
 
-Conditional trade-ledger thresholds chỉ là hypothesis discovery; V23 phải re-simulate trong Strategy Tester trước mọi promotion claim.
+Sau khi upload một ZIP duy nhất, model tournament (linear/tree/MLP/GRU/TCN/PatchTransformer) sẽ được chạy offline nhiều vòng, không yêu cầu MT5 rerun cho từng model.
 
-REAL-MONEY LIVE TRADING vẫn bị cấm. Stop-risk research ceiling 1.00%/trade.
+REAL-MONEY LIVE TRADING vẫn bị cấm.

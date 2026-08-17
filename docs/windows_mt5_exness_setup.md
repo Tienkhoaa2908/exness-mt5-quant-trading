@@ -45,3 +45,7 @@ Finalist sau đó phải qua:
 - PAPER/DEMO sau safety gates.
 
 LIVE vẫn cấm.
+
+## V24 ML/DL Feature Lake
+
+Đóng MT5 hoàn toàn, giải nén V24 kit và double-click `RUN_ML_DL_FEATURE_LAKE_LAB_V1.cmd`. Runner compile EA mới, chạy ba chunk sáu tháng, kiểm tra đủ summary/trades/bar_features và đóng gói một ZIP duy nhất trên Desktop. Upload ZIP đó; không cần tự chạy Python ML/DL trên máy Windows.
