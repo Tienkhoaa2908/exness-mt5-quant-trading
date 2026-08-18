@@ -1,35 +1,37 @@
-# V29.0 Windows compile incident / V29.1 hotfix
+# V29 compile incident chain / V29.2 hotfix
 
 Ngày: 2026-08-19.
 
-## Runtime evidence
-User Windows run of V29.0 failed before Strategy Tester:
-- MetaEditor: 100 errors / 50 warnings;
-- first cascade centered around calls to `ReadOne`;
-- diagnostic ZIP creation also failed because runner path was null.
+## V29.0
+Windows MetaEditor failed before Strategy Tester with 100 errors / 50 warnings. Root cause: refactor dropped five shared helper definitions while call sites remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. Diagnostic ZIP creation also failed because the runner path was unstable.
 
-## Root cause
-Adaptive refactor dropped five utility helper definitions while their call sites remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. The old static release checks covered delimiter balance, FileWrite width and safety, but did not assert that required helper definitions survived refactoring.
+## V29.1
+Corrective action restored all five helpers from previously Windows-compiled V28 code and switched diagnostic/main script-root logic to `$PSScriptRoot`. Diagnostic packaging then worked correctly.
 
-The diagnostic path bug was independent: `$MyInvocation.MyCommand.Path` was used inside a function, where it did not provide a stable script path.
+User Windows V29.1 evidence:
+- MetaEditor: 1 error / 0 warnings;
+- exact compiler error: `AdaptiveExpertLabV1.mq5(680,10): error 256: undeclared identifier 'minute'`;
+- diagnostic ZIP successfully captured source, compile log, runner and error record.
 
-## V29.1 corrective action
-- restore five helpers from previously Windows-compiled V28 implementation;
-- use `$PSScriptRoot` for main/diagnostic script root;
-- add regression tests for helper definitions and diagnostic-root stability;
-- preserve V29 catalog, risk, exit and adaptive rules unchanged.
+Root cause: `SignalSlowMomentum` referenced `dt.minute`, but `MqlDateTime` uses `min` for minutes.
 
-## Local gate
-- pytest 13/13 PASS;
-- Python compile PASS;
+## V29.2
+- replace `dt.minute` with `dt.min`;
+- add a regression test validating every referenced member on declared `MqlDateTime` variables against the official contract: `year, mon, day, hour, min, sec, day_of_week, day_of_year`;
+- preserve V29 catalog/risk/exit/adaptive rules unchanged;
+- preserve working diagnostic bundle behavior.
+
+Local QA:
+- pytest 14/14 PASS;
+- analyzer/tests py_compile PASS;
 - MQL delimiter balance PASS;
-- five required helper definitions each exactly once;
-- helper consistency vs V28 compiled base PASS;
+- helper consistency PASS;
+- MqlDateTime member-contract lint PASS;
 - safety scan PASS;
-- internal manifest 11/11 PASS;
+- manifest 11/11 PASS;
 - ZIP integrity PASS.
 
-V29.1 release SHA-256: `b8176551870b218f47322bae72c7a78be2d0efde8eec7237dab91ab4f8aeb824`.
-Patch: `recovery/v29_1_compile_hotfix.patch`, SHA-256 `c5f999e546b3aa67dbe704e9dbc90bf62510e2134aea4e8c3c44e5d759c0b65c`.
+V29.2 release SHA-256: `7e74deeb41f7f573c39014454ea5b47f93d9c2bcdfe7a2882aa9c1e819782e5c`.
+Patch: `recovery/v29_2_compile_hotfix.patch`.
 
-Windows MetaEditor 0/0 remains pending. V29.0 must never be reused.
+V29.0 and V29.1 must not be reused. Windows MetaEditor 0/0 remains the first acceptance gate.
