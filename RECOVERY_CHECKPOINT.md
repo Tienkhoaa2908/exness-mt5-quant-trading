@@ -1,42 +1,30 @@
-# Recovery checkpoint — V27 Economic Calendar / event-aware ML-DL
+# Recovery checkpoint — V28 Event-Aware Regime Router
 
 Ngày: 2026-08-18.
 
 REAL-MONEY LIVE TRADING = FORBIDDEN.
 
-## User-facing output requirement — non-negotiable
-User explicitly requires that future coordinator/recovery sessions **do not show internal Python/tooling code** before or after normal answers unless the user asks to see code.
+## User-facing requirement
+Không hiển thị code Python/tooling nội bộ nếu user không yêu cầu. Tooling phải chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, hướng dẫn và lỗi.
 
-Do not expose:
-- scratch Python;
-- artifact-packaging code;
-- tool-call payloads;
-- implementation plumbing;
-- internal helper scripts merely because they were executed.
+## V28 research state
+V27 recovered calendar: 24,085 rows, recovery ZIP SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`.
 
-User-visible output should contain only useful deliverables: conclusions, evidence, file links, SHA-256, instructions, diagnostics and next steps. Preserve this requirement across recovery.
+Event-aware model:
+- 13 OOS months Feb-2025 → Feb-2026;
+- LightGBM event-aware future-range Spearman ~0.5493, 13/13 positive;
+- paired uplift vs price/cross-asset base +0.01210 with bootstrap 95% CI above zero;
+- direction remains weak; mechanical families retain Long/Short ownership.
 
-## Current research state
-- V25 established ML range-regime scores as useful mainly for abstention/routing efficiency, not statistically decisive return uplift.
-- V26 exported broad MT5 historical data including cross-asset bars and 17.7M XAUUSDm broker ticks.
-- Cross-asset M30 range modeling remains stronger than direct-direction modeling.
-- V1.3 low-timeframe top-up obtained XAU M5/M15 and context M5; these add range information but do not create stable direction alpha. Do not request more M1 unless new evidence justifies it.
-- Current orthogonal-data gate is V27 MT5 Economic Calendar.
+Only low-range quartile 0.25 is pre-registered for V28 stateful routing. V28 replay kit static QA 6/6 PASS; runtime pending.
 
-## V27.2 status
-Calendar exporter compiles with 0 errors / 0 warnings and runs real progress. It was stopped by runner hard watchdog before completion, not by a calendar API error. Diagnostic showed approximately 24k rows, 80 chunks and progress into CNY with `last_error=0`.
+## USD later-confirmation top-up
+V1 output SHA-256 `e7ca5d14200f89a3c11d8b49144ddd33c9f9d69654e55bf84912472a91fda337`: 6/6 hashes PASS, MetaEditor 0/0, but partial only. 304 rows, one successful chunk, five 5401 timeouts, coverage only March 2026.
 
-A partial recovery utility was created to copy the incomplete-but-useful calendar run directly from MT5 Common Files.
+Do not score Mar-Jul confirmation from V1.
 
-User screenshot confirms recovery utility completed for run `20260818_093825`, calendar CSV size about 5.72 MB, and printed output path:
-`C:\Users\welcome\OneDrive\Desktop\mt5_quant_calendar_PARTIAL_RECOVERY_20260818_141210.zip`
+V2 resumes 2026-04-01 using 1-day chunks and strict completeness gate. Static QA 6/6 PASS. Release SHA-256 `e3aaa4d09dc2a23480006426c3ce86fd802c05853ae72eb71a47bb6969f34de6`.
 
-If user reports no file, check OneDrive Desktop first. Do not rerun the 90-minute exporter unless partial data is actually missing or unusable.
+On V2 upload: verify full coverage, merge with March V1, dedupe, score later-period model without retuning threshold 0.25, then run V28 MT5 replay only if confirmation survives.
 
-## Validation rules
-- chronological walk-forward only;
-- no random CV;
-- no same-sample threshold tuning promoted as confirmation;
-- partial Aug-2026 has already been inspected;
-- final model/routing changes require MT5 replay;
-- no real-money live trading.
+Stop-risk ceiling remains 1.00%/trade. No native broker orders.
