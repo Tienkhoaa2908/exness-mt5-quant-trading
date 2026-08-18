@@ -1,0 +1,10 @@
+diff --git a/mql5/Experts/AdaptiveExpertLabV1.mq5 b/mql5/Experts/AdaptiveExpertLabV1.mq5
+--- a/mql5/Experts/AdaptiveExpertLabV1.mq5
++++ b/mql5/Experts/AdaptiveExpertLabV1.mq5
+@@
+-   if(dt.minute!=0 || (dt.hour!=0 && dt.hour!=8)) return true;
++   if(dt.min!=0 || (dt.hour!=0 && dt.hour!=8)) return true;
+
+# V29.2 also adds a regression lint in tests/test_adaptive_expert_lab_static.py
+# that validates every referenced MqlDateTime member against the official
+# MQL5 contract: year, mon, day, hour, min, sec, day_of_week, day_of_year.
