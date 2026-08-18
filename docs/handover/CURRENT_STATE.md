@@ -19,21 +19,22 @@ V29.0 is BROKEN: Windows MetaEditor produced 100 errors / 50 warnings because fi
 
 V29.1 restored those helpers and fixed diagnostic packaging. Windows then produced exactly 1 error / 0 warnings: line 680 used `dt.minute` on `MqlDateTime`.
 
-Official `MqlDateTime` minute member is `min`, not `minute`. V29.2 fixes `dt.minute -> dt.min` and adds a release regression lint validating referenced `MqlDateTime` members against the standard field contract.
+Official `MqlDateTime` minute member is `min`, not `minute`. V29.2 fixes `dt.minute -> dt.min` and adds both a development member-contract lint and a user-machine source preflight before MetaEditor. The preflight verifies required helper definitions and rejects `.minute` before compile.
 
-Mandatory release QA now includes helper-definition consistency + standard-structure member lint + delimiter/FileWrite/safety + artifact integrity. Static QA is never represented as Windows compile evidence.
+Mandatory release QA now includes helper-definition consistency + standard-structure member lint + user-machine source preflight + delimiter/FileWrite/safety + artifact integrity. Static QA is never represented as Windows compile evidence.
 
 V29.2 local evidence:
-- pytest 14/14 PASS;
+- pytest 15/15 PASS;
 - analyzer/tests py_compile PASS;
 - MQL delimiter balance PASS;
 - helper consistency PASS;
 - MqlDateTime member-contract lint PASS;
+- runner source-preflight regression PASS;
 - safety scan PASS;
 - internal kit manifest 11/11 PASS;
-- ZIP integrity PASS.
+- ZIP integrity PASS; no cache artifacts.
 
-V29.2 release SHA-256: `7e74deeb41f7f573c39014454ea5b47f93d9c2bcdfe7a2882aa9c1e819782e5c`.
+V29.2 release SHA-256: `d6cb34f77724bb4c5c115259f196e61352150f35c55ad1b06629ab34b9060a63`.
 Patch: `recovery/v29_2_compile_hotfix.patch`.
 V29.0 and V29.1 must not be reused.
 
