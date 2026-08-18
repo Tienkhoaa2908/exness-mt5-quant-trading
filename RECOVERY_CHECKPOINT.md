@@ -20,16 +20,17 @@ V29.1 restored helpers and fixed diagnostic packaging. User Windows run then fai
 
 V29.2 corrects `dt.minute` to `dt.min` in `SignalSlowMomentum`. Official MQL5 `MqlDateTime` uses fields `year, mon, day, hour, min, sec, day_of_week, day_of_year`.
 
-Mandatory release QA added:
+Mandatory release QA now includes:
 - custom helper definition consistency;
 - standard MQL structure member contract lint, starting with `MqlDateTime`;
+- user-machine source preflight before MetaEditor for helper definitions and invalid `.minute` token;
 - delimiter/FileWrite/safety scans;
 - artifact manifest/ZIP integrity;
 - Windows MetaEditor 0/0 remains the first runtime acceptance gate.
 
-Static V29.2 evidence: pytest 14/14 PASS; analyzer/tests py_compile PASS; MQL balance PASS; helper consistency PASS; MqlDateTime contract PASS; safety scan PASS; internal kit manifest 11/11 PASS; ZIP integrity PASS.
+Static V29.2 evidence: pytest 15/15 PASS; analyzer/tests py_compile PASS; MQL balance PASS; helper consistency PASS; MqlDateTime contract PASS; runner preflight regression PASS; safety scan PASS; internal kit manifest 11/11 PASS; ZIP integrity PASS; no cache artifacts.
 
-V29.2 release SHA-256: `7e74deeb41f7f573c39014454ea5b47f93d9c2bcdfe7a2882aa9c1e819782e5c`.
+V29.2 release SHA-256: `d6cb34f77724bb4c5c115259f196e61352150f35c55ad1b06629ab34b9060a63`.
 Patch: `recovery/v29_2_compile_hotfix.patch`.
 V29.0 and V29.1 must not be reused.
 
