@@ -8,39 +8,31 @@ REAL-MONEY LIVE TRADING = FORBIDDEN. Stop-risk research ceiling 1.00%/trade. No 
 Không hiển thị code Python/tooling nội bộ nếu user không yêu cầu. Tooling chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, thao tác, lỗi và bước tiếp theo.
 
 ## V28 final decision
-Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a` contains V2 partial 671 rows + V3 partial 38 rows; last_error=0. Calendar extraction is CLOSED. Do not ask the user to export more calendar data.
+Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`. Calendar extraction is CLOSED. Do not ask user for more calendar/data exports.
 
-Later Mar-May 2026 confirmation without retuning:
-- base range Spearman mean ~0.60263;
-- event-aware ~0.60042;
-- incremental event uplift ~-0.00221.
+Later Mar-May 2026 without retuning:
+- frozen cross-asset range score mean Spearman ~0.60263;
+- event-aware ~0.60042; incremental calendar uplift ~-0.00221.
 
-Core ML range prediction survives strongly, but fixed scalar range->family routing does not.
+Core range prediction generalizes, but fixed scalar `range -> family` mapping fails. The old V28 low25 router is rejected and must NOT be run. Direction ML / trade meta-labeling remain unstable.
 
-The old V28 low25 mapping is rejected because later data reverses the conditional expectancy: EMA/router low25 is positive while high25 is negative. **Do not run the existing V28 replay kit.**
+## V29 frozen replay catalog
+12 candidates × 4 virtual books × 18 monthly accounting resets (Feb-2025 → Jul-2026):
+- controls: EMA skip20, MACD gap10, BOS/FVG gap8, Trend gap5, EMA+BOS8;
+- slow multi-horizon: 16h+24h agreement at server 00:00/08:00, 8h timebox, stop2ATR, TP4R, with/without peak-lock;
+- adaptive: EWMA hl8 threshold 0; hl8/10/12 threshold +0.05R; fast5-vs-slow20 divergence >=0.30R change-severity probe.
 
-Direction ML and trade meta-labeling remain too unstable for direct routing.
+Adaptive expert score updates use only normalized control-book realized R. State carries causally across all three six-month chunks. Runner retry restores the exact pre-chunk state; checkpoint reuse requires matching source/template/chunk fingerprint plus `adaptive_state_after.csv`.
 
-## V29 discovery
-New slow multi-horizon expert screening:
-- server 00:00 / 08:00 decisions;
-- 16h + 24h momentum direction agreement;
-- max hold 8h;
-- 2 ATR stop; TP4R;
-- M15 AvgR ~0.112 / 0.161 / 0.147 for 2024 / 2025 / 2026.
+Validated cross-asset range ML remains telemetry/state context but is not used as another hard fixed family gate in V29.
 
-Long M30 history shows regime dependence, including negative 2022 behavior. Treat as a shadow expert, not an always-on replacement.
+Static QA: pytest 11/11 PASS; analyzer py_compile PASS; delimiter/header/FileWrite-limit checks PASS; executable safety scan PASS. Windows MetaEditor/runtime pending.
 
-V29 should combine:
-- continuous cross-asset range state;
-- slow multi-horizon momentum expert;
-- existing EMA/BOS/MACD/Trend shadow experts;
-- changepoint severity controlling adaptation/forgetting rate;
-- nonstationary online expert allocation with switching/turnover/downside penalty.
-
-Generic fast-reversion or fixed CPD direction rules are not promoted.
+One-click release SHA-256: `a0a859b42052dca6592c04274b33bccf85ae986f0f235212458fc76eec0ded69`.
+Internal kit manifest 11/11 PASS; ZIP integrity PASS; no cache artifacts.
+Recovery copy is stored as `recovery/v29_adaptive_expert_lab_one_click.zip.b64` and can be base64-decoded back to the release ZIP.
 
 ## Next action
-No user action/data collection now. Finish V29 offline catalog and static QA first. Only then provide one MT5 Strategy Tester replay batch. Keep research branches draft/unmerged until evidence gates pass.
+User runs exactly one V29 Strategy Tester batch and uploads one result ZIP. If the replay gates pass, next endpoint is PAPER/DEMO forward validation. LIVE remains forbidden.
 
-Full analysis: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
+Full research freeze: `docs/research/2026-08-19_v29_adaptive_expert_lab_freeze.md`.
