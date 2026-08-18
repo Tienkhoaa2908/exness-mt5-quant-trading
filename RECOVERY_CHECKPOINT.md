@@ -1,30 +1,46 @@
-# Recovery checkpoint — V28 Event-Aware Regime Router
+# Recovery checkpoint — V29 Adaptive Change-Point + Multi-Horizon Expert
 
-Ngày: 2026-08-18.
+Ngày: 2026-08-19.
 
-REAL-MONEY LIVE TRADING = FORBIDDEN.
+REAL-MONEY LIVE TRADING = FORBIDDEN. Stop-risk research ceiling 1.00%/trade. No native broker orders.
 
 ## User-facing requirement
-Không hiển thị code Python/tooling nội bộ nếu user không yêu cầu. Tooling phải chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, hướng dẫn và lỗi.
+Không hiển thị code Python/tooling nội bộ nếu user không yêu cầu. Tooling chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, thao tác, lỗi và bước tiếp theo.
 
-## V28 research state
-V27 recovered calendar: 24,085 rows, recovery ZIP SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`.
+## V28 final decision
+Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a` contains V2 partial 671 rows + V3 partial 38 rows; last_error=0. Calendar extraction is CLOSED. Do not ask the user to export more calendar data.
 
-Event-aware model:
-- 13 OOS months Feb-2025 → Feb-2026;
-- LightGBM event-aware future-range Spearman ~0.5493, 13/13 positive;
-- paired uplift vs price/cross-asset base +0.01210 with bootstrap 95% CI above zero;
-- direction remains weak; mechanical families retain Long/Short ownership.
+Later Mar-May 2026 confirmation without retuning:
+- base range Spearman mean ~0.60263;
+- event-aware ~0.60042;
+- incremental event uplift ~-0.00221.
 
-Only low-range quartile 0.25 is pre-registered for V28 stateful routing. V28 replay kit static QA 6/6 PASS; runtime pending.
+Core ML range prediction survives strongly, but fixed scalar range->family routing does not.
 
-## USD later-confirmation top-up
-V1 output SHA-256 `e7ca5d14200f89a3c11d8b49144ddd33c9f9d69654e55bf84912472a91fda337`: 6/6 hashes PASS, MetaEditor 0/0, but partial only. 304 rows, one successful chunk, five 5401 timeouts, coverage only March 2026.
+The old V28 low25 mapping is rejected because later data reverses the conditional expectancy: EMA/router low25 is positive while high25 is negative. **Do not run the existing V28 replay kit.**
 
-Do not score Mar-Jul confirmation from V1.
+Direction ML and trade meta-labeling remain too unstable for direct routing.
 
-V2 resumes 2026-04-01 using 1-day chunks and strict completeness gate. Static QA 6/6 PASS. Release SHA-256 `e3aaa4d09dc2a23480006426c3ce86fd802c05853ae72eb71a47bb6969f34de6`.
+## V29 discovery
+New slow multi-horizon expert screening:
+- server 00:00 / 08:00 decisions;
+- 16h + 24h momentum direction agreement;
+- max hold 8h;
+- 2 ATR stop; TP4R;
+- M15 AvgR ~0.112 / 0.161 / 0.147 for 2024 / 2025 / 2026.
 
-On V2 upload: verify full coverage, merge with March V1, dedupe, score later-period model without retuning threshold 0.25, then run V28 MT5 replay only if confirmation survives.
+Long M30 history shows regime dependence, including negative 2022 behavior. Treat as a shadow expert, not an always-on replacement.
 
-Stop-risk ceiling remains 1.00%/trade. No native broker orders.
+V29 should combine:
+- continuous cross-asset range state;
+- slow multi-horizon momentum expert;
+- existing EMA/BOS/MACD/Trend shadow experts;
+- changepoint severity controlling adaptation/forgetting rate;
+- nonstationary online expert allocation with switching/turnover/downside penalty.
+
+Generic fast-reversion or fixed CPD direction rules are not promoted.
+
+## Next action
+No user action/data collection now. Finish V29 offline catalog and static QA first. Only then provide one MT5 Strategy Tester replay batch. Keep research branches draft/unmerged until evidence gates pass.
+
+Full analysis: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
