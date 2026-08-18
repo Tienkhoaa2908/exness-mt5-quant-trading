@@ -3,38 +3,45 @@
 ## Trạng thái đã xác nhận
 
 - MetaTrader 5 và MetaEditor trên Windows hoạt động.
-- Broker: Exness Technologies Ltd.
+- Broker nghiên cứu: Exness Technologies Ltd.
 - Symbol gold của account nghiên cứu: `XAUUSDm`.
 - Timeframe chính: M15.
-- Strategy Tester dùng generated `Every tick` cho long screening; real-tick gate được dùng riêng để kiểm tra fidelity khi coverage cho phép.
+- Long screening dùng generated `Every tick`; real-tick fidelity gate được chạy riêng khi coverage cho phép.
 - REAL-MONEY LIVE TRADING bị cấm.
 
-## Chạy Multi-Factor Edge Lab V1
+## Chạy Signal Intelligence Lab V1 (V22)
 
 1. Đóng hoàn toàn MT5 trước khi chạy.
-2. Lấy V21 one-click kit hoặc clean clone GitHub.
-3. Nếu là clean clone, root CMD sẽ tự giải nén `recovery/v21_impl_payload.zip` nếu source/scripts chưa có.
-4. Double-click `RUN_MULTI_FACTOR_EDGE_LAB_V1.cmd`.
-5. Runner tự tìm MT5 data folder tương ứng với `C:\Program Files\MetaTrader 5\terminal64.exe`.
-6. MetaEditor phải compile `MultiFactorEdgeLabV1.mq5` với 0 errors / 0 warnings; nếu không runner dừng.
-7. Runner chạy ba chunk sáu tháng, có heartbeat/watchdog/retry/checkpoint.
-8. Khi hoàn tất, Desktop có một file ZIP dạng `mt5_quant_multi_factor_edge_lab_v1_YYYYMMDD_HHMMSS.zip`.
-9. Chỉ upload ZIP đó vào chat. Không cần gửi từng screenshot.
+2. Giải nén V22 one-click kit vào một thư mục bình thường trên Windows.
+3. Double-click `RUN_SIGNAL_INTELLIGENCE_LAB_V1.cmd`.
+4. Runner tự tìm MT5 data folder tương ứng với `C:\Program Files\MetaTrader 5\terminal64.exe`.
+5. MetaEditor phải compile `SignalIntelligenceLabV1.mq5` với 0 errors / 0 warnings; nếu compile fail thì runner dừng và giữ evidence.
+6. Runner chạy ba chunk sáu tháng, có heartbeat, bounded watchdog, broker-unavailable detection, một retry, checkpoint reuse và Common Files recovery.
+7. Khi hoàn tất, Desktop có đúng một output ZIP dạng `mt5_quant_signal_intelligence_lab_v1_YYYYMMDD_HHMMSS.zip`.
+8. Chỉ upload ZIP đó vào chat. Không cần gửi từng screenshot hay từng CSV riêng.
 
-Runner không chứa password/token. Nếu không truyền `-Login`, terminal dùng account/session MT5 hiện tại. `AllowLiveTrading=0`, `AllowDllImport=0`, EA có tester guard và không có native/external broker order path.
+## Safety contract của runner
+
+- Template có `AllowLiveTrading=0` và `AllowDllImport=0`.
+- EA có `MQL_TESTER` guard.
+- Lab dùng virtual books; không có `OrderSend`, không `CTrade`, không native/external broker order path.
+- Runner không chứa password/token/secret và không hard-code login account.
+- Stop-risk research ceiling vẫn là 1.00%/trade.
 
 ## Khi runner lỗi
 
-Không force-kill rồi xóa evidence ngay. Runner đã có diagnostic/checkpoint logic. Nếu chunk fail sau retry, giữ màn hình lỗi và checkpoint; không chuyển sang live/manual order.
+Không chuyển sang manual/live order để “test nhanh”. Giữ checkpoint/log/diagnostic evidence. Runner đã có bounded watchdog và retry; nếu vẫn fail thì package diagnostic hoặc upload output/error artifact hiện có để phân tích.
 
-## Native parity
+## Sau V22
 
-Multi-Factor Edge Lab V1 chỉ là virtual screening. Nếu có finalist:
-- viết native finalist riêng;
-- kiểm tra dynamic trade session;
-- xác minh account mode Netting/Hedging;
-- kiểm tra retcode;
-- stress spread/delay/cost;
-- chỉ PAPER/DEMO sau safety gates.
+Signal Intelligence Lab V1 chỉ là virtual screening. Candidate chỉ được xem là finalist nếu cải thiện joint return / AvgR / DD / turnover / regime stability và không phải do một vài tháng outlier.
+
+Finalist sau đó phải qua:
+- native MT5 parity;
+- dynamic broker-session handling;
+- Netting/Hedging account-mode correctness;
+- spread/delay/cost stress;
+- forward/holdout validation;
+- PAPER/DEMO sau safety gates.
 
 LIVE vẫn cấm.

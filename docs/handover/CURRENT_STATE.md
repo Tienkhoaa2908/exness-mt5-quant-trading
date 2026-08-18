@@ -1,86 +1,60 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Ngày cập nhật: 2026-08-16.
+Cập nhật: 2026-08-16.
 
 ## Safety invariant
 
 REAL-MONEY LIVE TRADING = FORBIDDEN.
 
-Không Martingale, uncontrolled grid, doubling after loss. Stop-risk research ceiling hiện tại 1.00%/trade. Virtual lab không được deploy trực tiếp.
+Không Martingale, uncontrolled grid, doubling after loss. Stop-risk research ceiling 1.00%/trade. Virtual lab không deploy trực tiếp.
 
-## Broker / tester
+## Research environment
 
 - Broker research: Exness Technologies Ltd.
 - Symbol: `XAUUSDm`.
 - Main timeframe: M15.
-- Windows MT5 + MetaEditor hoạt động.
-- Long screening dùng generated Every Tick; real-tick fidelity gate tách riêng khi coverage phù hợp.
-- Current observed account mode có constraint Netting cần xử lý nếu sau này native partial exit.
+- Long screening: generated Every Tick; real-tick fidelity gate tách riêng khi coverage phù hợp.
+- 18 full monthly resets: 2025-02 đến 2026-07.
+- Account-mode constraint Netting vẫn cần xử lý nếu sau này native partial exit.
 
-## Milestone đã hoàn thành
+## Milestone evidence
 
-### Profit Protection Lab V1
+### Profit Protection V1
+EMA peak-lock 50% peak sau +1R, TP4R: median USD40@1% khoảng +6.32%/tháng, max MTM DD khoảng 9.02%.
 
-Peak-lock exit virtual champion:
-- initial stop 2 ATR;
-- TP4R;
-- sau +1R bảo vệ 50% peak R.
+### Opportunity Fusion V1
+Không promote. Fusion tăng turnover/churn nhanh hơn expectancy.
 
-EMA USD40@1% median monthly return ~+6.32%, max MTM DD ~9.02%, và loại bỏ failure mode MFE>=1R nhưng realized<=0R trong sample.
+### Churn Control V1
+Generic cooldown/rearm không beat EMA control.
 
-### Opportunity Fusion Lab V1
+### Multi-Factor Edge V1
+Không có family mới vượt EMA robustly; hard quality gates over-filter. BB+RSI zero-signal và streak guard V21 không exercise đúng hypothesis.
 
-Không promote. Fusion tăng turnover/churn mạnh nhưng giảm robust monthly return.
+### Signal Intelligence V1 / V22 — COMPLETE
+ZIP runtime SHA-256 `abd57669020f2e30c0811b7cc27a21779f32c60e0af35f56d8de32e2a54ccd03`, 22/22 internal hashes PASS, MetaEditor 0 errors/0 warnings, 18 months complete, tester-only và external broker orders = 0.
 
-### Churn Control Lab V1
+EMA base vẫn median +6.3236%, 13/18 tháng dương, worst -4.5875%, max MTM DD 9.0171%.
 
-Uploaded ZIP SHA-256: `2579e7806855bdb608cdc9f3987699ad625bf94dd9494467cea6e388ccd5a9ba`.
-Integrity 22/22 PASS. MetaEditor 0 errors / 0 warnings. 18 months complete.
+V22 conclusions:
+- score3/score4 không discriminate đủ;
+- global exhaustion guard đã exercise nhưng làm EMA median giảm;
+- meta-labeling LR/GBDT trên telemetry không generalize (AUC gần 0.5);
+- regime shift 2025->2026 là vấn đề chính;
+- EMA server-hour 20-23 là pathology ổn định;
+- H1 EMA50-EMA200 separation đáng test như family-specific regime proxy cho MACD/Trend/BOS.
 
-Không có generic cooldown/re-arm nào beat `ema_h1_control` median +6.3236%.
+Chi tiết evidence: `docs/research/2026-08-16_signal_intelligence_lab_v1_analysis.md`.
 
-Failure mode mới được định nghĩa rõ:
-- sau hai profitable trades cùng hướng, trade cùng hướng thứ ba yếu hơn;
-- riêng rapid SHORT third-entry <=4h có loss-rate ~53.7% và average R âm;
-- do đó generic cooldown bị thay bằng targeted streak-exhaustion guard.
+## Gate kế tiếp — V23
 
-## Gate kế tiếp
-
-`Multi-Factor Edge Lab V1`.
-
-Một lần chạy:
-- 8 signal families;
-- 4 filter variants/family;
-- 32 candidates;
-- 4 books/candidate;
-- 128 virtual books trên cùng tick stream;
-- 18 independent monthly resets;
+`Regime Router Lab V1`:
+- 26 candidates;
+- 4 books/candidate = 104 virtual books;
+- 18 monthly resets;
 - 3 x six-month chunks;
 - một output ZIP.
 
-Families:
-EMA H1, Trend20 H1, RSI2 H1, MACD H1, Donchian55 H1, BB+RSI range reversion, liquidity sweep H1, BOS+FVG H1.
+Grid: EMA session + targeted short-exhaustion; MACD gap8/10; Trend gap3/5/8; BOS gap4/8/10; EMA+one và selective loose/balanced/strict routers.
 
-Variants:
-base, quality, quality+targeted streak guard, quality+streak+late-session ablation.
-
-## Evidence status của V21
-
-Source/runner/analyzer đã static-QA trong milestone này:
-- Python analyzer py_compile PASS;
-- pytest 7/7 PASS;
-- MQL brace/parenthesis balance PASS;
-- tester guard present;
-- không `OrderSend`, không `CTrade`;
-- 32-candidate catalog present;
-- 8 signal families present.
-
-**Windows MetaEditor compile/runtime V21 chưa PASS** cho đến khi user chạy one-click kit. Không fabricated evidence.
-
-## Recovery
-
-Remote GitHub trước milestone này là recovery mirror chưa chứa full local historical implementation. V21 clean-clone checkpoint lưu implementation tại `recovery/v21_impl_payload.zip`; root CMD tự materialize payload nếu `mql5/scripts` chưa có. Không claim full historical Git sync.
-
-## V21 one-click kit
-
-SHA-256: `ecb0d2acee3c30a2b5e61e79372f48b831a7a293b2957ee63717d74e88cf4c79`. Internal kit manifest: 17/17 PASS.
+V23 hiện chỉ có static QA. Windows MetaEditor/runtime V23 **chưa PASS** cho đến khi one-click kit chạy trên máy user.
