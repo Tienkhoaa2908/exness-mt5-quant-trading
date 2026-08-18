@@ -17,53 +17,40 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 - Tooling nội bộ phải chạy âm thầm. Yêu cầu này phải được giữ sau mọi recovery.
 
 ## V28 is closed
-Calendar extraction is CLOSED; do not request more data exports. Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`.
-
-Frozen-through-Feb cross-asset range model later Mar-May mean Spearman ~0.60263; event-aware ~0.60042, so incremental calendar uplift does not confirm. Core range model survives as continuous context.
-
-Fixed V28 low25 family routing is rejected because later expectancy reverses. Do NOT run `mt5_quant_v28_event_regime_replay_lab_one_click.zip`. Direct direction ML and EMA trade meta-labeling remain unstable.
-
-Full rejection report: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
+Calendar extraction is CLOSED; do not request more data exports. Core cross-asset range ML generalizes, but incremental calendar uplift and fixed scalar `range -> family` routing failed later confirmation. Do not run old V28 replay kit.
 
 ## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert Lab
-No more user data collection. Frozen replay catalog has 12 candidates × 4 books × 18 months.
+Frozen catalog remains 12 candidates × 4 books × 18 months. Candidate/risk/exit/adaptive rules are unchanged by compile hotfixes.
 
-Controls: EMA H1 skip20; MACD H1 gap10; BOS/FVG H1 gap8; Trend20 H1 gap5; EMA+BOS8 router.
+## Compile incidents — MUST READ / MUST NOT REPEAT
+V29.0 is BROKEN: Windows MetaEditor produced 100 errors / 50 warnings because refactor dropped five helper definitions while call sites remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. V29.0 also had a diagnostic-path bug. Never run it again.
 
-Slow-momentum controls: server 00:00/08:00 decisions; 16h+24h trailing-return directions agree; 8h timebox; stop2ATR; TP4R; with/without peak-lock.
+V29.1 restored those helpers and fixed diagnostic packaging. The user Windows run then produced exactly **1 error / 0 warnings**, and the diagnostic ZIP worked correctly. Exact compiler error: `AdaptiveExpertLabV1.mq5(680,10): error 256: undeclared identifier 'minute'`.
 
-Adaptive candidates: EWMA hl8 threshold 0; EWMA hl8/10/12 threshold +0.05R; fast5-vs-slow20 divergence >=0.30R change-severity probe with +0.05R minimum score.
+Root cause V29.1: `SignalSlowMomentum` used `dt.minute`, but official MQL5 `MqlDateTime` fields are `year, mon, day, hour, min, sec, day_of_week, day_of_year`; the correct minute field is `min`.
 
-Only normalized control-book realized R updates expert scores. Change severity alters adaptation speed only; mechanical experts own direction. Validated range ML remains context/telemetry, not a hard fixed router.
+V29.2 replaces `dt.minute` with `dt.min` and adds a regression lint that detects invalid `MqlDateTime` member names before packaging. Future release QA must include:
+- custom helper definition consistency;
+- known MQL standard-structure member contract checks, starting with `MqlDateTime`;
+- delimiter/FileWrite/safety checks;
+- artifact integrity;
+- Windows MetaEditor 0 errors / 0 warnings as the first runtime acceptance gate.
 
-Stateful runner: 3 sequential six-month chunks Feb-2025→Jul-2026; independent monthly PnL/risk resets; adaptive state carried across chunks; retry restores exact pre-chunk state; checkpoint reuse requires matching fingerprint plus adaptive-state snapshot; bar-feature export off.
+Do not call static QA compile evidence.
 
-## V29.0 Windows compile incident — MUST NOT REPEAT
-The first V29.0 kit is BROKEN and must not be run again. User Windows MetaEditor produced 100 errors / 50 warnings before Strategy Tester started.
-
-Root cause: the adaptive refactor retained calls to five shared runtime utility helpers but dropped their definitions: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. `ReadOne` caused the first large compiler cascade. A separate runner bug used `$MyInvocation.MyCommand.Path` inside the diagnostic function, which became null and prevented diagnostic ZIP creation.
-
-V29.1 fixes both root causes:
-- restores all five helper implementations from the previously Windows-compiled V28 implementation;
-- diagnostic and main runner root use stable `$PSScriptRoot`;
-- diagnostic format is V29-specific;
-- adds mandatory regression tests that runtime helper calls have definitions and that the diagnostic path does not depend on `$MyInvocation.MyCommand.Path`.
-
-Release-gate lesson: delimiter balance, FileWrite limits and safety scans are NOT sufficient compile QA. Future MQL releases must include helper-definition consistency/static symbol regression checks before packaging. Do not represent static QA as Windows compile evidence.
-
-V29.1 local QA:
-- pytest 13/13 PASS;
+V29.2 local QA:
+- pytest 14/14 PASS;
 - analyzer/tests py_compile PASS;
 - MQL delimiter balance PASS;
-- five required helper definitions each present exactly once;
-- no called custom helper missing relative to the previously Windows-compiled V28 base;
+- required helper definitions PASS;
+- `MqlDateTime` member-contract lint PASS;
 - executable safety scan PASS;
 - internal kit manifest 11/11 PASS;
 - ZIP integrity PASS.
 
-V29.1 release SHA-256: `b8176551870b218f47322bae72c7a78be2d0efde8eec7237dab91ab4f8aeb824`.
-Hotfix patch SHA-256: `c5f999e546b3aa67dbe704e9dbc90bf62510e2134aea4e8c3c44e5d759c0b65c`, stored at `recovery/v29_1_compile_hotfix.patch`.
-Windows MetaEditor 0/0 is still pending until the user runs V29.1.
+V29.2 release SHA-256: `7e74deeb41f7f573c39014454ea5b47f93d9c2bcdfe7a2882aa9c1e819782e5c`.
+V29.2 patch: `recovery/v29_2_compile_hotfix.patch`.
+V29.0 and V29.1 must not be reused.
 
 ## Next action after recovery
-Never ask the user to rerun V29.0. Give/run only V29.1, then require compile 0 errors / 0 warnings before Strategy Tester evidence is accepted. If V29.1 compiles, run the single 18-month stateful batch and analyze robustness against controls. If it passes, proceed to PAPER/DEMO forward validation. REAL-MONEY LIVE TRADING remains forbidden.
+Give/run only V29.2 in a fresh folder. First acceptance gate is Windows MetaEditor **0 errors / 0 warnings**. If compile passes, allow the single 18-month stateful Strategy Tester batch to complete. If robust replay gates pass, proceed to PAPER/DEMO forward validation only. REAL-MONEY LIVE TRADING remains forbidden.
