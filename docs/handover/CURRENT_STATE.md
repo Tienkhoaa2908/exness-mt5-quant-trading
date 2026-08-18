@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Ngày cập nhật: 2026-08-18.
+Ngày cập nhật: 2026-08-19.
 
 ## Safety invariant
 REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native broker orders trong research labs.
@@ -8,60 +8,65 @@ REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk 
 ## User-facing requirement — MUST PRESERVE
 Không hiển thị Python nội bộ, scratch/artifact-packaging code, tool payload hoặc implementation plumbing nếu user không yêu cầu. Tooling chạy âm thầm; user-visible chỉ cần kết luận/evidence/file/SHA/thao tác/lỗi/bước tiếp theo.
 
-## Current gate — V28 event-aware regime router
-V26 đã thu cross-asset bars + 17.7M XAU broker ticks. Low-TF M5/M15 và raw ticks hữu ích cho range/execution state nhưng không tạo stable direction alpha.
+## Data state
+- V26: cross-asset bars + 17.7M XAU broker ticks.
+- Low-TF M5/M15 and raw ticks add range/execution information but no stable direct-direction alpha.
+- V27 Economic Calendar recovery: SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, 24,085 rows.
+- V28 USD top-ups are partial but sufficient for later confirmation; calendar extraction is now CLOSED.
+- Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`: V2 partial 671 rows + V3 partial 38 rows, `last_error=0`.
+- Combined/deduped calendar: 25,017 values; USD coverage reaches 2026-06-15.
+- Do NOT request another calendar exporter from the user.
 
-V27 Economic Calendar recovery thành công: SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, manifest 5/5 PASS, 24,085 rows. Calendar alpha chính là USD high-impact event timing/proximity; surprise-heavy direct direction bị reject.
+## V28 later confirmation
+Frozen-through-Feb cross-asset range model scored Mar-May 2026 without retuning the 0.25 threshold.
 
-## V28 deep ML result
-Event-aware M30 price/cross-asset + USD event-family clocks, expanding walk-forward with 16h purge:
-- 13 OOS months Feb-2025 → Feb-2026;
-- 2h+4h LightGBM range score mean Spearman ~0.5493;
-- 13/13 months positive, worst ~0.3827;
-- paired base ~0.5376 vs event-aware ~0.5497;
-- paired uplift +0.01210; bootstrap 95% CI ~[+0.00455,+0.01923].
+Mean monthly future-range Spearman:
+- base price/cross-asset ~0.60263;
+- event-aware ~0.60042;
+- incremental calendar uplift ~-0.00221.
 
-Model benchmark on matched 4h task:
-- LightGBM ~0.5534 mean, min ~0.4020;
-- XGBoost ~0.5521;
-- CatBoost ~0.5470.
-Tree ensembles add only small statistically inconclusive uplift. Keep LightGBM primary.
+Conclusion: **range prediction generalizes strongly; incremental calendar uplift does not confirm in Mar-May.**
 
-DL screening: event-aware TCN improves versus price-only TCN but remains below LightGBM; PatchTransformer underperforms. Do not scale DL blindly.
+The fixed V28 low25 family mapping fails later confirmation:
+- `ema_h1_skip20` low25 AvgR ~+0.2704 vs high25 ~-0.3137;
+- `router_ema_bos8` low25 ~+0.3213 vs high25 ~-0.2445.
+This reverses the earlier low25->MACD premise.
 
-Macro surprise event study shows a separate short post-release impulse for selected growth/labor releases, mainly 15–60m, but sample sizes per event code are too small to promote into trading logic.
+**V28 fixed low25 replay is REJECTED. Do not ask the user to run `mt5_quant_v28_event_regime_replay_lab_one_click.zip`.**
 
-## V28 stateful replay hypothesis
-Only natural low-range quartile 0.25 is pre-registered.
+Direction ML remains modest (~0.529 / 0.514 / 0.520 AUC Mar/Apr/May) and family vetoes are unstable. EMA trade meta-labeler also fails confirmation (~0.516 combined AUC). ML must not own direct Buy/Sell.
 
-Trade-ledger screening:
-- EMA skip20 score<25% AvgR early ~-0.0365, later ~-0.0056;
-- EMA kept >=25% AvgR early ~+0.184, later ~+0.362;
-- MACD gap10 low quartile remains positive early ~+0.662 and later ~+0.286.
+Full report: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
 
-Hard five-band family winner routing overfits and is rejected.
+## V29 orthogonal-alpha discovery
+A new slow multi-horizon expert has promising screening evidence from existing MT5 bars:
+- server decisions at 00:00 and 08:00 only;
+- 16h + 24h trailing-return direction agreement;
+- 8h maximum hold;
+- 2 ATR stop; TP4R.
 
-Pre-registered controls: ema_h1_base, ema_h1_skip20, router_ema_bos8, router_ema_macd10, macd_h1_gap10, bos_fvg_h1_gap8.
-Event routes: event_ema_skip20_low25_veto, event_low25_macd10_else_ema, event_low25_bos8_else_ema, event_low25_macd10_else_ema_bos8.
+M15 screening AvgR:
+- 2024 ~+0.112R;
+- 2025 ~+0.161R;
+- 2026 ~+0.147R.
 
-Local V28 replay kit static QA 6/6 PASS; ZIP SHA-256 `c9797419fce3b212e85061bd6652d8972589037f2b38c07fe26c4278a62cd829`. Windows runtime pending.
+But longer M30 history proves regime dependence: stressed raw expectancy is negative in 2022-2023 and positive from 2024 onward. It is an orthogonal expert, not an always-on replacement.
 
-## USD calendar later-confirmation top-up
-V1 user runtime ZIP SHA-256 `e7ca5d14200f89a3c11d8b49144ddd33c9f9d69654e55bf84912472a91fda337`:
-- bundle manifest 6/6 PASS;
-- MetaEditor 0/0;
-- only 304 rows;
-- 1/6 chunks succeeded, 5 failed with ERR_CALENDAR_TIMEOUT=5401;
-- actual coverage only 2026-03-02 → 2026-03-31;
-- status partial, therefore NOT valid Mar-Jul confirmation.
+## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert
+Do not collect more user data now.
 
-V2 hotfix resumes at 2026-04-01 with 1-day chunks, 5 bounded retries/day, hard watchdog 45m, idle watchdog 5m. Runner refuses PASS unless USD coverage status=ok and failed_chunks=0. Static QA 6/6 PASS. Release SHA-256 `e3aaa4d09dc2a23480006426c3ce86fd802c05853ae72eb71a47bb6969f34de6`.
-
-Do not retune threshold 0.25 on this later period before scoring.
+Architecture direction:
+1. keep ML range score continuous;
+2. add slow 16h/24h momentum expert;
+3. keep EMA/BOS/MACD/Trend as shadow experts;
+4. use change-point severity to alter forgetting/adaptation speed, not hard direction;
+5. use nonstationary online expert allocation with switching/turnover/downside penalties;
+6. fast-reversion remains experimental because generic shock fading is nonstationary;
+7. freeze candidate catalog offline, then give user one MT5 replay batch only.
 
 ## Validation discipline
-- Chronological walk-forward; no random CV.
-- No same-sample threshold tuning as confirmation.
-- Partial Aug-2026 has already been inspected in prior work; not pristine for tuning.
-- Any finalist must return to MT5 tick-level replay before promotion.
-- Do not merge research branches into `main` until gate evidence is sufficient.
+- chronological walk-forward only; no random CV;
+- no same-sample threshold promotion;
+- partial Aug-2026 was already inspected and is not pristine for tuning;
+- new V29 signals are screening until Strategy Tester/tick-level replay;
+- do not merge research branches into `main` until corresponding evidence gate passes.
