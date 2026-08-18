@@ -29,14 +29,16 @@ Economic Calendar exporter V27.2 compile PASS 0 errors / 0 warnings và progress
 
 Run dài bị hard watchdog trước khi hoàn tất toàn bộ lịch sử. Diagnostic gần nhất cho thấy đã tới CNY với khoảng 24k rows và 80 chunks, last_error=0. Đây là timeout của runner chứ không phải Calendar API failure.
 
-Một partial-recovery utility đã được tạo để thu hồi CSV hiện có trong MT5 Common Files mà không chạy lại exporter 90 phút.
+Partial recovery đầu tiên đọc đúng run và báo `calendar_values.csv` ~5.72 MB nhưng primary ZIP được ghi vào OneDrive Desktop và user không tìm thấy file sau đó. Vì vậy Desktop/OneDrive Desktop không còn được coi là authoritative output path.
 
-Screenshot user 2026-08-18 cho thấy recovery utility báo thành công:
-- recovered run `20260818_093825`;
-- `calendar_values.csv` ~5.72 MB;
-- output path được in là `C:\Users\welcome\OneDrive\Desktop\mt5_quant_calendar_PARTIAL_RECOVERY_20260818_141210.zip`.
+Recovery V2 hiện là bản phải dùng:
+- primary ZIP luôn được tạo trong `OUTPUT` ngay cạnh bộ recovery đã giải nén;
+- script bắt buộc verify file tồn tại, size > 0, ZIP mở được và SHA-256 tính được trước khi báo PASS;
+- ghi `OUTPUT_LOCATION.txt` cạnh CMD;
+- chỉ thử copy phụ sang Downloads/Desktop/OneDrive Desktop sau khi primary PASS;
+- Explorer mở thẳng primary artifact.
 
-Nếu user nói “không thấy file”, trước tiên phải kiểm tra **OneDrive Desktop** đúng path trên, không mặc định Desktop local.
+Recovery V2 release SHA-256: `04ef083f3600023d1ca0f929612590dd0925270950cd14b83add1ab2f279690f`.
 
 ## Latest completed strategy runtime — V25 ML Regime Replay
 
