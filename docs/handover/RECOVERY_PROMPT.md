@@ -28,44 +28,42 @@ Full rejection report: `docs/research/2026-08-19_v28_later_confirmation_router_r
 ## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert Lab
 No more user data collection. Frozen replay catalog has 12 candidates × 4 books × 18 months.
 
-Controls:
-- EMA H1 skip20;
-- MACD H1 gap10;
-- BOS/FVG H1 gap8;
-- Trend20 H1 gap5;
-- EMA+BOS8 router.
+Controls: EMA H1 skip20; MACD H1 gap10; BOS/FVG H1 gap8; Trend20 H1 gap5; EMA+BOS8 router.
 
-Slow-momentum controls:
-- server 00:00/08:00 decisions;
-- 16h+24h trailing-return directions must agree;
-- 8h timebox;
-- stop2ATR, TP4R;
-- no-peak-lock and peak-lock variants.
+Slow-momentum controls: server 00:00/08:00 decisions; 16h+24h trailing-return directions agree; 8h timebox; stop2ATR; TP4R; with/without peak-lock.
 
-Adaptive shadow-expert candidates:
-- EWMA hl8 threshold 0;
-- EWMA hl8 threshold +0.05R;
-- EWMA hl10 threshold +0.05R;
-- EWMA hl12 threshold +0.05R;
-- fast5-vs-slow20 divergence >=0.30R change-severity probe with +0.05R minimum score.
+Adaptive candidates: EWMA hl8 threshold 0; EWMA hl8/10/12 threshold +0.05R; fast5-vs-slow20 divergence >=0.30R change-severity probe with +0.05R minimum score.
 
-Only normalized control-book realized R updates expert scores. Change severity alters adaptation speed only; mechanical experts still own trade direction. Existing validated range ML remains context/telemetry and is not another fixed hard routing rule.
+Only normalized control-book realized R updates expert scores. Change severity alters adaptation speed only; mechanical experts own direction. Validated range ML remains context/telemetry, not a hard fixed router.
 
-Stateful runner requirements:
-- 3 sequential six-month chunks from Feb-2025 through Jul-2026;
-- independent monthly PnL/risk resets;
-- adaptive state carried across chunks;
-- every retry restores exact pre-chunk state;
-- reusable checkpoint must match source/template/chunk fingerprint and have adaptive-state snapshot;
-- bar-feature export off for speed.
+Stateful runner: 3 sequential six-month chunks Feb-2025→Jul-2026; independent monthly PnL/risk resets; adaptive state carried across chunks; retry restores exact pre-chunk state; checkpoint reuse requires matching fingerprint plus adaptive-state snapshot; bar-feature export off.
 
-Static QA: pytest 11/11 PASS; analyzer py_compile PASS; delimiter/header/FileWrite-limit/safety checks PASS. Internal kit manifest 11/11 PASS; ZIP integrity PASS. Windows MetaEditor/runtime pending.
+## V29.0 Windows compile incident — MUST NOT REPEAT
+The first V29.0 kit is BROKEN and must not be run again. User Windows MetaEditor produced 100 errors / 50 warnings before Strategy Tester started.
 
-Release SHA-256: `a0a859b42052dca6592c04274b33bccf85ae986f0f235212458fc76eec0ded69`.
-Recovery artifact: `recovery/v29_adaptive_expert_lab_one_click.zip.b64`; base64-decode to restore the exact release ZIP.
-Research freeze: `docs/research/2026-08-19_v29_adaptive_expert_lab_freeze.md`.
+Root cause: the adaptive refactor retained calls to five shared runtime utility helpers but dropped their definitions: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. `ReadOne` caused the first large compiler cascade. A separate runner bug used `$MyInvocation.MyCommand.Path` inside the diagnostic function, which became null and prevented diagnostic ZIP creation.
+
+V29.1 fixes both root causes:
+- restores all five helper implementations from the previously Windows-compiled V28 implementation;
+- diagnostic and main runner root use stable `$PSScriptRoot`;
+- diagnostic format is V29-specific;
+- adds mandatory regression tests that runtime helper calls have definitions and that the diagnostic path does not depend on `$MyInvocation.MyCommand.Path`.
+
+Release-gate lesson: delimiter balance, FileWrite limits and safety scans are NOT sufficient compile QA. Future MQL releases must include helper-definition consistency/static symbol regression checks before packaging. Do not represent static QA as Windows compile evidence.
+
+V29.1 local QA:
+- pytest 13/13 PASS;
+- analyzer/tests py_compile PASS;
+- MQL delimiter balance PASS;
+- five required helper definitions each present exactly once;
+- no called custom helper missing relative to the previously Windows-compiled V28 base;
+- executable safety scan PASS;
+- internal kit manifest 11/11 PASS;
+- ZIP integrity PASS.
+
+V29.1 release SHA-256: `b8176551870b218f47322bae72c7a78be2d0efde8eec7237dab91ab4f8aeb824`.
+Hotfix patch SHA-256: `c5f999e546b3aa67dbe704e9dbc90bf62510e2134aea4e8c3c44e5d759c0b65c`, stored at `recovery/v29_1_compile_hotfix.patch`.
+Windows MetaEditor 0/0 is still pending until the user runs V29.1.
 
 ## Next action after recovery
-Ask user to run only the V29 one-click Strategy Tester kit and upload its single output ZIP. Do not ask for more exporter runs. Analyze robustness against controls: return distribution, positive months, worst month, MTM DD, AvgR, turnover, source mix, slow-momentum yearly stability and early-vs-late adaptive stability.
-
-If V29 passes, proceed to PAPER/DEMO forward validation. REAL-MONEY LIVE TRADING remains forbidden.
+Never ask the user to rerun V29.0. Give/run only V29.1, then require compile 0 errors / 0 warnings before Strategy Tester evidence is accepted. If V29.1 compiles, run the single 18-month stateful batch and analyze robustness against controls. If it passes, proceed to PAPER/DEMO forward validation. REAL-MONEY LIVE TRADING remains forbidden.
