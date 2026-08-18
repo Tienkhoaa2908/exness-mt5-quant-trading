@@ -13,62 +13,64 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 ## Luật giao tiếp với user — MUST READ / MUST PRESERVE
 - User không muốn thấy code Python nội bộ, scratch code, code đóng gói artifact, tool payload hoặc implementation plumbing xuất hiện trước/sau câu trả lời.
 - Không trình bày code nội bộ chỉ vì tool đã chạy. Chỉ hiện code khi user chủ động yêu cầu xem code.
-- Phần trả lời user phải ưu tiên: DONE / EVIDENCE / DECISIONS / ISSUES / NEXT khi phù hợp; file tải/chạy; SHA-256; hướng dẫn thao tác; chẩn đoán cụ thể.
-- Tooling nội bộ phải chạy âm thầm. Không biến private/internal implementation details thành output user-facing.
-- Đây là yêu cầu trực tiếp của user ngày 2026-08-18 và phải được giữ sau mọi recovery.
+- Phần trả lời user ưu tiên DONE / EVIDENCE / DECISIONS / ISSUES / NEXT khi phù hợp; file, SHA-256, thao tác và chẩn đoán.
+- Tooling nội bộ phải chạy âm thầm.
+- Yêu cầu này phải được giữ sau mọi recovery.
 
-## Current project gate
-V27 — MT5 Economic Calendar / event-aware ML-DL data gate.
+## V28 is CLOSED as a fixed-router hypothesis
+Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`:
+- V2 partial recovered: 671 rows;
+- V3 partial: 38 rows;
+- last_error=0;
+- combined calendar with prior V27/V1 data: 25,017 deduped values, USD coverage through 2026-06-15.
 
-Trạng thái hiện tại:
-- V26 historical MT5 export đã cung cấp cross-asset bars + 17.7M XAU broker ticks.
-- V26A cross-asset M30 range model có signal ổn định; direction chỉ modest.
-- V1.3 low-TF top-up lấy được M5/M15 nhưng không tạo stable direction alpha; không tiếp tục M1 nếu chưa có evidence mới.
-- V27 chuyển sang Economic Calendar vì schedule/event timing là data orthogonal hơn cho XAU.
+Do NOT ask the user for another Economic Calendar export. Enough data exists for later confirmation.
 
-## V27 recovery COMPLETE
+Later Mar-May confirmation, without retuning 0.25:
+- base range model mean Spearman ~0.60263;
+- event-aware ~0.60042;
+- calendar incremental uplift ~-0.00221.
 
-Recovery V2 user upload SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, internal manifest 5/5 PASS, 24,085 calendar rows (~5.72 MB).
+Interpretation: the core cross-asset range model generalizes; incremental calendar uplift does not persist.
 
-CSV defect: 68 rows có `event_name` chứa comma nhưng exporter chưa CSV-escape đúng, tạo 28 fields thay vì 27. Offline parser repair bằng cách nối lại split `event_name`; không drop data. Nếu sửa exporter sau này phải quote/escape string fields.
+Fixed low25 V28 routing is REJECTED:
+- EMA skip20 low25 later AvgR ~+0.2704, high25 ~-0.3137;
+- router EMA+BOS8 low25 ~+0.3213, high25 ~-0.2445.
+This reverses the earlier low25->MACD hypothesis.
 
-Calendar coverage partial do historical timeout; event-aware modeling chỉ dùng continuous major-currency segment mid-2024 → Feb-2026.
+**Do not run or ask the user to run `mt5_quant_v28_event_regime_replay_lab_one_click.zip`.**
 
-## V27 event-aware ML evidence
+Direction classifier remains modest and family veto unstable. EMA meta-labeler also fails later confirmation. ML/calendar do not own direct Buy/Sell.
 
-Chronological expanding walk-forward, purge 16h, test Aug-2025 → Feb-2026:
-- baseline price/cross-asset range Spearman ~0.5028;
-- combined price + calendar ~0.5285;
-- uplift ~+0.0257, combined beat baseline 7/7 months;
-- calendar-only ~0.3676 and positive 7/7.
+Full report: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
 
-Ablation is decisive for research direction:
-- baseline + all schedule/proximity ~0.5269;
-- baseline + USD schedule/proximity only ~0.5278;
-- baseline + non-USD schedule ~0.5004;
-- baseline + actual/forecast surprise ~0.5008.
+## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert
+No more user data collection now. Work offline until a single replay catalog is frozen.
 
-Interpretation: **USD high-impact event schedule/proximity is useful as a future-range/regime clock. Actual-vs-forecast surprise does not add stable range value here.**
+Promising new expert screening:
+- decisions at server 00:00 and 08:00;
+- 16h and 24h trailing-return directions agree;
+- 8h maximum hold;
+- 2 ATR stop; TP4R;
+- M15 AvgR ~+0.112R in 2024, +0.161R in 2025, +0.147R in 2026.
 
-Direction remains weak:
-- baseline direction AUC ~0.5246;
-- combined calendar AUC ~0.5171.
-Do not let ML/calendar own Buy/Sell direction.
+Longer M30 history shows this expert is regime-dependent: negative in 2022, near flat in 2023, stronger from 2024 onward. Never promote it as always-on from screening alone.
 
-Trade-ledger join is screening only and rejects a global news blackout. Family behavior differs; calendar score should route/abstain family-specifically.
+V29 architecture:
+1. validated continuous ML range score remains state/context only;
+2. add slow multi-horizon momentum as a separate shadow expert;
+3. EMA/BOS/MACD/Trend remain shadow experts;
+4. changepoint severity should control forgetting/adaptation speed, not hard direction;
+5. use online expert tracking / switching-cost-aware allocation and downside/turnover penalties;
+6. generic fast shock reversion is not stable enough and remains experimental;
+7. perform offline screening first, then one Strategy Tester replay batch.
 
-Full report: `docs/research/2026-08-18_v27_event_aware_calendar_analysis.md`.
+Literature direction: Wood/Roberts/Zohren slow-momentum/fast-reversion + CPD; Adams/MacKay online changepoint detection; fixed-share/tracking-best-expert online learning; Deep Momentum Networks/Momentum Transformer. These are architecture references, not XAU performance evidence.
 
-## Next research rule
-- Freeze event-aware range/regime architecture around USD event schedule/proximity.
-- Do not add surprise-heavy macro features just because they are available.
-- Do not promote same-sample percentile/quintile thresholds.
-- Next meaningful test is later-period event-aware replay with thresholds frozen before evaluation, then MT5 tick-level replay of any finalist.
-
-## ML validation discipline
-- chronological walk-forward;
-- không random CV;
-- partial Aug-2026 đã inspect trong prior V26 work nên không còn pristine để tune;
-- ML/DL không được sở hữu direct Buy/Sell nếu chưa có stable OOS evidence;
-- model/routing finalist phải quay lại MT5 tick-level replay trước promotion;
-- LIVE vẫn forbidden.
+## Validation discipline
+- chronological walk-forward only;
+- no random CV;
+- no same-sample threshold promotion;
+- partial Aug-2026 already inspected, not pristine;
+- final V29 candidate must return to MT5 tick-level replay before promotion;
+- LIVE remains forbidden.

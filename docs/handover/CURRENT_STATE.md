@@ -1,78 +1,72 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Ngày cập nhật: 2026-08-18.
+Ngày cập nhật: 2026-08-19.
 
 ## Safety invariant
+REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native broker orders trong research labs.
 
-REAL-MONEY LIVE TRADING = FORBIDDEN.
+## User-facing requirement — MUST PRESERVE
+Không hiển thị Python nội bộ, scratch/artifact-packaging code, tool payload hoặc implementation plumbing nếu user không yêu cầu. Tooling chạy âm thầm; user-visible chỉ cần kết luận/evidence/file/SHA/thao tác/lỗi/bước tiếp theo.
 
-Không Martingale, uncontrolled grid, doubling after loss. Stop-risk research ceiling 1.00%/trade. Virtual lab/ML prediction không được deploy trực tiếp.
+## Data state
+- V26: cross-asset bars + 17.7M XAU broker ticks.
+- Low-TF M5/M15 and raw ticks add range/execution information but no stable direct-direction alpha.
+- V27 Economic Calendar recovery: SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, 24,085 rows.
+- V28 USD top-ups are partial but sufficient for later confirmation; calendar extraction is now CLOSED.
+- Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`: V2 partial 671 rows + V3 partial 38 rows, `last_error=0`.
+- Combined/deduped calendar: 25,017 values; USD coverage reaches 2026-06-15.
+- Do NOT request another calendar exporter from the user.
 
-## User-facing interaction requirement — MUST PRESERVE
+## V28 later confirmation
+Frozen-through-Feb cross-asset range model scored Mar-May 2026 without retuning the 0.25 threshold.
 
-- Không hiển thị code Python nội bộ, code dùng để đóng gói artifact, tool-call payload, scratch code hoặc implementation plumbing trước/sau câu trả lời nếu user không yêu cầu xem code.
-- Phần user-visible chỉ nên đưa: kết luận, evidence, file tải/chạy, SHA-256, hướng dẫn thao tác, lỗi cần xử lý và bước tiếp theo.
-- Khi cần dùng Python/tool để tạo artifact, chạy âm thầm bằng tool; không biến code nội bộ đó thành nội dung hữu ích giả cho user.
-- Yêu cầu này phải được giữ ở mọi phiên recovery sau.
+Mean monthly future-range Spearman:
+- base price/cross-asset ~0.60263;
+- event-aware ~0.60042;
+- incremental calendar uplift ~-0.00221.
 
-## Current data/ML gate — V27 Economic Calendar
+Conclusion: **range prediction generalizes strongly; incremental calendar uplift does not confirm in Mar-May.**
 
-V26/V27 research đã đi qua các mốc chính:
-- V26 MT5 data export runtime integrity PASS; 876k+ bars và 17.7M XAUUSDm broker ticks đã thu được.
-- Cross-asset M30 LightGBM range-regime signal ổn định; direct direction vẫn chỉ modest.
-- V1.3 low-TF top-up lấy được XAU M5/M15 + context M5; low-TF tăng range-regime information nhưng không tạo stable direction alpha; không tiếp tục xin thêm M1 lúc này.
-- Chuyển sang MT5 Economic Calendar vì đây là data orthogonal hơn cho XAU.
+The fixed V28 low25 family mapping fails later confirmation:
+- `ema_h1_skip20` low25 AvgR ~+0.2704 vs high25 ~-0.3137;
+- `router_ema_bos8` low25 ~+0.3213 vs high25 ~-0.2445.
+This reverses the earlier low25->MACD premise.
 
-## V27.2 calendar runtime / recovery state
+**V28 fixed low25 replay is REJECTED. Do not ask the user to run `mt5_quant_v28_event_regime_replay_lab_one_click.zip`.**
 
-Economic Calendar exporter V27.2 compile PASS 0 errors / 0 warnings và progress thực sự chạy qua nhiều currencies/chunks.
+Direction ML remains modest (~0.529 / 0.514 / 0.520 AUC Mar/Apr/May) and family vetoes are unstable. EMA trade meta-labeler also fails confirmation (~0.516 combined AUC). ML must not own direct Buy/Sell.
 
-Run dài bị hard watchdog trước khi hoàn tất toàn bộ lịch sử. Diagnostic gần nhất cho thấy đã tới CNY với khoảng 24k rows và 80 chunks, last_error=0. Đây là timeout của runner chứ không phải Calendar API failure.
+Full report: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
 
-Partial recovery đầu tiên đọc đúng run và báo `calendar_values.csv` ~5.72 MB nhưng primary ZIP được ghi vào OneDrive Desktop và user không tìm thấy file sau đó. Vì vậy Desktop/OneDrive Desktop không còn được coi là authoritative output path.
+## V29 orthogonal-alpha discovery
+A new slow multi-horizon expert has promising screening evidence from existing MT5 bars:
+- server decisions at 00:00 and 08:00 only;
+- 16h + 24h trailing-return direction agreement;
+- 8h maximum hold;
+- 2 ATR stop; TP4R.
 
-Recovery V2 đã thành công. User upload SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, internal manifest 5/5 PASS, recovered 24,085 calendar rows.
+M15 screening AvgR:
+- 2024 ~+0.112R;
+- 2025 ~+0.161R;
+- 2026 ~+0.147R.
 
-CSV QA: 68 rows có dấu phẩy chưa được escape trong `event_name`, tạo 28 fields thay vì 27. Đã repair deterministically offline bằng cách nối lại field `event_name`; không drop row. Future exporter phải quote/escape text field đúng chuẩn CSV.
+But longer M30 history proves regime dependence: stressed raw expectancy is negative in 2022-2023 and positive from 2024 onward. It is an orthogonal expert, not an always-on replacement.
 
-## V27 event-aware ML result
+## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert
+Do not collect more user data now.
 
-Dùng continuous major-currency calendar region từ mid-2024, chronological expanding walk-forward, purge 16h, test Aug-2025 → Feb-2026 (7 monthly folds):
-
-- price/cross-asset baseline range Spearman ~0.5028;
-- calendar-only ~0.3676, dương 7/7 tháng;
-- combined price + calendar ~0.5285, dương 7/7;
-- mean uplift vs baseline ~+0.0257 Spearman; combined beat baseline 7/7 months;
-- paired t-test p ~0.0106, Wilcoxon p ~0.0156, nhưng n=7 và đây vẫn là screening.
-
-Ablation:
-- baseline + all schedule/proximity ~0.5269;
-- baseline + **USD schedule/proximity only** ~0.5278;
-- baseline + non-USD schedule ~0.5004;
-- baseline + actual/forecast surprise block ~0.5008.
-
-Kết luận: giá trị calendar chủ yếu nằm ở **USD high-impact event clock** (`minutes to/since`, event counts upcoming), không nằm ở surprise-heavy macro direction.
-
-Direction không được cải thiện:
-- baseline AUC ~0.5246;
-- combined ~0.5171.
-
-Do đó mechanical strategy family vẫn sở hữu Long/Short; calendar/ML chỉ làm range-regime routing/abstention.
-
-Trade-ledger screening cho thấy không dùng blanket `no trade near news`: EMA/BOS/Trend phản ứng khác nhau theo regime/event timing. Any quintile/threshold derived from this sample is hypothesis-only until later replay.
-
-Full analysis: `docs/research/2026-08-18_v27_event_aware_calendar_analysis.md`.
-
-## Latest completed strategy runtime — V25 ML Regime Replay
-
-Output ZIP SHA-256 `baff90eccfaac70abaa15b30d6132c535160e2b8ab96b65fd290cba968754078`.
-
-V25 xác nhận ML range score có giá trị chủ yếu như regime/abstention layer: cải thiện AvgR, DD và turnover nhưng chưa tạo return uplift statistically decisive. Không dùng ML trực tiếp làm Buy/Sell owner.
+Architecture direction:
+1. keep ML range score continuous;
+2. add slow 16h/24h momentum expert;
+3. keep EMA/BOS/MACD/Trend as shadow experts;
+4. use change-point severity to alter forgetting/adaptation speed, not hard direction;
+5. use nonstationary online expert allocation with switching/turnover/downside penalties;
+6. fast-reversion remains experimental because generic shock fading is nonstationary;
+7. freeze candidate catalog offline, then give user one MT5 replay batch only.
 
 ## Validation discipline
-
-- Chronological walk-forward; không random CV.
-- Không gọi same-sample threshold tuning là confirmation.
-- Partial Aug-2026 đã được nhìn thấy trong V26 screening, nên không còn pristine để tune tiếp.
-- Bất kỳ model/routing mới nào vẫn phải quay lại MT5 tick-level replay trước promotion.
-- Không merge research branches vào `main` cho tới khi gate tương ứng đạt evidence cần thiết.
+- chronological walk-forward only; no random CV;
+- no same-sample threshold promotion;
+- partial Aug-2026 was already inspected and is not pristine for tuning;
+- new V29 signals are screening until Strategy Tester/tick-level replay;
+- do not merge research branches into `main` until corresponding evidence gate passes.
