@@ -1,4 +1,4 @@
-# Recovery checkpoint — V29.1 Adaptive Expert Compile Hotfix
+# Recovery checkpoint — V29.2 Adaptive Expert Compile Gate
 
 Ngày: 2026-08-19.
 
@@ -8,27 +8,30 @@ REAL-MONEY LIVE TRADING = FORBIDDEN. Stop-risk research ceiling 1.00%/trade. No 
 Không hiển thị Python/tooling nội bộ nếu user không yêu cầu. Tooling chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, thao tác, lỗi và bước tiếp theo.
 
 ## V28 final decision
-Calendar extraction is CLOSED. Core cross-asset range ML generalizes, but incremental calendar uplift and fixed scalar `range -> family` routing fail later confirmation. Do not run the old V28 replay kit.
+Calendar extraction is CLOSED. Core cross-asset range ML generalizes, but incremental calendar uplift and fixed scalar `range -> family` routing failed later confirmation. Do not run old V28 replay kit.
 
 ## V29 catalog
-12 candidates × 4 virtual books × 18 monthly accounting resets, Feb-2025 → Jul-2026. Controls EMA/MACD/BOS/Trend/EMA+BOS8; slow 16h+24h momentum controls; adaptive realized-R EWMA/change-severity variants. Catalog/risk/exit logic unchanged by V29.1.
+12 candidates × 4 virtual books × 18 monthly accounting resets, Feb-2025 → Jul-2026. Controls EMA/MACD/BOS/Trend/EMA+BOS8; slow 16h+24h momentum controls; adaptive realized-R EWMA/change-severity variants. Catalog/risk/exit logic unchanged by compile hotfixes.
 
-## V29.0 compile incident
-The first V29.0 release is BROKEN and must never be reused. User Windows MetaEditor produced 100 errors / 50 warnings before Strategy Tester started.
+## Compile incident chain
+V29.0 is BROKEN and must never be reused. Windows MetaEditor: 100 errors / 50 warnings. Root cause: missing shared helper definitions after refactor; diagnostic path bug also prevented ZIP creation.
 
-Root cause: five utility helper definitions were dropped during refactor while calls remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. Diagnostic packaging also failed because `$MyInvocation.MyCommand.Path` was null inside the diagnostic function.
+V29.1 restored helpers and fixed diagnostic packaging. User Windows run then failed with exactly 1 error / 0 warnings: `AdaptiveExpertLabV1.mq5(680,10): undeclared identifier 'minute'`.
 
-## V29.1 fix and mandatory release gate
-- restore all five helpers from previously Windows-compiled V28 code;
-- use `$PSScriptRoot` for stable runner/diagnostic root;
-- regression-test required helper definitions before packaging;
-- retain delimiter/FileWrite/safety tests;
-- do not call static QA Windows compile evidence.
+V29.2 corrects `dt.minute` to `dt.min` in `SignalSlowMomentum`. Official MQL5 `MqlDateTime` uses fields `year, mon, day, hour, min, sec, day_of_week, day_of_year`.
 
-Static V29.1 evidence: pytest 13/13 PASS; analyzer/tests py_compile PASS; MQL balance PASS; all five helpers defined exactly once; custom helper consistency vs V28 compiled base PASS; safety scan PASS; internal kit manifest 11/11 PASS; ZIP integrity PASS.
+Mandatory release QA added:
+- custom helper definition consistency;
+- standard MQL structure member contract lint, starting with `MqlDateTime`;
+- delimiter/FileWrite/safety scans;
+- artifact manifest/ZIP integrity;
+- Windows MetaEditor 0/0 remains the first runtime acceptance gate.
 
-V29.1 release SHA-256: `b8176551870b218f47322bae72c7a78be2d0efde8eec7237dab91ab4f8aeb824`.
-Hotfix patch: `recovery/v29_1_compile_hotfix.patch`, SHA-256 `c5f999e546b3aa67dbe704e9dbc90bf62510e2134aea4e8c3c44e5d759c0b65c`.
+Static V29.2 evidence: pytest 14/14 PASS; analyzer/tests py_compile PASS; MQL balance PASS; helper consistency PASS; MqlDateTime contract PASS; safety scan PASS; internal kit manifest 11/11 PASS; ZIP integrity PASS.
+
+V29.2 release SHA-256: `7e74deeb41f7f573c39014454ea5b47f93d9c2bcdfe7a2882aa9c1e819782e5c`.
+Patch: `recovery/v29_2_compile_hotfix.patch`.
+V29.0 and V29.1 must not be reused.
 
 ## Next action
-Run only V29.1 in a fresh folder. First gate is Windows MetaEditor 0 errors / 0 warnings. If compile passes, run the one stateful Strategy Tester batch. If it passes robustness gates, proceed to PAPER/DEMO forward only. LIVE remains forbidden.
+Run only V29.2 in a fresh folder. First gate: Windows MetaEditor 0 errors / 0 warnings. If compile passes, run the one stateful 18-month Strategy Tester batch. If robustness gates pass, proceed to PAPER/DEMO forward only. LIVE remains forbidden.
