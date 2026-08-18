@@ -3,76 +3,53 @@
 Ngày cập nhật: 2026-08-18.
 
 ## Safety invariant
+REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native broker orders trong research labs.
 
-REAL-MONEY LIVE TRADING = FORBIDDEN.
+## User-facing requirement — MUST PRESERVE
+Không hiển thị Python nội bộ, scratch/artifact-packaging code, tool payload hoặc implementation plumbing nếu user không yêu cầu. Tooling chạy âm thầm; user-visible chỉ cần kết luận/evidence/file/SHA/thao tác/lỗi/bước tiếp theo.
 
-Không Martingale, uncontrolled grid, doubling after loss. Stop-risk research ceiling 1.00%/trade. Virtual lab/ML prediction không được deploy trực tiếp.
+## Current gate — V28 event-aware regime router
+V26 đã thu cross-asset bars + 17.7M XAU broker ticks. Low-TF M5/M15 và raw ticks hữu ích cho range/execution state nhưng không tạo stable direction alpha.
 
-## User-facing interaction requirement — MUST PRESERVE
+V27 Economic Calendar recovery thành công: SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, manifest 5/5 PASS, 24,085 rows. Calendar alpha chính là USD high-impact event timing/proximity; surprise-heavy direct direction bị reject.
 
-- Không hiển thị code Python nội bộ, code dùng để đóng gói artifact, tool-call payload, scratch code hoặc implementation plumbing trước/sau câu trả lời nếu user không yêu cầu xem code.
-- Phần user-visible chỉ nên đưa: kết luận, evidence, file tải/chạy, SHA-256, hướng dẫn thao tác, lỗi cần xử lý và bước tiếp theo.
-- Khi cần dùng Python/tool để tạo artifact, chạy âm thầm bằng tool; không biến code nội bộ đó thành nội dung hữu ích giả cho user.
-- Yêu cầu này phải được giữ ở mọi phiên recovery sau.
+## V28 deep ML result
+Event-aware M30 price/cross-asset + USD event-family clocks, expanding walk-forward with 16h purge:
+- 13 OOS months Feb-2025 → Feb-2026;
+- 2h+4h LightGBM range score mean Spearman ~0.5493;
+- 13/13 months positive, worst ~0.3827;
+- paired base ~0.5376 vs event-aware ~0.5497;
+- paired uplift +0.01210; bootstrap 95% CI ~[+0.00455,+0.01923].
 
-## Current data/ML gate — V27 Economic Calendar
+Model benchmark on matched 4h task:
+- LightGBM ~0.5534 mean, min ~0.4020;
+- XGBoost ~0.5521;
+- CatBoost ~0.5470.
+Tree ensembles add only small statistically inconclusive uplift. Keep LightGBM primary.
 
-V26/V27 research đã đi qua các mốc chính:
-- V26 MT5 data export runtime integrity PASS; 876k+ bars và 17.7M XAUUSDm broker ticks đã thu được.
-- Cross-asset M30 LightGBM range-regime signal ổn định; direct direction vẫn chỉ modest.
-- V1.3 low-TF top-up lấy được XAU M5/M15 + context M5; low-TF tăng range-regime information nhưng không tạo stable direction alpha; không tiếp tục xin thêm M1 lúc này.
-- Chuyển sang MT5 Economic Calendar vì đây là data orthogonal hơn cho XAU.
+DL screening: event-aware TCN improves versus price-only TCN but remains below LightGBM; PatchTransformer underperforms. Do not scale DL blindly.
 
-## V27.2 calendar runtime / recovery state
+Macro surprise event study shows a separate short post-release impulse for selected growth/labor releases, mainly 15–60m, but sample sizes per event code are too small to promote into trading logic.
 
-Economic Calendar exporter V27.2 compile PASS 0 errors / 0 warnings và progress thực sự chạy qua nhiều currencies/chunks.
+## V28 stateful replay hypothesis
+Only natural low-range quartile 0.25 is pre-registered.
 
-Run dài bị hard watchdog trước khi hoàn tất toàn bộ lịch sử. Diagnostic gần nhất cho thấy đã tới CNY với khoảng 24k rows và 80 chunks, last_error=0. Đây là timeout của runner chứ không phải Calendar API failure.
+Trade-ledger screening:
+- EMA skip20 score<25% AvgR early ~-0.0365, later ~-0.0056;
+- EMA kept >=25% AvgR early ~+0.184, later ~+0.362;
+- MACD gap10 low quartile remains positive early ~+0.662 and later ~+0.286.
 
-Partial recovery đầu tiên đọc đúng run và báo `calendar_values.csv` ~5.72 MB nhưng primary ZIP được ghi vào OneDrive Desktop và user không tìm thấy file sau đó. Vì vậy Desktop/OneDrive Desktop không còn được coi là authoritative output path.
+Hard five-band family winner routing overfits and is rejected.
 
-Recovery V2 đã thành công. User upload SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, internal manifest 5/5 PASS, recovered 24,085 calendar rows.
+Pre-registered controls: ema_h1_base, ema_h1_skip20, router_ema_bos8, router_ema_macd10, macd_h1_gap10, bos_fvg_h1_gap8.
+Event routes: event_ema_skip20_low25_veto, event_low25_macd10_else_ema, event_low25_bos8_else_ema, event_low25_macd10_else_ema_bos8.
 
-CSV QA: 68 rows có dấu phẩy chưa được escape trong `event_name`, tạo 28 fields thay vì 27. Đã repair deterministically offline bằng cách nối lại field `event_name`; không drop row. Future exporter phải quote/escape text field đúng chuẩn CSV.
+Local V28 replay kit static QA 6/6 PASS; ZIP SHA-256 `c9797419fce3b212e85061bd6652d8972589037f2b38c07fe26c4278a62cd829`. Windows runtime pending.
 
-## V27 event-aware ML result
+## Fresh data action
+Recovered USD calendar ends around 2026-03-10 while V26 price data continues through Aug. A lightweight USD-only calendar top-up from 2026-03-01 onward is prepared; static QA 4/4 PASS; ZIP SHA-256 `81d2743c7ae10df21e8b807f2d90c935ef36e965bee28898b84d6a42a96920c2`.
 
-Dùng continuous major-currency calendar region từ mid-2024, chronological expanding walk-forward, purge 16h, test Aug-2025 → Feb-2026 (7 monthly folds):
-
-- price/cross-asset baseline range Spearman ~0.5028;
-- calendar-only ~0.3676, dương 7/7 tháng;
-- combined price + calendar ~0.5285, dương 7/7;
-- mean uplift vs baseline ~+0.0257 Spearman; combined beat baseline 7/7 months;
-- paired t-test p ~0.0106, Wilcoxon p ~0.0156, nhưng n=7 và đây vẫn là screening.
-
-Ablation:
-- baseline + all schedule/proximity ~0.5269;
-- baseline + **USD schedule/proximity only** ~0.5278;
-- baseline + non-USD schedule ~0.5004;
-- baseline + actual/forecast surprise block ~0.5008.
-
-Kết luận: giá trị calendar chủ yếu nằm ở **USD high-impact event clock** (`minutes to/since`, event counts upcoming), không nằm ở surprise-heavy macro direction.
-
-Direction không được cải thiện:
-- baseline AUC ~0.5246;
-- combined ~0.5171.
-
-Do đó mechanical strategy family vẫn sở hữu Long/Short; calendar/ML chỉ làm range-regime routing/abstention.
-
-Trade-ledger screening cho thấy không dùng blanket `no trade near news`: EMA/BOS/Trend phản ứng khác nhau theo regime/event timing. Any quintile/threshold derived from this sample is hypothesis-only until later replay.
-
-Full analysis: `docs/research/2026-08-18_v27_event_aware_calendar_analysis.md`.
-
-## Latest completed strategy runtime — V25 ML Regime Replay
-
-Output ZIP SHA-256 `baff90eccfaac70abaa15b30d6132c535160e2b8ab96b65fd290cba968754078`.
-
-V25 xác nhận ML range score có giá trị chủ yếu như regime/abstention layer: cải thiện AvgR, DD và turnover nhưng chưa tạo return uplift statistically decisive. Không dùng ML trực tiếp làm Buy/Sell owner.
+Use Mar-Jul later period to validate event-aware model without retuning the frozen 0.25 routing threshold first.
 
 ## Validation discipline
-
-- Chronological walk-forward; không random CV.
-- Không gọi same-sample threshold tuning là confirmation.
-- Partial Aug-2026 đã được nhìn thấy trong V26 screening, nên không còn pristine để tune tiếp.
-- Bất kỳ model/routing mới nào vẫn phải quay lại MT5 tick-level replay trước promotion.
-- Không merge research branches vào `main` cho tới khi gate tương ứng đạt evidence cần thiết.
+Chronological walk-forward only; no random CV; no same-sample threshold promotion; direct Buy/Sell ML rejected; any finalist must return to stateful MT5 replay; research branches stay unmerged until gates pass.
