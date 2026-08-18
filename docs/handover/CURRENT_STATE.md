@@ -46,10 +46,22 @@ Event routes: event_ema_skip20_low25_veto, event_low25_macd10_else_ema, event_lo
 
 Local V28 replay kit static QA 6/6 PASS; ZIP SHA-256 `c9797419fce3b212e85061bd6652d8972589037f2b38c07fe26c4278a62cd829`. Windows runtime pending.
 
-## Fresh data action
-Recovered USD calendar ends around 2026-03-10 while V26 price data continues through Aug. A lightweight USD-only calendar top-up from 2026-03-01 onward is prepared; static QA 4/4 PASS; ZIP SHA-256 `81d2743c7ae10df21e8b807f2d90c935ef36e965bee28898b84d6a42a96920c2`.
+## USD calendar later-confirmation top-up
+V1 user runtime ZIP SHA-256 `e7ca5d14200f89a3c11d8b49144ddd33c9f9d69654e55bf84912472a91fda337`:
+- bundle manifest 6/6 PASS;
+- MetaEditor 0/0;
+- only 304 rows;
+- 1/6 chunks succeeded, 5 failed with ERR_CALENDAR_TIMEOUT=5401;
+- actual coverage only 2026-03-02 → 2026-03-31;
+- status partial, therefore NOT valid Mar-Jul confirmation.
 
-Use Mar-Jul later period to validate event-aware model without retuning the frozen 0.25 routing threshold first.
+V2 hotfix resumes at 2026-04-01 with 1-day chunks, 5 bounded retries/day, hard watchdog 45m, idle watchdog 5m. Runner refuses PASS unless USD coverage status=ok and failed_chunks=0. Static QA 6/6 PASS. Release SHA-256 `e3aaa4d09dc2a23480006426c3ce86fd802c05853ae72eb71a47bb6969f34de6`.
+
+Do not retune threshold 0.25 on this later period before scoring.
 
 ## Validation discipline
-Chronological walk-forward only; no random CV; no same-sample threshold promotion; direct Buy/Sell ML rejected; any finalist must return to stateful MT5 replay; research branches stay unmerged until gates pass.
+- Chronological walk-forward; no random CV.
+- No same-sample threshold tuning as confirmation.
+- Partial Aug-2026 has already been inspected in prior work; not pristine for tuning.
+- Any finalist must return to MT5 tick-level replay before promotion.
+- Do not merge research branches into `main` until gate evidence is sufficient.
