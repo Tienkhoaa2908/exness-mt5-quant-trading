@@ -31,14 +31,37 @@ Run dài bị hard watchdog trước khi hoàn tất toàn bộ lịch sử. Dia
 
 Partial recovery đầu tiên đọc đúng run và báo `calendar_values.csv` ~5.72 MB nhưng primary ZIP được ghi vào OneDrive Desktop và user không tìm thấy file sau đó. Vì vậy Desktop/OneDrive Desktop không còn được coi là authoritative output path.
 
-Recovery V2 hiện là bản phải dùng:
-- primary ZIP luôn được tạo trong `OUTPUT` ngay cạnh bộ recovery đã giải nén;
-- script bắt buộc verify file tồn tại, size > 0, ZIP mở được và SHA-256 tính được trước khi báo PASS;
-- ghi `OUTPUT_LOCATION.txt` cạnh CMD;
-- chỉ thử copy phụ sang Downloads/Desktop/OneDrive Desktop sau khi primary PASS;
-- Explorer mở thẳng primary artifact.
+Recovery V2 đã thành công. User upload SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, internal manifest 5/5 PASS, recovered 24,085 calendar rows.
 
-Recovery V2 release SHA-256: `04ef083f3600023d1ca0f929612590dd0925270950cd14b83add1ab2f279690f`.
+CSV QA: 68 rows có dấu phẩy chưa được escape trong `event_name`, tạo 28 fields thay vì 27. Đã repair deterministically offline bằng cách nối lại field `event_name`; không drop row. Future exporter phải quote/escape text field đúng chuẩn CSV.
+
+## V27 event-aware ML result
+
+Dùng continuous major-currency calendar region từ mid-2024, chronological expanding walk-forward, purge 16h, test Aug-2025 → Feb-2026 (7 monthly folds):
+
+- price/cross-asset baseline range Spearman ~0.5028;
+- calendar-only ~0.3676, dương 7/7 tháng;
+- combined price + calendar ~0.5285, dương 7/7;
+- mean uplift vs baseline ~+0.0257 Spearman; combined beat baseline 7/7 months;
+- paired t-test p ~0.0106, Wilcoxon p ~0.0156, nhưng n=7 và đây vẫn là screening.
+
+Ablation:
+- baseline + all schedule/proximity ~0.5269;
+- baseline + **USD schedule/proximity only** ~0.5278;
+- baseline + non-USD schedule ~0.5004;
+- baseline + actual/forecast surprise block ~0.5008.
+
+Kết luận: giá trị calendar chủ yếu nằm ở **USD high-impact event clock** (`minutes to/since`, event counts upcoming), không nằm ở surprise-heavy macro direction.
+
+Direction không được cải thiện:
+- baseline AUC ~0.5246;
+- combined ~0.5171.
+
+Do đó mechanical strategy family vẫn sở hữu Long/Short; calendar/ML chỉ làm range-regime routing/abstention.
+
+Trade-ledger screening cho thấy không dùng blanket `no trade near news`: EMA/BOS/Trend phản ứng khác nhau theo regime/event timing. Any quintile/threshold derived from this sample is hypothesis-only until later replay.
+
+Full analysis: `docs/research/2026-08-18_v27_event_aware_calendar_analysis.md`.
 
 ## Latest completed strategy runtime — V25 ML Regime Replay
 
