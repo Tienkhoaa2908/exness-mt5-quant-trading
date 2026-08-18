@@ -1,0 +1,105 @@
+--- a/mql5/Experts/AdaptiveExpertLabV1.mq5
++++ b/mql5/Experts/AdaptiveExpertLabV1.mq5
+@@ -414,7 +414,35 @@
+    return Safe(InpOutputTag)+"__"+_Symbol+"__"+PeriodText()+"__"+t+"__"+IntegerToString((int)(GetTickCount()%1000000));
+ }
+ 
++int MonthKey(const datetime t)
++{
++   MqlDateTime x; if(!TimeToStruct(t,x)) return 0;
++   return x.year*100+x.mon;
++}
+ 
++string MonthTagFromKey(const int key)
++{
++   int y=key/100, m=key%100;
++   return IntegerToString(y)+"_"+(m<10?"0":"")+IntegerToString(m);
++}
++
++bool NewBar()
++{
++   datetime t[1]; if(CopyTime(_Symbol,_Period,0,1,t)!=1) return false;
++   if(t[0]==g_last_bar) return false; g_last_bar=t[0]; return true;
++}
++
++bool ReadOne(const int h,const int buffer,const int shift,double &out)
++{
++   double v[1]; if(h==INVALID_HANDLE || CopyBuffer(h,buffer,shift,1,v)!=1) return false;
++   out=v[0]; return MathIsValidNumber(out);
++}
++
++int SecondsOfDay(const datetime t)
++{
++   MqlDateTime x; if(!TimeToStruct(t,x)) return -1;
++   return x.hour*3600+x.min*60+x.sec;
++}
+ 
+ void ResetAdaptiveScores()
+ {
+--- a/scripts/run_adaptive_expert_lab_v1.ps1
++++ b/scripts/run_adaptive_expert_lab_v1.ps1
+@@ -14,7 +14,8 @@
+ function Write-DiagnosticBundle {
+     param([System.Management.Automation.ErrorRecord]$ErrorRecord)
+     try {
+-        $scriptDirLocal = Split-Path -Parent $MyInvocation.MyCommand.Path
++        $scriptDirLocal = $PSScriptRoot
++        if ([string]::IsNullOrWhiteSpace($scriptDirLocal)) { throw 'PSScriptRoot is empty while creating diagnostic bundle' }
+         $repoRootLocal = Split-Path -Parent $scriptDirLocal
+         $desktop = Join-Path $repoRootLocal 'OUTPUT'
+         New-Item -ItemType Directory -Force -Path $desktop | Out-Null
+@@ -22,7 +23,7 @@
+         if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue }
+         New-Item -ItemType Directory -Force -Path $temp | Out-Null
+         $detail = @(
+-            'format=mt5_quant_v28_event_regime_diagnostic',
++            'format=mt5_quant_v29_adaptive_expert_diagnostic',
+             ('created=' + (Get-Date -Format o)),
+             ('error=' + $ErrorRecord.Exception.Message),
+             ('category=' + $ErrorRecord.CategoryInfo.ToString()),
+@@ -248,7 +249,7 @@
+     return @{ ok=$false; run_id=$null; reason='watchdog_timeout'; exit_code=-997 }
+ }
+ 
+-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
++$scriptDir = $PSScriptRoot
+ $repoRoot = Split-Path -Parent $scriptDir
+ if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $repoRoot 'OUTPUT' }
+ $template = Join-Path $repoRoot 'experiments\adaptive_expert_lab_v1\template.ini'
+@@ -354,7 +355,7 @@
+ if (Test-Path -LiteralPath $compileLog) { Copy-Item -LiteralPath $compileLog -Destination (Join-Path $checkpoint ('compile_logs\'+[IO.Path]::GetFileName($compileLog))) -Force }
+ @(
+     'bundle_schema=mt5_quant_adaptive_expert_lab_v1_bundle',
+-    'runner_release=v29_adaptive_expert_v1',
++    'runner_release=v29_1_adaptive_expert_compile_hotfix',
+     ('created='+(Get-Date -Format o)),
+     'symbol=XAUUSDm','period=M15','model=generated_every_tick','execution_mode=0',
+     'candidate_count=12','book_count=4','month_count=18','chunk_count=3',
+--- a/tests/test_adaptive_expert_lab_static.py
++++ b/tests/test_adaptive_expert_lab_static.py
+@@ -136,3 +136,25 @@
+     assert "EXPECTED_CANDIDATES=12" in a and "EXPECTED_MONTHS=18" in a
+     assert 'adaptive_source_mix.csv' in a and 'slow_momentum_yearly.csv' in a
+     assert "real_money_live_trading=forbidden" in a
++
++
++def test_runtime_utility_helpers_are_defined():
++    s=text(SRC)
++    required=[
++        r'\bint\s+MonthKey\s*\(',
++        r'\bstring\s+MonthTagFromKey\s*\(',
++        r'\bbool\s+NewBar\s*\(',
++        r'\bbool\s+ReadOne\s*\(',
++        r'\bint\s+SecondsOfDay\s*\(',
++    ]
++    for pattern in required:
++        assert re.search(pattern,s), pattern
++    # Guard specifically against the V29.0 regression where calls survived but helper definitions were dropped.
++    assert s.count('ReadOne(') > 10
++    assert re.search(r'bool\s+ReadOne\s*\([^)]*\)\s*\{',s,re.S)
++
++def test_diagnostic_bundle_uses_stable_script_root():
++    r=text(RUN)
++    assert '$scriptDirLocal = $PSScriptRoot' in r
++    assert '$MyInvocation.MyCommand.Path' not in r
++    assert 'mt5_quant_v29_adaptive_expert_diagnostic' in r
