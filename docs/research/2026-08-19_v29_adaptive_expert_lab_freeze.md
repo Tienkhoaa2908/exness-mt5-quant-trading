@@ -29,9 +29,10 @@ Adaptive shadow experts: EMA skip20, MACD gap10, BOS/FVG gap8, Trend gap5, slow 
 - MQL/PowerShell delimiter balance PASS;
 - summary header/row field-count check PASS;
 - all `FileWrite` calls remain within MQL5 63-parameter limit;
-- executable safety scan PASS: no OrderSend/order_send/CTrade/AllowLiveTrading=1.
+- executable safety scan PASS: no OrderSend/order_send/CTrade/AllowLiveTrading=1;
+- no cache artifacts in release ZIP.
 
-One-click release SHA-256: `674ba949fab5d649382401873f4ccbfbafc920872a30cde2e2cf0ef9b61ef82c`.
-Internal kit manifest: 15/15 PASS. ZIP integrity PASS.
+One-click release SHA-256: `a0a859b42052dca6592c04274b33bccf85ae986f0f235212458fc76eec0ded69`.
+Internal kit manifest: 11/11 PASS. ZIP integrity PASS.
 
 Windows MetaEditor/runtime is NOT yet claimed. The next and only user action is one V29 Strategy Tester batch. If it passes the research gates, the next endpoint is PAPER/DEMO forward validation; REAL-MONEY LIVE TRADING remains forbidden.
