@@ -24,27 +24,51 @@ Trạng thái hiện tại:
 - V26 historical MT5 export đã cung cấp cross-asset bars + 17.7M XAU broker ticks.
 - V26A cross-asset M30 range model có signal ổn định; direction chỉ modest.
 - V1.3 low-TF top-up lấy được M5/M15 nhưng không tạo stable direction alpha; không tiếp tục M1 nếu chưa có evidence mới.
-- V27 chuyển sang Economic Calendar: actual/forecast/previous/revision/importance/time-to-event để tạo data orthogonal cho XAU.
+- V27 chuyển sang Economic Calendar vì schedule/event timing là data orthogonal hơn cho XAU.
 
-## V27.2 runtime issue / recovery
-Calendar exporter compile 0 errors / 0 warnings và chạy progress thật. Run bị hard watchdog trước khi hoàn tất, không phải Calendar API failure; diagnostic cho thấy đã tới CNY, khoảng 24k rows, 80 chunks, `last_error=0`.
+## V27 recovery COMPLETE
 
-Partial-recovery V1 báo tạo ZIP tại OneDrive Desktop nhưng user không tìm thấy file sau đó. Không tin Desktop/OneDrive Desktop là output authoritative nữa.
+Recovery V2 user upload SHA-256 `a88473422aa16eda7e3c3cbfa050768409451248b0de45c96b4ae1e6b2e1556e`, internal manifest 5/5 PASS, 24,085 calendar rows (~5.72 MB).
 
-Recovery V2 đã được viết lại với nguyên tắc:
-- primary output luôn nằm trong thư mục `OUTPUT` ngay cạnh CMD/PS1 đã giải nén;
-- sau khi tạo ZIP phải `Test-Path`, kiểm tra size > 0, mở lại archive để xác nhận ZIP hợp lệ, tính SHA-256;
-- ghi `OUTPUT_LOCATION.txt` cạnh CMD với exact primary path;
-- chỉ sau khi primary output PASS mới thử copy phụ sang Downloads/Desktop/OneDrive Desktop;
-- secondary-copy failure không được làm mất primary artifact;
-- Explorer mở thẳng primary file/folder sau PASS.
+CSV defect: 68 rows có `event_name` chứa comma nhưng exporter chưa CSV-escape đúng, tạo 28 fields thay vì 27. Offline parser repair bằng cách nối lại split `event_name`; không drop data. Nếu sửa exporter sau này phải quote/escape string fields.
 
-Release recovery V2 SHA-256: `04ef083f3600023d1ca0f929612590dd0925270950cd14b83add1ab2f279690f`.
+Calendar coverage partial do historical timeout; event-aware modeling chỉ dùng continuous major-currency segment mid-2024 → Feb-2026.
+
+## V27 event-aware ML evidence
+
+Chronological expanding walk-forward, purge 16h, test Aug-2025 → Feb-2026:
+- baseline price/cross-asset range Spearman ~0.5028;
+- combined price + calendar ~0.5285;
+- uplift ~+0.0257, combined beat baseline 7/7 months;
+- calendar-only ~0.3676 and positive 7/7.
+
+Ablation is decisive for research direction:
+- baseline + all schedule/proximity ~0.5269;
+- baseline + USD schedule/proximity only ~0.5278;
+- baseline + non-USD schedule ~0.5004;
+- baseline + actual/forecast surprise ~0.5008.
+
+Interpretation: **USD high-impact event schedule/proximity is useful as a future-range/regime clock. Actual-vs-forecast surprise does not add stable range value here.**
+
+Direction remains weak:
+- baseline direction AUC ~0.5246;
+- combined calendar AUC ~0.5171.
+Do not let ML/calendar own Buy/Sell direction.
+
+Trade-ledger join is screening only and rejects a global news blackout. Family behavior differs; calendar score should route/abstain family-specifically.
+
+Full report: `docs/research/2026-08-18_v27_event_aware_calendar_analysis.md`.
+
+## Next research rule
+- Freeze event-aware range/regime architecture around USD event schedule/proximity.
+- Do not add surprise-heavy macro features just because they are available.
+- Do not promote same-sample percentile/quintile thresholds.
+- Next meaningful test is later-period event-aware replay with thresholds frozen before evaluation, then MT5 tick-level replay of any finalist.
 
 ## ML validation discipline
 - chronological walk-forward;
 - không random CV;
-- partial Aug-2026 đã bị inspect nên không còn pristine để tune;
+- partial Aug-2026 đã inspect trong prior V26 work nên không còn pristine để tune;
 - ML/DL không được sở hữu direct Buy/Sell nếu chưa có stable OOS evidence;
 - model/routing finalist phải quay lại MT5 tick-level replay trước promotion;
 - LIVE vẫn forbidden.
