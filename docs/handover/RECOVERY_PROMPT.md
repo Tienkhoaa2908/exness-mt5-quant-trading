@@ -29,14 +29,17 @@ Trạng thái hiện tại:
 ## V27.2 runtime issue / recovery
 Calendar exporter compile 0 errors / 0 warnings và chạy progress thật. Run bị hard watchdog trước khi hoàn tất, không phải Calendar API failure; diagnostic cho thấy đã tới CNY, khoảng 24k rows, 80 chunks, `last_error=0`.
 
-Partial-recovery utility đã được tạo để copy trực tiếp partial `calendar_values.csv` từ MT5 Common Files, không chạy lại exporter 90 phút.
+Partial-recovery V1 báo tạo ZIP tại OneDrive Desktop nhưng user không tìm thấy file sau đó. Không tin Desktop/OneDrive Desktop là output authoritative nữa.
 
-User screenshot ngày 2026-08-18 cho thấy utility báo:
-- recovered run `20260818_093825`;
-- calendar CSV khoảng 5,722,996 bytes;
-- output ZIP path: `C:\Users\welcome\OneDrive\Desktop\mt5_quant_calendar_PARTIAL_RECOVERY_20260818_141210.zip`.
+Recovery V2 đã được viết lại với nguyên tắc:
+- primary output luôn nằm trong thư mục `OUTPUT` ngay cạnh CMD/PS1 đã giải nén;
+- sau khi tạo ZIP phải `Test-Path`, kiểm tra size > 0, mở lại archive để xác nhận ZIP hợp lệ, tính SHA-256;
+- ghi `OUTPUT_LOCATION.txt` cạnh CMD với exact primary path;
+- chỉ sau khi primary output PASS mới thử copy phụ sang Downloads/Desktop/OneDrive Desktop;
+- secondary-copy failure không được làm mất primary artifact;
+- Explorer mở thẳng primary file/folder sau PASS.
 
-Nếu user nói không thấy ZIP, kiểm tra OneDrive Desktop path trên trước; đừng mặc định `C:\Users\welcome\Desktop`.
+Release recovery V2 SHA-256: `04ef083f3600023d1ca0f929612590dd0925270950cd14b83add1ab2f279690f`.
 
 ## ML validation discipline
 - chronological walk-forward;
