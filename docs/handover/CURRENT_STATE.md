@@ -9,48 +9,34 @@ REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk 
 Không hiển thị Python nội bộ, scratch/artifact-packaging code, tool payload hoặc implementation plumbing nếu user không yêu cầu. Tooling chạy âm thầm; user-visible chỉ cần kết luận/evidence/file/SHA/thao tác/lỗi/bước tiếp theo.
 
 ## V28 closed
-Calendar extraction is CLOSED. Latest combined/recovered calendar evidence showed the frozen cross-asset future-range model generalizes strongly in Mar-May 2026 (mean Spearman ~0.60263), while incremental calendar uplift does not confirm (~-0.00221).
+Calendar extraction is CLOSED. Frozen cross-asset range prediction generalizes, but fixed scalar `range -> family` mapping and incremental calendar uplift fail later confirmation. Do NOT run the old V28 replay kit.
 
-The old V28 fixed low25 routing rule is rejected because later conditional expectancy reverses. Do NOT run the V28 event-regime replay kit. Direct direction ML and EMA trade meta-labeling remain too unstable.
+## V29 gate
+Frozen 12-candidate adaptive shadow-expert catalog remains unchanged. Slow 16h+24h momentum is an orthogonal expert; adaptive variants use causal realized-R EWMAs/change severity; validated range ML remains context only.
 
-## V29 current gate — adaptive shadow experts
-V29 no longer maps a scalar range percentile directly to one family. It tracks independent shadow experts causally and adapts to nonstationarity via realized-R EWMAs.
+## V29.0 compile failure / V29.1 hotfix
+V29.0 one-click release is BROKEN and must not be reused. User Windows MetaEditor failed before Strategy Tester with 100 errors / 50 warnings.
 
-Frozen 12-candidate catalog:
-- `ema_h1_skip20`;
-- `macd_h1_gap10`;
-- `bos_fvg_h1_gap8`;
-- `trend20_h1_gap5`;
-- `router_ema_bos8`;
-- `slow_mom_16h24h_timebox8h`;
-- `slow_mom_16h24h_peaklock_timebox8h`;
-- `adaptive_ewma_hl8_thr0`;
-- `adaptive_ewma_hl8_thr0p05`;
-- `adaptive_ewma_hl10_thr0p05`;
-- `adaptive_ewma_hl12_thr0p05`;
-- `adaptive_cp_fast5_slow20_thr0p30`.
+Root cause: five shared helper definitions were accidentally removed during refactor while calls remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. A second runner bug prevented diagnostic ZIP creation because `$MyInvocation.MyCommand.Path` was null inside the diagnostic function.
 
-Slow momentum is an orthogonal expert: server 00:00/08:00 decisions, 16h+24h return-direction agreement, 8h timebox, stop2ATR, TP4R. It is not assumed always-on because long history shows regime dependence.
+V29.1 restores the five helper bodies from the previously Windows-compiled V28 implementation and replaces diagnostic/main script path discovery with `$PSScriptRoot`.
 
-Adaptive score state is updated only from normalized control-book realized R and is carried sequentially across the 3×6-month tester chunks. Retry restores the exact pre-chunk state. Existing cross-asset range ML remains market-state telemetry; it is not another hard family gate in this replay.
+Release gate was strengthened so future packaging must test required runtime helper definitions, not only delimiter/FileWrite/safety structure.
 
-## V29 release evidence
-- 12 candidates × 4 books = 48 virtual books;
-- 18 monthly accounting resets, Feb-2025 → Jul-2026;
-- bar feature export disabled for runtime efficiency;
-- pytest 11/11 PASS;
-- analyzer py_compile PASS;
-- MQL/PowerShell delimiter balance PASS;
-- monthly-summary header/row field-count PASS;
-- all MQL FileWrite calls under 63-parameter limit;
-- executable safety scan PASS;
-- internal kit manifest 11/11 PASS;
-- ZIP integrity PASS;
-- release SHA-256 `a0a859b42052dca6592c04274b33bccf85ae986f0f235212458fc76eec0ded69`;
-- Windows MetaEditor/runtime still pending.
+V29.1 static evidence:
+- pytest 13/13 PASS;
+- Python analyzer/tests compile PASS;
+- MQL delimiter balance PASS;
+- all five helper definitions present exactly once;
+- custom-helper consistency check against V28 compiled base PASS;
+- no `OrderSend`/`order_send`/`CTrade`/`AllowLiveTrading=1`;
+- internal manifest 11/11 PASS;
+- ZIP integrity PASS.
 
-Recovery copy: `recovery/v29_adaptive_expert_lab_one_click.zip.b64` (base64 decode to the release ZIP).
-Research freeze: `docs/research/2026-08-19_v29_adaptive_expert_lab_freeze.md`.
+V29.1 release SHA-256: `b8176551870b218f47322bae72c7a78be2d0efde8eec7237dab91ab4f8aeb824`.
+Patch: `recovery/v29_1_compile_hotfix.patch`, SHA-256 `c5f999e546b3aa67dbe704e9dbc90bf62510e2134aea4e8c3c44e5d759c0b65c`.
+
+Windows MetaEditor/runtime for V29.1 is still pending. Static QA must never be described as compile evidence.
 
 ## Next gate
-User runs exactly one V29 Strategy Tester batch and uploads the single result ZIP. Evaluate median/mean return, positive months, worst month, max MTM DD, AvgR, turnover, slow-momentum stability, adaptive source mix and early-vs-late stability. A robust finalist proceeds to PAPER/DEMO forward validation only. REAL-MONEY LIVE TRADING remains forbidden.
+User runs only V29.1 in a fresh folder. Accept the batch only if MetaEditor reports 0 errors / 0 warnings. If compile passes, let the single stateful 18-month Strategy Tester batch complete. If robust gates pass, next endpoint is PAPER/DEMO forward validation. LIVE remains forbidden.
