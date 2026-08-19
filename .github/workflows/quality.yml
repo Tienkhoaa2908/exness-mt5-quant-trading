@@ -23,25 +23,18 @@ jobs:
         run: python -m pytest -q
       - name: Secret and tracked-login scan
         run: python scripts/secret_scan.py .
-      - name: Normalize repository V29 archive encoding
+      - name: Recover V29.0 plaintext from intact ZIP local headers
         run: >-
-          python scripts/normalize_v29_archive.py
+          python scripts/recover_v29_payload_local_headers.py
           --input recovery/v29_adaptive_expert_lab_one_click.zip.b64
-          --output .ci/v29_payload.canonical.b64
-      - name: Audit current V29 payload content independent of checksum pin
-        run: >-
-          python scripts/audit_v29_payload_content.py
-          --archive .ci/v29_payload.canonical.b64
-      - name: Verify frozen V29.2 payload checksum and build V29.3 distribution
-        run: >-
-          python scripts/verify_and_build_v29_release.py
-          --archive .ci/v29_payload.canonical.b64
-          --output dist
-      - name: Upload only verified V29.3 one-click artifact
+          --output .ci/recovered_v29_0
+      - name: Upload recovered plaintext migration evidence
         uses: actions/upload-artifact@v4
         with:
-          name: mt5-quant-v29_3_distribution_hardening
-          path: |
-            dist/*.zip
-            dist/*.sha256.txt
+          name: v29-recovered-plaintext-migration-evidence
+          path: .ci/recovered_v29_0
           if-no-files-found: error
+      - name: Stop old corrupt recovery archive from becoming a release
+        run: |
+          echo "Historical recovery payload is migration input only; canonical rebuild pending." >&2
+          exit 86
