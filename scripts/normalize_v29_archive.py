@@ -14,11 +14,14 @@ def decode_to_zip(data: bytes, max_layers: int = 3) -> tuple[bytes, int]:
         if data.startswith(ZIP_MAGIC):
             return data, depth
         compact = re.sub(rb"\s+", b"", data)
+        # Historical recovery payloads were written with non-canonical padding.
+        # Transport decoding is deliberately permissive; final ZIP magic, pinned
+        # SHA-256 and full content contracts remain mandatory downstream.
         try:
-            decoded = base64.b64decode(compact, validate=True)
+            decoded = base64.b64decode(compact, validate=False)
         except Exception as exc:
             raise RuntimeError(f"archive encoding invalid at base64 layer {depth}: {exc}") from exc
-        if decoded == data:
+        if decoded == data or not decoded:
             raise RuntimeError("archive decoding made no progress")
         data = decoded
     raise RuntimeError(f"ZIP magic not reached within {max_layers} base64 layers")
