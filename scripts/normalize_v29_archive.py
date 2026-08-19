@@ -15,14 +15,27 @@ def is_valid_zip(data: bytes) -> bool:
     except (OSError, zipfile.BadZipFile, RuntimeError):
         return False
 
+def layer_summary(depth: int, data: bytes) -> str:
+    compact = re.sub(rb"\s+", b"", data)
+    return (
+        f"ARCHIVE_LAYER depth={depth} bytes={len(data)} compact={len(compact)} "
+        f"mod4={len(compact)%4} sha256={sha(data)} prefix_hex={data[:16].hex()} "
+        f"valid_zip={is_valid_zip(data)}"
+    )
+
 def decode_to_zip(data: bytes, max_layers: int = 3) -> tuple[bytes, int]:
     data = data.strip()
     for depth in range(max_layers + 1):
+        print(layer_summary(depth, data))
         if is_valid_zip(data):
             return data, depth
         compact = re.sub(rb"\s+", b"", data)
+        # Normalize padding only at the transport layer. Payload acceptance still
+        # requires a valid ZIP, pinned SHA-256 and full content-contract checks.
+        core = compact.rstrip(b"=")
+        normalized = core + b"=" * ((-len(core)) % 4)
         try:
-            decoded = base64.b64decode(compact, validate=False)
+            decoded = base64.b64decode(normalized, validate=False)
         except Exception as exc:
             raise RuntimeError(f"archive encoding invalid at base64 layer {depth}: {exc}") from exc
         if decoded == data or not decoded:
