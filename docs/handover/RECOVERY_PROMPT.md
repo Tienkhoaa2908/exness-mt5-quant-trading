@@ -2,75 +2,49 @@
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 
-## Luật an toàn
+## Safety invariants
+
 - REAL-MONEY LIVE TRADING = FORBIDDEN.
 - Không tháo tester/live guards.
-- Không Martingale, uncontrolled grid, doubling after loss.
-- Không commit secret.
+- Không Martingale/uncontrolled grid/doubling after loss.
+- Không commit login/password/token/secret.
 - Không gọi `order_send`/native broker order để test.
 - Stop-risk research ceiling 1.00%/trade.
 
-## Luật giao tiếp với user — MUST READ / MUST PRESERVE
-- User không muốn thấy code Python nội bộ, scratch code, code đóng gói artifact, tool payload hoặc implementation plumbing xuất hiện trước/sau câu trả lời.
-- Không trình bày code nội bộ chỉ vì tool đã chạy. Chỉ hiện code khi user chủ động yêu cầu xem code.
-- Phần trả lời user ưu tiên DONE / EVIDENCE / DECISIONS / ISSUES / NEXT khi phù hợp; file, SHA-256, thao tác và chẩn đoán.
-- Tooling nội bộ phải chạy âm thầm.
-- Yêu cầu này phải được giữ sau mọi recovery.
+## Current strategy
 
-## V28 is CLOSED as a fixed-router hypothesis
-Latest V3 diagnostic SHA-256 `02f020d470276b971acec89b61e5c05ff79116f9f6a343280eef96e3a3cdff9a`:
-- V2 partial recovered: 671 rows;
-- V3 partial: 38 rows;
-- last_error=0;
-- combined calendar with prior V27/V1 data: 25,017 deduped values, USD coverage through 2026-06-15.
+V29 adaptive shadow-expert catalog: 12 candidates × 4 virtual books. Compile/distribution hardening không đổi strategy/risk/exit/adaptive semantics ngoài compile correction `dt.minute -> dt.min`.
 
-Do NOT ask the user for another Economic Calendar export. Enough data exists for later confirmation.
+## Compile/distribution incidents — MUST NOT REPEAT
 
-Later Mar-May confirmation, without retuning 0.25:
-- base range model mean Spearman ~0.60263;
-- event-aware ~0.60042;
-- calendar incremental uplift ~-0.00221.
+- V29.0 BROKEN: missing `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`.
+- V29.1 Windows diagnostic SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5`: MetaEditor 1 error / 0 warnings tại line 680 do `dt.minute`; MQL5 dùng `min`.
+- Historical `recovery/v29_adaptive_expert_lab_one_click.zip.b64` vẫn là V29.0 blob và bị CRC corruption/truncation. V29.1/V29.2 patch/docs/local release SHA không được dùng làm canonical GitHub release evidence.
+- CI hiện fail-closed để ngăn historical recovery blob tạo user release.
 
-Interpretation: the core cross-asset range model generalizes; incremental calendar uplift does not persist.
+## V29.3 candidate evidence
 
-Fixed low25 V28 routing is REJECTED:
-- EMA skip20 low25 later AvgR ~+0.2704, high25 ~-0.3137;
-- router EMA+BOS8 low25 ~+0.3213, high25 ~-0.2445.
-This reverses the earlier low25->MACD hypothesis.
+Fresh candidate được reconstructed từ đúng source/runner trong user diagnostic V29.1.
 
-**Do not run or ask the user to run `mt5_quant_v28_event_regime_replay_lab_one_click.zip`.**
+Strategy source chỉ thay đúng một semantic line: `dt.minute -> dt.min`.
 
-Direction classifier remains modest and family veto unstable. EMA meta-labeler also fails later confirmation. ML/calendar do not own direct Buy/Sell.
+Runner thêm pre-MetaEditor source preflight cho:
+- 5 required helpers;
+- `MqlDateTime`, `MqlRates`, `MqlTick` members;
+- candidate/book counts;
+- tester/safety markers;
+- forbidden native-order tokens.
 
-Full report: `docs/research/2026-08-19_v28_later_confirmation_router_rejection_v29_direction.md`.
+Candidate strategy SHA-256:
+`eb5989c1854329a8487a45c5bf248ac37f61b9b4e3a962ff12667a4ee09eb5e2`
 
-## Current gate — V29 Adaptive Change-Point + Multi-Horizon Expert
-No more user data collection now. Work offline until a single replay catalog is frozen.
+Candidate ZIP SHA-256:
+`a415f79bd31df3f9928aaf25fc2992288fa1ca1ea4073aa90a375bb7e3597132`
 
-Promising new expert screening:
-- decisions at server 00:00 and 08:00;
-- 16h and 24h trailing-return directions agree;
-- 8h maximum hold;
-- 2 ATR stop; TP4R;
-- M15 AvgR ~+0.112R in 2024, +0.161R in 2025, +0.147R in 2026.
+Local QA: pytest 6/6 PASS, ZIP integrity PASS, internal manifest 10/10 PASS, secret/login scan PASS, no native-order tokens, no cache artifacts.
 
-Longer M30 history shows this expert is regime-dependent: negative in 2022, near flat in 2023, stronger from 2024 onward. Never promote it as always-on from screening alone.
+Không fabricated GitHub CI PASS: candidate hiện chưa materialize thành GitHub-hosted canonical artifact.
 
-V29 architecture:
-1. validated continuous ML range score remains state/context only;
-2. add slow multi-horizon momentum as a separate shadow expert;
-3. EMA/BOS/MACD/Trend remain shadow experts;
-4. changepoint severity should control forgetting/adaptation speed, not hard direction;
-5. use online expert tracking / switching-cost-aware allocation and downside/turnover penalties;
-6. generic fast shock reversion is not stable enough and remains experimental;
-7. perform offline screening first, then one Strategy Tester replay batch.
+## Next action
 
-Literature direction: Wood/Roberts/Zohren slow-momentum/fast-reversion + CPD; Adams/MacKay online changepoint detection; fixed-share/tracking-best-expert online learning; Deep Momentum Networks/Momentum Transformer. These are architecture references, not XAU performance evidence.
-
-## Validation discipline
-- chronological walk-forward only;
-- no random CV;
-- no same-sample threshold promotion;
-- partial Aug-2026 already inspected, not pristine;
-- final V29 candidate must return to MT5 tick-level replay before promotion;
-- LIVE remains forbidden.
+Chỉ chạy fresh V29.3 candidate, không reuse V29.0/V29.1/V29.2 folders cũ. First Windows acceptance gate: MetaEditor 0 errors / 0 warnings. Nếu qua thì single stateful 18-month Strategy Tester batch → một ZIP. Sau robustness gates chỉ PAPER/DEMO; LIVE forbidden.

@@ -1,0 +1,41 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-safety-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Python compile
+        run: python -m compileall -q scripts tests
+      - name: Pytest
+        run: python -m pytest -q
+      - name: Secret and tracked-login scan
+        run: python scripts/secret_scan.py .
+      - name: Recover and inventory historical V29.0 plaintext
+        run: >-
+          python scripts/recover_v29_payload_local_headers.py
+          --input recovery/v29_adaptive_expert_lab_one_click.zip.b64
+          --output .ci/recovered_v29_0
+          --diagnostic
+      - name: Upload recovered plaintext migration evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: v29-recovered-plaintext-migration-evidence
+          path: .ci/recovered_v29_0
+          if-no-files-found: error
+      - name: Stop old corrupt recovery archive from becoming a release
+        run: |
+          echo "Historical recovery payload is migration input only; canonical rebuild pending." >&2
+          exit 86
