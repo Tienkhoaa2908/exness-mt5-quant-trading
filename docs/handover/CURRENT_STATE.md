@@ -6,175 +6,161 @@ Ngày cập nhật: 2026-08-20.
 
 REAL-MONEY LIVE TRADING = FORBIDDEN. Không tháo tester/live guards. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native/external broker order trong research screening.
 
-## Canonical strategy/runtime state
+## Canonical runtime/data state
 
-V29/V30 giữ catalog 12 candidates × 4 virtual books và adaptive shadow-expert semantics. V30 `MlDlFeatureLakeV1.mq5` bổ sung bar-level feature export cho offline ML/DL; không ghi future labels trong EA và không có native broker-order path.
+V29/V30 giữ catalog 12 candidates × 4 virtual books và adaptive shadow-expert semantics. V30 `MlDlFeatureLakeV1.mq5` bổ sung M15 bar-feature export cho offline ML/DL; không ghi future labels trong EA và không có native broker-order path.
 
-Windows evidence cho V30 source SHA-256:
-
+Accepted V30 source SHA-256:
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-MetaEditor compile gate đã PASS `0 errors / 0 warnings`.
+Windows MetaEditor: `0 errors / 0 warnings`.
 
-Git Bash runtime hoàn tất hai chunk còn thiếu và đóng bundle thành công. Uploaded result ZIP SHA-256:
-
+Final Git Bash acquisition ZIP SHA-256:
 `8771ae988be46191c724e74f3a84b76b1bc7a0385a703ef963dee95414cdbb4a`
 
-Không cần chạy MT5 thêm cho nghiên cứu 18 tháng hiện tại.
+Canonical 18m lake after half-open trim/stitch:
 
-## V30 18-month feature-lake acceptance
-
-Canonical trim dùng half-open interval cho ba chunk:
-
-- `[2025-02-01, 2025-08-01)`
-- `[2025-08-01, 2026-02-01)`
-- `[2026-02-01, 2026-08-01)`
-
-Mỗi raw chunk có đúng một pre-roll bar trước FromDate; row này được trim offline.
-
-Accepted lake:
-
-- 35,344 M15 rows, 18 tháng 2025-02 → 2026-07;
+- 35,344 M15 rows, 2025-02 → 2026-07;
 - 136 raw V30 feature columns;
 - 0 duplicate timestamps;
-- 0 NaN / 0 Inf trong canonical raw lake;
+- 0 NaN / 0 Inf in accepted raw lake;
 - 864 monthly-summary rows = 18 × 12 × 4;
-- 28,128 trade-ledger rows;
-- 7,483 trades trong `norm10k_r0p5_continuous`;
-- summary ↔ ledger trade/win/loss counts khớp tuyệt đối;
-- PnL/AvgR chỉ lệch cỡ 1e-6 do CSV rounding.
+- 28,128 total ledger trades;
+- 7,483 `norm10k_r0p5_continuous` trades;
+- summary ↔ ledger counts exact; PnL/AvgR only CSV-rounding differences.
 
-Expected constants/non-informative fields gồm `real_volume=0`, readiness flags luôn 1, `bb_rsi_dir=0`; không coi là corruption nhưng phải exclude khỏi model.
+Adaptive state is continuous across all chunks. Final Chunk-3 expert obs counts:
 
-## Adaptive-state continuity
-
-Observation counts:
-
-Chunk 1:
-- EMA 181
-- MACD 79
-- BOS 69
-- Trend 108
-- Slow momentum 210
-
-After Chunk 2:
-- EMA 393
-- MACD 216
-- BOS 184
-- Trend 279
-- Slow momentum 416
-
-After Chunk 3:
 - EMA 590
 - MACD 251
 - BOS 221
 - Trend 360
 - Slow momentum 612
 
-Replay trade ledger qua EWMA equations khớp obs 100%; EWMA values chỉ lệch tối đa khoảng 1.9e-6 vì `r_multiple` trong CSV bị round.
+No additional MT5 run is needed to analyze the accepted 18-month lake.
 
 ## Mandatory causal timing contract
 
-CRITICAL: `bar_features.time` là OPEN timestamp của `r[1]`, bar M15 vừa đóng. Row đó chỉ available khi bar đóng/next bar bắt đầu.
+CRITICAL: `bar_features.time` is the OPEN timestamp of `r[1]`, the just-closed M15 bar. The feature row is only available after that bar closes.
 
-Offline ML phải dùng:
+Offline ML must use:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-Trade entry chỉ được join row có:
+Trade entries may only join rows satisfying:
 
 `feature_available_time <= entry_time`
 
-Mọi ML/DL experiment join trực tiếp `bar_features.time <= entry_time` mà không +15 phút là INVALID.
+Any experiment using raw `bar_features.time <= entry_time` without the +15-minute availability shift is INVALID.
 
-Offline future labels cũng phải giữ NaN khi horizon chưa đủ; không được biến missing future return thành class 0.
+Incomplete future-label horizons remain NaN; never coerce missing future returns to class 0.
 
-## Strict causal ML/DL V2 gate
+## Strict causal ML/DL V2 protocol
 
-12 OOS months: 2025-08 → 2026-07, baseline 5,066 norm-book candidate-trades, pooled baseline AvgR 0.189049R.
+12 OOS months: 2025-08 → 2026-07. Baseline: 5,066 norm-book candidate-trades, pooled AvgR 0.189049R, sumR 957.72205R.
 
-Walk-forward contract:
+For each test month:
 
-- tháng trước test là score-calibration month;
-- model fit chỉ dùng trades có `exit_time` trước calibration-month start;
-- frozen model score calibration month;
-- threshold lấy từ calibration scores, không dùng calibration labels để tune threshold;
-- absolute threshold apply cho test month kế tiếp;
-- không test-month quantile peeking, không random K-fold.
+- previous month = score-calibration month;
+- train only on trades with `exit_time < calibration_month_start`;
+- frozen model scores calibration month;
+- threshold is derived from calibration **scores only**;
+- absolute threshold is applied unchanged to next test month;
+- no test-month quantile peeking;
+- no random K-fold.
 
-### Tabular findings
-
-Engineered expert-state + market/trade context giúp ExtraTrees/HistGradientBoosting ở catalog-trade level. Unweighted ExtraTrees candidate-aware ban đầu cho selected AvgR ~0.289R ở ~43% coverage với paired-month CI > 0.
-
-Nhưng đây KHÔNG phải promotion evidence vì duplicate-opportunity confound rất lớn.
-
-### Duplicate-opportunity confound
+## Duplicate-opportunity confound
 
 Norm-book 18m:
 
 - 7,483 candidate-trades;
-- chỉ 1,972 unique `(entry_time, direction)` opportunities;
+- only 1,972 unique `(entry_time, direction)` opportunities;
 - mean multiplicity ~3.795;
-- 79.31% opportunity groups có >1 candidate variant.
+- 79.31% of opportunity groups contain >1 candidate variant.
 
 OOS 12m:
 
 - 5,066 candidate-trades;
 - 1,347 unique opportunities;
 - mean multiplicity ~3.761;
-- 79.29% groups duplicated.
+- 79.29% duplicated.
 
-Inverse `(entry_time,direction)` multiplicity weighting làm apparent ExtraTrees edge yếu đi đáng kể:
+Therefore unweighted catalog-trade ML numbers are exploratory only.
 
-- 40%-keep calibration target: actual coverage ~49.1%, selected AvgR ~0.250R, CI crosses zero;
-- 50%-keep target: actual coverage ~58.6%, selected AvgR ~0.257R, sumR retention ~79.7%, paired-month CI khoảng [+0.016R,+0.127R].
+Inverse-opportunity-weighted ExtraTrees with a global threshold:
 
-Unique-opportunity-group ExtraTrees/HistGB models đều có paired-month CI crossing zero. Vì vậy hiện chưa có bằng chứng đủ mạnh cho universal common market-opportunity ML gate.
+- 40%-keep target: actual coverage ~49.1%, selected AvgR ~0.250R, CI crosses zero;
+- 50%-keep target: actual coverage ~58.6%, selected AvgR ~0.257R, sumR retention ~79.7%, paired-month CI roughly [+0.016R,+0.127R].
 
-### Model decisions
+Unique-opportunity-group ExtraTrees/HistGB models all have paired-month CIs crossing zero. No universal common market-opportunity ML edge is established.
+
+## Model decisions
 
 - Win/loss/tail classification: REJECT.
 - Static MLP: no robust uplift.
 - GRU64: no robust uplift.
 - causal TCN64: no robust uplift.
 - Patch Transformer64: no robust uplift.
-- Unweighted catalog ExtraTrees: exploratory only, not promotable.
-- Inverse-opportunity-weighted expected-R: promising but weak/family-dependent, not promotion-ready.
+- Unweighted catalog ExtraTrees: not promotion evidence.
+- Weighted expected-R tree filtering: promising but context-dependent, not promotion-ready.
 
-DL capacity không giải quyết được robustness problem trên 18m lake hiện tại.
+DL capacity does not beat the stronger tabular controls on the accepted 18m lake.
 
-## Family-specific clue
+## Family-threshold gate completed
 
-Weighted 50%-target diagnostics cho thấy response không đồng nhất:
+A shared inverse-opportunity-weighted ExtraTrees model was calibrated by family from previous-month score distributions.
 
-- EMA `ema_h1_skip20`: positive lead;
-- `router_ema_bos8`: positive lead;
-- `slow_mom_timebox`: positive lead;
-- `adaptive_ewma_hl8_thr0`: smaller positive lead;
-- BOS/FVG degrades under same filter and phải được giữ làm negative/control family.
+Candidate-aware aggregate:
 
-Không được áp một universal filter cho mọi family.
+- 40%-keep target: actual coverage 50.14%, selected AvgR 0.2758R, sumR retention 73.14%, paired-month CI [+0.0169R,+0.1640R].
+- 50%-keep target: coverage 58.86%, selected AvgR 0.2523R, retention 78.56%, CI [+0.0005R,+0.1188R].
+- 60%-keep target: coverage 64.49%, selected AvgR 0.2397R, retention 81.76%, CI [+0.0086R,+0.1054R].
 
-## Current decision / next gate
+Candidate-blind control fails robustness at all three thresholds; every paired-month interval crosses zero. Therefore the effect is not a clean universal market-state filter and depends partly on family/candidate context.
 
-V30 feature lake: ACCEPTED cho offline research.
+Family diagnostics:
 
-Không có model nào được promote sang PAPER/DEMO hay live execution. LIVE luôn forbidden.
+- EMA pullback is the strongest current lead; its candidate-aware weighted family threshold is positive across 40/50/60 targets, with high sumR retention.
+- Adaptive router is a secondary lead mainly at the tighter 40%-target gate.
+- Router EMA+BOS is marginal/unstable.
+- Slow momentum is not robust by month.
+- MACD sample is too small/unstable despite some positive bootstrap slices.
+- BOS/FVG and Trend20 do not clear a stable gate; BOS/FVG remains a useful negative/control family.
 
-Next gate hoàn toàn offline:
+This family analysis reuses the same 12 OOS months already inspected. It is robustness evidence, **not fresh confirmation**.
 
-1. family-specific expected-R filtering;
-2. inverse opportunity-multiplicity weighting bắt buộc;
-3. same frozen previous-month score-calibration protocol;
-4. explicit negative-control/exclusion check cho BOS/FVG;
-5. report coverage, AvgR, sumR retention, worst month, bootstrap uplift và opportunity breadth theo family.
+## Current decision
 
-Chỉ nếu family-specific gate survive mới justify một MT5 tick-level re-simulation mới. Hiện tại user không cần chạy thêm MT5.
+V30 feature lake: ACCEPTED for offline research.
 
-## Evidence/docs
+No ML/DL model is promoted to PAPER/DEMO execution. REAL-MONEY LIVE remains forbidden.
+
+Stop tuning/slicing the same 2025-08 → 2026-07 OOS sample. More optimization on those months now increases research-overfitting risk.
+
+The next meaningful gate is a genuinely fresh chronological holdout after 2026-08-01, with frozen model/threshold rules. A complete August-2026 month is preferable to a partial-month test because V30 `OnDeinit()` finalizes the active month and would create artificial EOM closes at a partial tester end date.
+
+When a fresh full month is available:
+
+1. train using only pre-July-label history according to the frozen monthly protocol;
+2. use July scores to freeze the family thresholds;
+3. apply unchanged rules to unseen August data;
+4. report candidate-trade and unique-opportunity economics;
+5. no re-tuning on August;
+6. only if fresh holdout survives should a new MT5 strategy variant / tick-level re-simulation be justified.
+
+## Evidence / code
 
 - `docs/research/v30_18m_feature_lake_acceptance_and_first_ml.md`
 - `docs/research/v30_causal_ml_dl_tournament_v2.md`
+- `docs/research/v30_family_threshold_gate_v2.md`
 - `docs/adr/ADR-038-causal-feature-availability-and-opportunity-weighting.md`
+- `scripts/v30_causal_research_v2.py`
+- `scripts/v30_trade_tournament_v2.py`
+- `scripts/v30_sequence_tournament_v2.py`
+- `scripts/v30_opportunity_weighting_v2.py`
+- `scripts/v30_family_gate_v2.py`
+- `tests/test_v30_causal_research_v2.py`
 
-Historical V29 compile/distribution incidents (`missing helpers`, `dt.minute -> dt.min`, stale/corrupt recovery blob) vẫn là lessons learned; không reuse historical broken artifacts.
+Local research QA at this checkpoint: Python compile PASS for the V30 offline utilities and `pytest` 5/5 PASS; one non-fatal PyTorch nested-tensor warning from the Transformer forward test.
+
+Historical V29 compile/distribution incidents (`missing helpers`, `dt.minute -> dt.min`, stale/corrupt recovery blob) remain lessons learned; do not reintroduce those artifacts.
