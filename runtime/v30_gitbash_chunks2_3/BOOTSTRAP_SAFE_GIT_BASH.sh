@@ -10,7 +10,7 @@ SOURCE_SHA_EXPECTED="4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b
 TERMINAL_EXE="${MT5_TERMINAL_EXE:-/c/Program Files/MetaTrader 5/terminal64.exe}"
 
 {
-  echo "=== V30 SAFE GIT BASH BOOTSTRAP V2 ==="
+  echo "=== V30 SAFE GIT BASH BOOTSTRAP V3 ==="
   date
   echo "WORK=$WORK"
 
@@ -93,6 +93,15 @@ TERMINAL_EXE="${MT5_TERMINAL_EXE:-/c/Program Files/MetaTrader 5/terminal64.exe}"
     exit 91
   }
   echo "PWD=$(pwd)"
+
+  # Git Bash/MSYS rewrites arguments that begin with '/'. MetaEditor and MT5
+  # intentionally use Windows CLI switches such as /compile:, /log and /config:.
+  # Disable MSYS argument/path conversion for all native Windows child processes
+  # launched by the runner. Without this, MetaEditor can silently receive a
+  # mangled /compile argument and produce neither EX5 nor the documented .log.
+  export MSYS_NO_PATHCONV=1
+  export MSYS2_ARG_CONV_EXCL='*'
+  echo "MSYS argument conversion disabled for MetaEditor/MT5 CLI switches."
 
   echo "[4/4] Running V30 chunks 2 + 3..."
   bash ./RUN_V30_CHUNKS_2_3_GIT_BASH.sh
