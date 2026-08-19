@@ -10,8 +10,6 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 OUT="$ROOT/OUTPUT_GIT_BASH"
 CHECKPOINT="$OUT/checkpoints"
 LOG="$OUT/git_bash_runner.log"
-SOURCE="$OUT/MlDlFeatureLakeV1.mq5"
-SOURCE_B64_DIR="$ROOT/source_b64"
 SOURCE_SHA_EXPECTED="4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05"
 TEMPLATE="$ROOT/experiments/ml_dl_feature_lake_v1/template.ini"
 BUNDLED_STATE="$ROOT/state_chunk1/v30_ml_dl_feature_lake_state.csv"
@@ -38,21 +36,9 @@ need tasklist.exe
 
 [[ -f "$TERMINAL_EXE" ]] || die "MT5 terminal not found: $TERMINAL_EXE"
 [[ -f "$METAEDITOR_EXE" ]] || die "MetaEditor not found: $METAEDITOR_EXE"
-[[ -d "$SOURCE_B64_DIR" ]] || die "EA source payload missing: $SOURCE_B64_DIR"
-need base64
-cat "$SOURCE_B64_DIR"/MlDlFeatureLakeV1.mq5.b64.part* | tr -d "\r\n" | base64 -d > "$SOURCE" || die "Could not reconstruct EA source"
-[[ "$(sha256sum "$SOURCE" | awk '{print $1}')" == "$SOURCE_SHA_EXPECTED" ]] || die "Reconstructed EA source SHA256 mismatch"
 [[ -f "$TEMPLATE" ]] || die "template.ini missing: $TEMPLATE"
 [[ -f "$BUNDLED_STATE" ]] || die "verified chunk1 state missing: $BUNDLED_STATE"
-
-# Minimal fail-closed source checks. Do not perform research-data validation here.
-grep -Eq '#define[[:space:]]+MT5Q_RELEASE_ID[[:space:]]+"v30_ml_dl_feature_lake_v1"' "$SOURCE" || die "EA release marker mismatch"
-! grep -Eq '\.minute\b' "$SOURCE" || die "Stale MqlDateTime.minute source blocked"
-grep -Eq 'InpWriteBarFeatures[[:space:]]*=[[:space:]]*true' "$SOURCE" || die "InpWriteBarFeatures must default true"
-grep -Fq 'mt5_quant\\inputs\\v30_ml_dl_feature_lake_state.csv' "$SOURCE" || die "Expected adaptive-state path missing from EA"
-for forbidden in 'OrderSend(' 'OrderSendAsync(' 'CTrade' 'trade.Buy(' 'trade.Sell(' 'PositionOpen('; do
-  if grep -Fq "$forbidden" "$SOURCE"; then die "Forbidden native-order token in source: $forbidden"; fi
-done
+[[ "$(awk -F, 'NR>1 {s+=$2} END {print s+0}' "$BUNDLED_STATE")" == "647" ]] || die "Bundled chunk1 state obs total mismatch"
 
 # Refuse to launch a second terminal instance. Close MT5 first.
 if tasklist.exe //FI "IMAGENAME eq terminal64.exe" 2>/dev/null | tr -d '\r' | grep -qi 'terminal64.exe'; then
@@ -96,12 +82,26 @@ done
 [[ "$MATCHES" -eq 1 ]] || die "Could not resolve exactly one MT5 data folder for $INSTALL_WIN; matches=$MATCHES"
 say "MT5 data folder: $(cygpath -w "$TERMINAL_DATA")"
 
+# Reuse the exact V30 source that already compiled 0/0 and produced Chunk 1.
+SOURCE="$TERMINAL_DATA/MQL5/Experts/mt5_quant/MlDlFeatureLakeV1.mq5"
+[[ -f "$SOURCE" ]] || die "Existing V30 EA source not found: $SOURCE. Do not download anything; send this error back."
+SOURCE_SHA_ACTUAL="$(sha256sum "$SOURCE" | awk '{print $1}')"
+[[ "$SOURCE_SHA_ACTUAL" == "$SOURCE_SHA_EXPECTED" ]] || die "Existing V30 EA source SHA mismatch. expected=$SOURCE_SHA_EXPECTED actual=$SOURCE_SHA_ACTUAL"
+# Minimal fail-closed source checks. Do not perform research-data validation here.
+grep -Eq '#define[[:space:]]+MT5Q_RELEASE_ID[[:space:]]+"v30_ml_dl_feature_lake_v1"' "$SOURCE" || die "EA release marker mismatch"
+! grep -Eq '\.minute\b' "$SOURCE" || die "Stale MqlDateTime.minute source blocked"
+grep -Eq 'InpWriteBarFeatures[[:space:]]*=[[:space:]]*true' "$SOURCE" || die "InpWriteBarFeatures must default true"
+grep -Fq 'mt5_quant\\inputs\\v30_ml_dl_feature_lake_state.csv' "$SOURCE" || die "Expected adaptive-state path missing from EA"
+for forbidden in 'OrderSend(' 'OrderSendAsync(' 'CTrade' 'trade.Buy(' 'trade.Sell(' 'PositionOpen('; do
+  if grep -Fq "$forbidden" "$SOURCE"; then die "Forbidden native-order token in source: $forbidden"; fi
+done
+
 EXPERT_DIR="$TERMINAL_DATA/MQL5/Experts/mt5_quant"
 DST_SOURCE="$EXPERT_DIR/MlDlFeatureLakeV1.mq5"
 DST_EX5="$EXPERT_DIR/MlDlFeatureLakeV1.ex5"
 DST_LOG="$EXPERT_DIR/MlDlFeatureLakeV1.log"
 mkdir -p "$EXPERT_DIR" "$TERMINAL_DATA/config"
-cp -f "$SOURCE" "$DST_SOURCE"
+if [[ "$(cygpath -aw "$SOURCE")" != "$(cygpath -aw "$DST_SOURCE")" ]]; then cp -f "$SOURCE" "$DST_SOURCE"; fi
 rm -f "$DST_EX5" "$DST_LOG"
 
 say "Compile gate: MlDlFeatureLakeV1.mq5"
