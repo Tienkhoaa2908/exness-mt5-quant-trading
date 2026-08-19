@@ -17,24 +17,25 @@ Frozen 12-candidate adaptive shadow-expert catalog remains unchanged. Slow 16h+2
 ## Compile incident history
 V29.0 is BROKEN: Windows MetaEditor produced 100 errors / 50 warnings because five shared utility helpers were dropped during refactor while calls remained. Its diagnostic path also failed.
 
-V29.1 restored those helpers and fixed diagnostic packaging. Windows then produced exactly 1 error / 0 warnings: line 680 used `dt.minute` on `MqlDateTime`.
+V29.1 restored those helpers and fixed diagnostic packaging. User Windows diagnostic ZIP SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` then showed exactly **1 error / 0 warnings**: `AdaptiveExpertLabV1.mq5(680,10): undeclared identifier 'minute'`.
 
-Official `MqlDateTime` minute member is `min`, not `minute`. V29.2 fixes `dt.minute -> dt.min` and adds both a development member-contract lint and a user-machine source preflight before MetaEditor. The preflight verifies required helper definitions and rejects `.minute` before compile.
+Official MQL5 `MqlDateTime` minute member is `min`, not `minute`. V29.2 fixes `dt.minute -> dt.min` and adds both development member-contract lint and a user-machine source preflight before MetaEditor.
 
-Mandatory release QA now includes helper-definition consistency + standard-structure member lint + user-machine source preflight + delimiter/FileWrite/safety + artifact integrity. Static QA is never represented as Windows compile evidence.
+Mandatory MQL release QA now includes helper-definition consistency + MqlDateTime/MqlRates/MqlTick member lint + user-machine source preflight + delimiter/FileWrite/safety + artifact integrity. Static QA is never represented as Windows compile evidence.
 
 V29.2 local evidence:
-- pytest 15/15 PASS;
+- pytest **16/16 PASS**;
 - analyzer/tests py_compile PASS;
-- MQL delimiter balance PASS;
+- MQL/PowerShell delimiter balance PASS;
 - helper consistency PASS;
-- MqlDateTime member-contract lint PASS;
+- MqlDateTime/MqlRates/MqlTick member-contract lint PASS;
 - runner source-preflight regression PASS;
 - safety scan PASS;
-- internal kit manifest 11/11 PASS;
+- internal kit manifest **17/17 PASS**;
 - ZIP integrity PASS; no cache artifacts.
 
-V29.2 release SHA-256: `d6cb34f77724bb4c5c115259f196e61352150f35c55ad1b06629ab34b9060a63`.
+V29.2 release SHA-256: `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
+Incident report: `docs/research/2026-08-19_v29_2_mqldatetime_compile_incident.md`.
 Patch: `recovery/v29_2_compile_hotfix.patch`.
 V29.0 and V29.1 must not be reused.
 
