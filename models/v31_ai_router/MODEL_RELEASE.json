@@ -1,0 +1,49 @@
+{
+  "release_id": "v31_ai_router_lab_v1",
+  "safety": "tester_only_virtual_orders_live_forbidden",
+  "symbol": "XAUUSDm",
+  "period": "M15",
+  "mt5_gate": {
+    "from": "2025-08-01",
+    "to": "2026-08-01",
+    "model": "Every tick generated tester ticks"
+  },
+  "research_target": {
+    "start_capital_usd": 40,
+    "monthly_return_pct": 15,
+    "max_risk_per_trade_pct": 1.0
+  },
+  "models": {
+    "distilled_relu_nn": {
+      "architecture": [73, 96, 48, 24, 1],
+      "threshold": 0.15744125843048096,
+      "training_labels_before": "2025-07-01",
+      "calibration": "2025-07 scores only",
+      "npz_sha256": "6929081941d9e66c91e0c60afe56488ce9f14ad6eb498057f8a8d3e11ede32b1"
+    },
+    "linear_svr": {
+      "input_dim": 73,
+      "threshold": -0.10337714735872365,
+      "training_labels_before": "2025-07-01",
+      "calibration": "2025-07 scores only",
+      "npz_sha256": "0cfddfa94a57ec5fdf00d73d98fddbd2248be89551a4a1b94c52bfca3fd57783"
+    },
+    "rff_rbf_kernel_ridge": {
+      "input_dim": 73,
+      "components": 384,
+      "gamma": 0.004,
+      "threshold": 0.16803128,
+      "training_labels_before": "2025-07-01",
+      "calibration": "2025-07 scores only",
+      "npz_sha256": "15be47559759a61927bf04785adce8520d35fada1788da9b2788e4d491217707"
+    }
+  },
+  "deployment_sha256": {
+    "V31AiRouterLabV1.mq5": "cef304997fc342740c15101d64a610d6265a4835a4cb601a741113868a078f0f",
+    "V31AiModelData.mqh": "44c8edd55fc5a1b18fe5ec5d0a3454d95600f23d8c3f06ae6048e1c4d16211f3",
+    "V31AiNnWeights.mqh": "6e977ff55b9ae7ddf5ffa8103642fa882a6a47cdc2ef0f9fe6f16582e242c8f3",
+    "V31AiSvmWeights.mqh": "8b94f800959b32465302a8eb50c58fff82071368cf3310788c4c3fdb9cebf650",
+    "V31AiRffWeights.mqh": "36905a57761ec216e2ca92ac87a2a9a23bd241bace4a86a87124ccb6f2ffe710",
+    "state_after_2025_07.csv": "5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0"
+  }
+}
