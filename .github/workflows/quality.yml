@@ -23,14 +23,19 @@ jobs:
         run: python -m pytest -q
       - name: Secret and tracked-login scan
         run: python scripts/secret_scan.py .
+      - name: Normalize repository V29 archive encoding
+        run: >-
+          python scripts/normalize_v29_archive.py
+          --input recovery/v29_adaptive_expert_lab_one_click.zip.b64
+          --output .ci/v29_payload.canonical.b64
       - name: Audit current V29 payload content independent of checksum pin
         run: >-
           python scripts/audit_v29_payload_content.py
-          --archive recovery/v29_adaptive_expert_lab_one_click.zip.b64
+          --archive .ci/v29_payload.canonical.b64
       - name: Verify frozen V29.2 payload checksum and build V29.3 distribution
         run: >-
           python scripts/verify_and_build_v29_release.py
-          --archive recovery/v29_adaptive_expert_lab_one_click.zip.b64
+          --archive .ci/v29_payload.canonical.b64
           --output dist
       - name: Upload only verified V29.3 one-click artifact
         uses: actions/upload-artifact@v4
