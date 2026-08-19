@@ -108,15 +108,32 @@ say "Compile gate: MlDlFeatureLakeV1.mq5"
 DST_SOURCE_WIN="$(cygpath -w "$DST_SOURCE")"
 "$METAEDITOR_EXE" "/compile:$DST_SOURCE_WIN" /log || true
 [[ -f "$DST_LOG" ]] || die "MetaEditor compile log missing: $DST_LOG"
-summary="$(tr -d '\r' < "$DST_LOG" | grep -Eio 'Result:[[:space:]]*[0-9]+[[:space:]]+errors?,[[:space:]]*[0-9]+[[:space:]]+warnings?' | tail -n1 || true)"
-if [[ -z "$summary" ]]; then
-  summary="$(tr -d '\r' < "$DST_LOG" | grep -Eio '[0-9]+[[:space:]]+errors?,[[:space:]]*[0-9]+[[:space:]]+warnings?' | tail -n1 || true)"
+
+# MetaEditor commonly writes /log output as UTF-16 with BOM. Parsing the raw
+# file with grep sees embedded NUL bytes and can miss an otherwise valid
+# 'Result: 0 errors, 0 warnings' line. Normalize to UTF-8 first, with a
+# plain-text fallback for installations that emit UTF-8/ANSI logs.
+COMPILE_LOG_UTF8="$OUT/.metaeditor_compile_log_utf8.txt"
+rm -f "$COMPILE_LOG_UTF8"
+if iconv -f UTF-16 -t UTF-8 "$DST_LOG" > "$COMPILE_LOG_UTF8" 2>/dev/null; then
+  :
+else
+  tr -d '\r' < "$DST_LOG" > "$COMPILE_LOG_UTF8"
 fi
-[[ -n "$summary" ]] || { tail -n 50 "$DST_LOG" || true; die "Could not parse MetaEditor compile summary"; }
-errors="$(printf '%s' "$summary" | sed -E 's/.*[^0-9]([0-9]+)[[:space:]]+errors?.*/\1/I')"
-warnings="$(printf '%s' "$summary" | sed -E 's/.*errors?,[[:space:]]*([0-9]+)[[:space:]]+warnings?.*/\1/I')"
+# Remove UTF-8 BOM if iconv preserved one and normalize CRLF.
+sed -i '1s/^\xEF\xBB\xBF//' "$COMPILE_LOG_UTF8" 2>/dev/null || true
+tr -d '\r' < "$COMPILE_LOG_UTF8" > "$COMPILE_LOG_UTF8.tmp"
+mv -f "$COMPILE_LOG_UTF8.tmp" "$COMPILE_LOG_UTF8"
+
+summary="$(grep -Eio 'Result:[[:space:]]*[0-9]+[[:space:]]+errors?,[[:space:]]*[0-9]+[[:space:]]+warnings?' "$COMPILE_LOG_UTF8" | tail -n1 || true)"
+if [[ -z "$summary" ]]; then
+  summary="$(grep -Eio '[0-9]+[[:space:]]+errors?,[[:space:]]*[0-9]+[[:space:]]+warnings?' "$COMPILE_LOG_UTF8" | tail -n1 || true)"
+fi
+[[ -n "$summary" ]] || { tail -n 50 "$COMPILE_LOG_UTF8" || true; die "Could not parse MetaEditor compile summary after UTF-16/UTF-8 normalization"; }
+errors="$(printf '%s' "$summary" | grep -Eo '[0-9]+[[:space:]]+errors?' | grep -Eo '[0-9]+' | tail -n1 || true)"
+warnings="$(printf '%s' "$summary" | grep -Eo '[0-9]+[[:space:]]+warnings?' | grep -Eo '[0-9]+' | tail -n1 || true)"
 printf '%s\n' "$summary"
-[[ "$errors" == "0" && "$warnings" == "0" ]] || { tail -n 50 "$DST_LOG" || true; die "Compile gate failed errors=$errors warnings=$warnings"; }
+[[ "$errors" == "0" && "$warnings" == "0" ]] || { tail -n 50 "$COMPILE_LOG_UTF8" || true; die "Compile gate failed errors=${errors:-?} warnings=${warnings:-?}"; }
 [[ -f "$DST_EX5" ]] || die "Fresh EX5 not produced: $DST_EX5"
 say "Compile PASS: 0 errors / 0 warnings"
 
