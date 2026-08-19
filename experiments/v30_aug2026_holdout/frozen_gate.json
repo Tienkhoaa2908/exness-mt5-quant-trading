@@ -1,0 +1,64 @@
+{
+  "research_gate": "v30_aug2026_fresh_holdout_v1",
+  "frozen_at": "2026-08-20",
+  "safety": "offline/tester-only; real-money live trading forbidden",
+  "test_month": "2026_08",
+  "model": {
+    "name": "ExtraTreesRegressor",
+    "target": "r_multiple",
+    "feature_set": "engineered_expert",
+    "candidate_aware": true,
+    "n_estimators": 80,
+    "min_samples_leaf": 12,
+    "max_features": 0.65,
+    "random_state": 29
+  },
+  "preprocessing": {
+    "train_only_imputation": "median",
+    "train_only_winsorization": [0.005, 0.995],
+    "train_only_standardization": true,
+    "feature_count": 163,
+    "feature_name_sha256": "be37a63a994d7b4b949c76b10cda6a8789157163ceb072ab597fb4fcecaaf44f"
+  },
+  "training": {
+    "label_cutoff": "exit_time < 2026-07-01T00:00:00",
+    "train_candidate_trades": 7113,
+    "train_unique_entry_direction_opportunities": 1903,
+    "sample_weight": "inverse count(entry_time,direction), normalized to mean 1"
+  },
+  "calibration": {
+    "month": "2026_07",
+    "label_usage_for_threshold": false,
+    "candidate_trades": 370,
+    "family_score_threshold_min_n": 20
+  },
+  "primary_gate": {
+    "keep_target": 0.40,
+    "score_quantile": 0.60,
+    "threshold_type": "family score threshold with frozen global fallback",
+    "thresholds": {
+      "__global__": 0.8053741939364688,
+      "adaptive_shadow_expert_router": 0.8130452224988163,
+      "ema_pullback_h1": 0.9300156984255423,
+      "router_ema_plus_one": 0.9202902130866898,
+      "slow_multi_horizon_momentum": 0.6853211821069352
+    },
+    "global_fallback_families_due_to_july_cal_n_lt_20": [
+      "trend20_breakout_h1",
+      "bos_fvg_h1",
+      "macd_8_21_5_h1"
+    ]
+  },
+  "predeclared_secondary_subgroup": "ema_pullback_h1",
+  "evaluation": {
+    "no_august_retuning": true,
+    "report_candidate_trade_metrics": true,
+    "report_unique_entry_direction_metrics": true,
+    "report_coverage": true,
+    "report_avg_r": true,
+    "report_sum_r_retention": true,
+    "report_tail_loss_rate": true,
+    "forced_partial_test_eom_trades_are_not_valid_promotion_evidence": true
+  },
+  "decision_rule": "Fresh August is falsification/confirmation evidence only. One passing month does not authorize PAPER/DEMO or LIVE. A material failure rejects the current family-threshold hypothesis; a pass requires further fresh/tick-level validation."
+}
