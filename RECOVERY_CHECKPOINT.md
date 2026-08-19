@@ -1,39 +1,18 @@
-# Recovery checkpoint — V29.2 Adaptive Expert Compile Gate
+# Recovery checkpoint — V29.3 Distribution Hardening
 
 Ngày: 2026-08-19.
 
-REAL-MONEY LIVE TRADING = FORBIDDEN. Stop-risk research ceiling 1.00%/trade. No native broker orders.
+REAL-MONEY LIVE TRADING = FORBIDDEN.
 
-## User-facing requirement
-Không hiển thị Python/tooling nội bộ nếu user không yêu cầu. Tooling chạy âm thầm; user-visible tập trung vào evidence, artifact, hash, thao tác, lỗi và bước tiếp theo.
+Latest user diagnostic SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` là stale V29.1 và fail 1 error / 0 warnings vì `dt.minute`.
 
-## V28 final decision
-Calendar extraction is CLOSED. Core cross-asset range ML generalizes, but incremental calendar uplift and fixed scalar `range -> family` routing failed later confirmation. Do not run old V28 replay kit.
+Active user-facing distribution: `v29_3_distribution_hardening`.
 
-## V29 catalog
-12 candidates × 4 virtual books × 18 monthly accounting resets, Feb-2025 → Jul-2026. Controls EMA/MACD/BOS/Trend/EMA+BOS8; slow 16h+24h momentum controls; adaptive realized-R EWMA/change-severity variants. Catalog/risk/exit logic unchanged by compile hotfixes.
+Pinned V29.2 decoded payload SHA-256:
+`d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
 
-## Compile incident chain
-V29.0 is BROKEN and must never be reused. Windows MetaEditor: 100 errors / 50 warnings. Root cause: missing shared helper definitions after refactor; diagnostic path bug also prevented ZIP creation.
+V29.3 adds deterministic clean-checkout verification, CI build, payload manifest, stale-kit wrapper preflight và distribution-aware diagnostic packaging. Strategy logic không đổi.
 
-V29.1 restored helpers and fixed diagnostic packaging. User Windows diagnostic ZIP SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` then failed with exactly **1 error / 0 warnings**: `AdaptiveExpertLabV1.mq5(680,10): undeclared identifier 'minute'`.
+Không chạy trực tiếp V29.0/V29.1/V29.2 folder cũ.
 
-V29.2 corrects `dt.minute` to `dt.min` in `SignalSlowMomentum`. Official MQL5 `MqlDateTime` uses fields `year, mon, day, hour, min, sec, day_of_week, day_of_year`.
-
-Mandatory release QA now includes:
-- custom helper definition consistency;
-- standard MQL structure member contract lint for MqlDateTime/MqlRates/MqlTick;
-- user-machine source preflight before MetaEditor;
-- delimiter/FileWrite/safety scans;
-- artifact manifest/ZIP integrity;
-- Windows MetaEditor 0/0 remains the first runtime acceptance gate.
-
-Static V29.2 evidence: pytest **16/16 PASS**; analyzer/tests py_compile PASS; MQL/PowerShell balance PASS; helper consistency PASS; standard-structure member contract PASS; runner preflight regression PASS; safety scan PASS; internal kit manifest **17/17 PASS**; ZIP integrity PASS; no cache artifacts.
-
-V29.2 release SHA-256: `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
-Incident report: `docs/research/2026-08-19_v29_2_mqldatetime_compile_incident.md`.
-Patch: `recovery/v29_2_compile_hotfix.patch`.
-V29.0 and V29.1 must not be reused.
-
-## Next action
-Run only V29.2 in a fresh folder. First gate: Windows MetaEditor 0 errors / 0 warnings. If compile passes, run the one stateful 18-month Strategy Tester batch. If robustness gates pass, proceed to PAPER/DEMO forward only. LIVE remains forbidden.
+Next: CI artifact PASS → Windows MetaEditor 0/0 → stateful 18-month replay → robustness gates → PAPER/DEMO only. LIVE forbidden.

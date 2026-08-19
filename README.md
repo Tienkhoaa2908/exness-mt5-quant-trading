@@ -1,14 +1,17 @@
-# Exness / MetaTrader 5 Quant Trading — V24 ML/DL Feature Lake
+# Exness / MetaTrader 5 Quant Trading System
 
-Kho nghiên cứu hệ thống quant MT5/Exness.
+**REAL-MONEY LIVE TRADING = FORBIDDEN.**
 
-**REAL-MONEY LIVE TRADING = FORBIDDEN.** Chỉ offline analysis, MT5 Strategy Tester và PAPER/DEMO sau safety gates. Không Martingale, uncontrolled grid, doubling after loss, không bỏ tester/live guards, không commit password/token/secret.
+Kho nghiên cứu quant MT5/Exness. Không Martingale, uncontrolled grid, doubling after loss; không bỏ tester/live guards; không commit password/token/secret/login.
 
-## Trạng thái
+## Active milestone
 
-- V22 Signal Intelligence runtime đã PASS nhưng trade-level ML/DL không có information gain ổn định trên 2026.
-- V23 Regime Router chưa có runtime bundle mới từ user; ZIP gần nhất vẫn là V22.
-- V24 gom V23 regime-router và causal M15 feature-lake export trong **một run**.
-- Sau V24, nhiều vòng ML/DL được chạy offline từ cùng ZIP; user không cần chạy MT5 lại cho từng model.
+User-facing release: **v29_3_distribution_hardening**.
 
-Chạy `RUN_ML_DL_FEATURE_LAKE_LAB_V1.cmd`, sau đó upload một ZIP duy nhất được tạo trên Desktop.
+V29.3 không thay đổi strategy. Nó harden distribution để user không còn chạy nhầm stale V29.0/V29.1/V29.2 folder.
+
+CI verify pinned V29.2 payload SHA-256 `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`, chạy static/safety/tests, rồi mới build và upload một V29.3 one-click artifact.
+
+Windows gate kế tiếp vẫn là MetaEditor **0 errors / 0 warnings**, sau đó mới full 18-month stateful replay.
+
+Xem `docs/handover/CURRENT_STATE.md` và `docs/research/NEXT_EXPERIMENT.md`.

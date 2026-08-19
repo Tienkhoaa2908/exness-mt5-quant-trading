@@ -2,42 +2,41 @@
 
 Ngày cập nhật: 2026-08-19.
 
-## Safety invariant
-REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native broker orders trong research labs.
+## Safety
 
-## User-facing requirement — MUST PRESERVE
-Không hiển thị Python nội bộ, scratch/artifact-packaging code, tool payload hoặc implementation plumbing nếu user không yêu cầu. Tooling chạy âm thầm; user-visible chỉ cần kết luận/evidence/file/SHA/thao tác/lỗi/bước tiếp theo.
+REAL-MONEY LIVE TRADING = FORBIDDEN. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native broker orders trong research screening.
 
-## V28 closed
-Calendar extraction is CLOSED. Core cross-asset range prediction generalizes, but fixed scalar `range -> family` mapping and incremental calendar uplift failed later confirmation. Do NOT run old V28 replay kit.
+## Strategy state
 
-## V29 current gate
-Frozen 12-candidate adaptive shadow-expert catalog remains unchanged. Slow 16h+24h momentum is an orthogonal expert; adaptive variants use causal realized-R EWMAs/change severity; validated range ML remains context only.
+V29 adaptive shadow-expert catalog giữ nguyên 12 candidates × 4 virtual books. Không claim profitable/winner từ screening ngắn.
 
-## Compile incident history
-V29.0 is BROKEN: Windows MetaEditor produced 100 errors / 50 warnings because five shared utility helpers were dropped during refactor while calls remained. Its diagnostic path also failed.
+## Incident chain
 
-V29.1 restored those helpers and fixed diagnostic packaging. User Windows diagnostic ZIP SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` then showed exactly **1 error / 0 warnings**: `AdaptiveExpertLabV1.mq5(680,10): undeclared identifier 'minute'`.
+- V29.0 BROKEN: 100 errors / 50 warnings do rơi 5 helper definitions.
+- V29.1 sửa helpers nhưng diagnostic `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` cho thấy 1 error / 0 warnings do `dt.minute`.
+- Official MQL5 member đúng là `dt.min`.
+- V29.2 sửa source + member/source preflight.
+- Diagnostic mới nhất chứng minh user vẫn chạy stale V29.1 folder. V29.3 vì vậy harden distribution layer.
 
-Official MQL5 `MqlDateTime` minute member is `min`, not `minute`. V29.2 fixes `dt.minute -> dt.min` and adds both development member-contract lint and a user-machine source preflight before MetaEditor.
+## Active user-facing release
 
-Mandatory MQL release QA now includes helper-definition consistency + MqlDateTime/MqlRates/MqlTick member lint + user-machine source preflight + delimiter/FileWrite/safety + artifact integrity. Static QA is never represented as Windows compile evidence.
+Distribution: `v29_3_distribution_hardening`.  
+Pinned V29.2 payload decoded ZIP SHA-256: `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
 
-V29.2 local evidence:
-- pytest **16/16 PASS**;
-- analyzer/tests py_compile PASS;
-- MQL/PowerShell delimiter balance PASS;
-- helper consistency PASS;
-- MqlDateTime/MqlRates/MqlTick member-contract lint PASS;
-- runner source-preflight regression PASS;
-- safety scan PASS;
-- internal kit manifest **17/17 PASS**;
-- ZIP integrity PASS; no cache artifacts.
+Không chạy trực tiếp V29.0/V29.1/V29.2 folder cũ.
 
-V29.2 release SHA-256: `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
-Incident report: `docs/research/2026-08-19_v29_2_mqldatetime_compile_incident.md`.
-Patch: `recovery/v29_2_compile_hotfix.patch`.
-V29.0 and V29.1 must not be reused.
+Clean-checkout CI bắt buộc:
+- Python compile;
+- pytest;
+- secret/login scan;
+- exact payload SHA;
+- helper + predefined-structure member contracts;
+- tester/safety/native-order checks;
+- analyzer/template/chunk validation;
+- deterministic V29.3 wrapper build.
+
+CI chỉ upload artifact nếu toàn bộ gate PASS.
 
 ## Next gate
-User runs only V29.2 in a fresh folder. Accept the batch only if MetaEditor reports 0 errors / 0 warnings. If compile passes, let the single stateful 18-month Strategy Tester batch complete. If robustness gates pass, next endpoint is PAPER/DEMO forward validation only. LIVE remains forbidden.
+
+Sau khi V29.3 CI artifact PASS, user chạy đúng artifact đó trong fresh folder. MetaEditor phải **0 errors / 0 warnings**. Sau đó mới chạy single stateful 18-month Strategy Tester replay. Nếu robustness gates đạt thì chỉ PAPER/DEMO forward validation. LIVE vẫn cấm.
