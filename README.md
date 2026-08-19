@@ -4,14 +4,19 @@
 
 Kho nghiên cứu quant MT5/Exness. Không Martingale, uncontrolled grid, doubling after loss; không bỏ tester/live guards; không commit password/token/secret/login.
 
-## Active milestone
+## Active milestone — V29.3 distribution hardening
 
-User-facing release: **v29_3_distribution_hardening**.
+Mục tiêu hiện tại là loại bỏ class lỗi compile/release vặt trước khi user phải chạy Windows.
 
-V29.3 không thay đổi strategy. Nó harden distribution để user không còn chạy nhầm stale V29.0/V29.1/V29.2 folder.
+Audit đã xác minh historical `recovery/v29_adaptive_expert_lab_one_click.zip.b64` vẫn là V29.0 blob và bị CRC/truncation; các V29.1/V29.2 release SHA cũ không còn được dùng làm canonical source-of-truth.
 
-CI verify pinned V29.2 payload SHA-256 `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`, chạy static/safety/tests, rồi mới build và upload một V29.3 one-click artifact.
+Fresh V29.3 candidate được reconstructed từ chính Windows V29.1 diagnostic source/runner. Strategy source chỉ đổi `dt.minute -> dt.min`; runner thêm pre-MetaEditor helper/member/safety/native-order preflight.
 
-Windows gate kế tiếp vẫn là MetaEditor **0 errors / 0 warnings**, sau đó mới full 18-month stateful replay.
+Candidate ZIP SHA-256:
+`a415f79bd31df3f9928aaf25fc2992288fa1ca1ea4073aa90a375bb7e3597132`
 
-Xem `docs/handover/CURRENT_STATE.md` và `docs/research/NEXT_EXPERIMENT.md`.
+Local QA: pytest 6/6 PASS, ZIP + internal manifest PASS, secret/login scan PASS, no native-order tokens. Đây chưa phải Windows compile evidence và GitHub CI vẫn fail-closed cho tới khi canonical artifact materialization hoàn tất.
+
+Windows gate kế tiếp: MetaEditor **0 errors / 0 warnings**. Chỉ sau đó mới full 18-month stateful replay.
+
+Xem `docs/handover/CURRENT_STATE.md`, `docs/research/2026-08-19_v29_3_distribution_hardening.md` và `docs/research/NEXT_EXPERIMENT.md`.
