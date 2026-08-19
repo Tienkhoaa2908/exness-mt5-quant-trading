@@ -23,7 +23,11 @@ jobs:
         run: python -m pytest -q
       - name: Secret and tracked-login scan
         run: python scripts/secret_scan.py .
-      - name: Verify frozen V29.2 payload and build V29.3 distribution
+      - name: Audit current V29 payload content independent of checksum pin
+        run: >-
+          python scripts/audit_v29_payload_content.py
+          --archive recovery/v29_adaptive_expert_lab_one_click.zip.b64
+      - name: Verify frozen V29.2 payload checksum and build V29.3 distribution
         run: >-
           python scripts/verify_and_build_v29_release.py
           --archive recovery/v29_adaptive_expert_lab_one_click.zip.b64
