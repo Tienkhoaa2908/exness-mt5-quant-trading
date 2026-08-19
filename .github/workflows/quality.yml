@@ -23,11 +23,12 @@ jobs:
         run: python -m pytest -q
       - name: Secret and tracked-login scan
         run: python scripts/secret_scan.py .
-      - name: Recover V29.0 plaintext from intact ZIP local headers
+      - name: Recover and inventory historical V29.0 plaintext
         run: >-
           python scripts/recover_v29_payload_local_headers.py
           --input recovery/v29_adaptive_expert_lab_one_click.zip.b64
           --output .ci/recovered_v29_0
+          --diagnostic
       - name: Upload recovered plaintext migration evidence
         uses: actions/upload-artifact@v4
         with:
