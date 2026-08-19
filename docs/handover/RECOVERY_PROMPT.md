@@ -25,28 +25,30 @@ Frozen catalog remains 12 candidates × 4 books × 18 months. Candidate/risk/exi
 ## Compile incidents — MUST READ / MUST NOT REPEAT
 V29.0 is BROKEN: Windows MetaEditor produced 100 errors / 50 warnings because refactor dropped five helper definitions while call sites remained: `MonthKey`, `MonthTagFromKey`, `NewBar`, `ReadOne`, `SecondsOfDay`. V29.0 also had a diagnostic-path bug. Never run it again.
 
-V29.1 restored those helpers and fixed diagnostic packaging. User Windows run then produced exactly **1 error / 0 warnings**, and the diagnostic ZIP worked correctly. Exact compiler error: `AdaptiveExpertLabV1.mq5(680,10): error 256: undeclared identifier 'minute'`.
+V29.1 restored those helpers and fixed diagnostic packaging. User Windows diagnostic ZIP SHA-256 `6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5` then produced exactly **1 error / 0 warnings**. Exact compiler error: `AdaptiveExpertLabV1.mq5(680,10): error 256: undeclared identifier 'minute'`.
 
-Root cause V29.1: `SignalSlowMomentum` used `dt.minute`, but official MQL5 `MqlDateTime` fields are `year, mon, day, hour, min, sec, day_of_week, day_of_year`; the correct minute field is `min`.
+Root cause V29.1: `SignalSlowMomentum` used `dt.minute`, but official MQL5 `MqlDateTime` fields are `year, mon, day, hour, min, sec, day_of_week, day_of_year`; correct minute field is `min`.
 
-V29.2 replaces `dt.minute` with `dt.min` and adds two layers of prevention:
+V29.2 replaces `dt.minute` with `dt.min` and adds prevention layers:
 - development regression lint validating every referenced `MqlDateTime` member against the official field contract;
-- user-machine PowerShell source preflight before MetaEditor, checking required helper definitions and rejecting the invalid `.minute` token before compile.
+- validation of used `MqlRates` and `MqlTick` members;
+- user-machine PowerShell source preflight before MetaEditor for required helper markers, invalid `.minute`, candidate count, tester guard and forbidden order-path tokens.
 
-Future MQL release QA must include helper-definition consistency, standard-structure member contract checks, user-machine source preflight, delimiter/FileWrite/safety checks, artifact integrity, then Windows MetaEditor 0 errors / 0 warnings as the first runtime acceptance gate. Do not call static QA compile evidence.
+Future MQL release QA must include helper-definition consistency, standard-structure member contract checks, user-machine source preflight, delimiter/FileWrite/safety checks, artifact integrity, then Windows MetaEditor 0 errors / 0 warnings as first runtime acceptance gate. Do not call static QA compile evidence.
 
 V29.2 local QA:
-- pytest 15/15 PASS;
+- pytest **16/16 PASS**;
 - analyzer/tests py_compile PASS;
-- MQL delimiter balance PASS;
+- MQL/PowerShell delimiter balance PASS;
 - required helper definitions PASS;
-- `MqlDateTime` member-contract lint PASS;
+- MqlDateTime/MqlRates/MqlTick member-contract lint PASS;
 - runner source-preflight regression PASS;
 - executable safety scan PASS;
-- internal kit manifest 11/11 PASS;
+- internal kit manifest **17/17 PASS**;
 - ZIP integrity PASS; no cache artifacts.
 
-V29.2 release SHA-256: `d6cb34f77724bb4c5c115259f196e61352150f35c55ad1b06629ab34b9060a63`.
+V29.2 release SHA-256: `d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334`.
+Incident report: `docs/research/2026-08-19_v29_2_mqldatetime_compile_incident.md`.
 V29.2 patch: `recovery/v29_2_compile_hotfix.patch`.
 V29.0 and V29.1 must not be reused.
 
