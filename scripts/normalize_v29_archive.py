@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, base64, hashlib, re
+import argparse, base64, hashlib, io, re, zipfile
 from pathlib import Path
-
-ZIP_MAGIC = b"PK\x03\x04"
 
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
+def is_valid_zip(data: bytes) -> bool:
+    try:
+        if not zipfile.is_zipfile(io.BytesIO(data)):
+            return False
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            return z.testzip() is None
+    except (OSError, zipfile.BadZipFile, RuntimeError):
+        return False
+
 def decode_to_zip(data: bytes, max_layers: int = 3) -> tuple[bytes, int]:
     data = data.strip()
     for depth in range(max_layers + 1):
-        if data.startswith(ZIP_MAGIC):
+        if is_valid_zip(data):
             return data, depth
         compact = re.sub(rb"\s+", b"", data)
-        # Historical recovery payloads were written with non-canonical padding.
-        # Transport decoding is deliberately permissive; final ZIP magic, pinned
-        # SHA-256 and full content contracts remain mandatory downstream.
         try:
             decoded = base64.b64decode(compact, validate=False)
         except Exception as exc:
@@ -24,7 +28,7 @@ def decode_to_zip(data: bytes, max_layers: int = 3) -> tuple[bytes, int]:
         if decoded == data or not decoded:
             raise RuntimeError("archive decoding made no progress")
         data = decoded
-    raise RuntimeError(f"ZIP magic not reached within {max_layers} base64 layers")
+    raise RuntimeError(f"valid ZIP not reached within {max_layers} base64 layers")
 
 def main() -> int:
     ap = argparse.ArgumentParser()
