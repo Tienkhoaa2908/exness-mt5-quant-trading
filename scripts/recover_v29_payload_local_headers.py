@@ -38,64 +38,94 @@ def inflate(method: int, payload: bytes) -> bytes:
         return zlib.decompress(payload, -15)
     raise RuntimeError(f"unsupported compression method {method}")
 
-def recover(raw: bytes, output: Path) -> list[str]:
+def recover(raw: bytes, output: Path, diagnostic: bool = False) -> tuple[list[str], list[str]]:
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
     off = 0
     names: list[str] = []
+    errors: list[str] = []
+    report: list[str] = []
     root_name: str | None = None
     while off + HEADER.size <= len(raw):
         sig = struct.unpack_from("<I", raw, off)[0]
         if sig != LOCAL:
+            report.append(f"STOP offset={off} signature=0x{sig:08x} raw_bytes={len(raw)}")
             break
         (sig, version, flags, method, mtime, mdate, crc, csize, usize, nlen, xlen) = HEADER.unpack_from(raw, off)
         if flags & 0x08:
-            raise RuntimeError(f"data-descriptor ZIP entry unsupported at offset {off}")
+            errors.append(f"data_descriptor offset={off}")
+            break
         start = off + HEADER.size
         end_name = start + nlen
         end_extra = end_name + xlen
         end_data = end_extra + csize
         if end_data > len(raw):
-            raise RuntimeError(f"truncated local entry at offset {off}")
+            errors.append(f"truncated offset={off} end_data={end_data} raw_bytes={len(raw)}")
+            break
         name_bytes = raw[start:end_name]
         encoding = "utf-8" if flags & 0x800 else "cp437"
         name = name_bytes.decode(encoding)
         if root_name is None and "/" in name:
             root_name = name.split("/", 1)[0]
         compressed = raw[end_extra:end_data]
-        data = inflate(method, compressed)
-        if len(data) != usize:
-            raise RuntimeError(f"size mismatch {name}: expected={usize} actual={len(data)}")
-        actual_crc = binascii.crc32(data) & 0xFFFFFFFF
-        if actual_crc != crc:
-            raise RuntimeError(f"CRC mismatch {name}: expected={crc:08x} actual={actual_crc:08x}")
+        try:
+            data = inflate(method, compressed)
+            size_ok = len(data) == usize
+            actual_crc = binascii.crc32(data) & 0xFFFFFFFF
+            crc_ok = actual_crc == crc
+        except Exception as exc:
+            data = b""
+            size_ok = False
+            actual_crc = -1
+            crc_ok = False
+            errors.append(f"inflate_failed {name}: {type(exc).__name__}: {exc}")
         rel = safe_rel(name, root_name or "")
         target = output / rel
         if name.endswith("/"):
             target.mkdir(parents=True, exist_ok=True)
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
+            if data:
+                target.write_bytes(data)
             names.append(name)
+        status = "PASS" if size_ok and crc_ok else "FAIL"
+        report.append(
+            f"{status} name={name} method={method} csize={csize} usize={usize} "
+            f"actual_size={len(data)} expected_crc={crc:08x} actual_crc={actual_crc & 0xffffffff:08x}"
+        )
+        if not size_ok:
+            errors.append(f"size_mismatch {name}: expected={usize} actual={len(data)}")
+        if not crc_ok:
+            errors.append(f"crc_mismatch {name}: expected={crc:08x} actual={actual_crc & 0xffffffff:08x}")
         off = end_data
     if not names:
-        raise RuntimeError("no recoverable ZIP local-file entries")
+        errors.append("no recoverable ZIP local-file entries")
     missing = [suffix for suffix in REQUIRED_SUFFIXES if not any(n.replace("\\", "/").endswith(suffix) for n in names)]
     if missing:
-        raise RuntimeError(f"required recovered members missing: {missing}")
-    print(f"LOCAL_HEADER_RECOVERY_PASS files={len(names)} stop_offset={off} raw_bytes={len(raw)}")
-    for n in names:
-        print(f"RECOVERED {n}")
-    return names
+        errors.append(f"required recovered members missing: {missing}")
+    (output / "RECOVERY_INTEGRITY_REPORT.txt").write_text("\n".join(report + ["", "ERRORS:"] + errors) + "\n", encoding="utf-8")
+    print(f"LOCAL_HEADER_RECOVERY files={len(names)} errors={len(errors)} stop_offset={off} raw_bytes={len(raw)}")
+    for line in report:
+        print(line)
+    for err in errors:
+        print(f"RECOVERY_ERROR {err}")
+    if errors and not diagnostic:
+        raise RuntimeError(f"recovery integrity failed with {len(errors)} issue(s)")
+    return names, errors
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", type=Path, required=True)
     ap.add_argument("--output", type=Path, required=True)
+    ap.add_argument("--diagnostic", action="store_true", help="write all recoverable members/report and return success despite CRC failures")
     ns = ap.parse_args()
     raw = decode_transport(ns.input)
-    recover(raw, ns.output)
+    _, errors = recover(raw, ns.output, diagnostic=ns.diagnostic)
+    if ns.diagnostic:
+        print(f"LOCAL_HEADER_DIAGNOSTIC_COMPLETE integrity_issues={len(errors)}")
+    else:
+        print("LOCAL_HEADER_RECOVERY_PASS")
     return 0
 
 if __name__ == "__main__":
