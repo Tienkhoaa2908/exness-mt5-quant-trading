@@ -1,0 +1,4 @@
+V29.2 release SHA-256: d469f527cb96197ed265c1e1a62c4d3f3f2d220efca0f44fb4478e928f68f334
+Diagnostic V29.1 SHA-256: 6f457681e2f868daf0939b74c7f63420f72b37ceb3375110f652bbd7be9f20f5
+V29.0 and V29.1 are broken/retired and must not be reused.
+Apply recovery/v29_2_compile_hotfix.patch to the V29.1 source if reconstructing; then enforce the stricter V29.2 release QA recorded in docs/handover/RECOVERY_PROMPT.md.
