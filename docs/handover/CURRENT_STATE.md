@@ -4,163 +4,139 @@ Ngày cập nhật: 2026-08-20.
 
 ## Safety
 
-REAL-MONEY LIVE TRADING = FORBIDDEN. Không tháo tester/live guards. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native/external broker order trong research screening.
+REAL-MONEY LIVE TRADING = FORBIDDEN. Research/Strategy Tester dùng virtual books, không Martingale/grid/doubling, không secrets/logins. Stop-risk research ceiling vẫn 1.00% mỗi trade.
 
-## Canonical runtime/data state
+## Accepted V30 data/runtime
 
-V29/V30 giữ catalog 12 candidates × 4 virtual books và adaptive shadow-expert semantics. V30 `MlDlFeatureLakeV1.mq5` bổ sung M15 bar-feature export cho offline ML/DL; không ghi future labels trong EA và không có native broker-order path.
-
-Accepted V30 source SHA-256:
+V30 `MlDlFeatureLakeV1.mq5` source SHA-256:
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-Windows MetaEditor: `0 errors / 0 warnings`.
+Windows MetaEditor đã PASS `0 errors / 0 warnings`.
 
-Final Git Bash acquisition ZIP SHA-256:
-`8771ae988be46191c724e74f3a84b76b1bc7a0385a703ef963dee95414cdbb4a`
-
-Canonical 18m lake after half-open trim/stitch:
+Accepted 18-month lake sau canonical trim/stitch:
 
 - 35,344 M15 rows, 2025-02 → 2026-07;
-- 136 raw V30 feature columns;
-- 0 duplicate timestamps;
-- 0 NaN / 0 Inf in accepted raw lake;
+- 136 raw features;
+- 0 duplicate timestamps, 0 NaN, 0 Inf;
 - 864 monthly-summary rows = 18 × 12 × 4;
-- 28,128 total ledger trades;
+- 28,128 trades toàn catalog;
 - 7,483 `norm10k_r0p5_continuous` trades;
-- summary ↔ ledger counts exact; PnL/AvgR only CSV-rounding differences.
+- summary ↔ ledger counts khớp, PnL/AvgR chỉ lệch CSV rounding.
 
-Adaptive state is continuous across all chunks. Final Chunk-3 expert obs counts:
-
-- EMA 590
-- MACD 251
-- BOS 221
-- Trend 360
-- Slow momentum 612
-
-No additional MT5 run is needed to analyze the accepted 18-month lake.
-
-## Mandatory causal timing contract
-
-CRITICAL: `bar_features.time` is the OPEN timestamp of `r[1]`, the just-closed M15 bar. The feature row is only available after that bar closes.
-
-Offline ML must use:
+Mandatory causal contract:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-Trade entries may only join rows satisfying:
+Trade entry chỉ được dùng feature row có `feature_available_time <= entry_time`. Mọi experiment bỏ +15 phút là invalid leakage.
 
-`feature_available_time <= entry_time`
+Heavy duplicate-opportunity confound vẫn phải được kiểm soát: 7,483 norm-book candidate-trades chỉ tương ứng 1,972 unique `(entry_time,direction)` opportunities; ~79.3% groups duplicated.
 
-Any experiment using raw `bar_features.time <= entry_time` without the +15-minute availability shift is INVALID.
+## V30 model conclusions
 
-Incomplete future-label horizons remain NaN; never coerce missing future returns to class 0.
+- win/loss/tail classification: rejected;
+- static MLP: no robust uplift;
+- GRU/causal TCN/PatchTransformer: no robust uplift;
+- universal common market-state gate: chưa established;
+- expected-R filtering + family/candidate context là lead tốt hơn direct classification.
 
-## Strict causal ML/DL V2 protocol
+Không model V30 nào được promote.
 
-12 OOS months: 2025-08 → 2026-07. Baseline: 5,066 norm-book candidate-trades, pooled AvgR 0.189049R, sumR 957.72205R.
+## V31 AI Router Lab — current research branch
 
-For each test month:
+Primary branch:
+`agent/v31-ai-router-mt5-gate`
 
-- previous month = score-calibration month;
-- train only on trades with `exit_time < calibration_month_start`;
-- frozen model scores calibration month;
-- threshold is derived from calibration **scores only**;
-- absolute threshold is applied unchanged to next test month;
-- no test-month quantile peeking;
-- no random K-fold.
+V31 được tạo để test trực tiếp nonlinear AI inside MT5, không chỉ offline dataframe scoring.
 
-## Duplicate-opportunity confound
+Catalog V31:
 
-Norm-book 18m:
+- 12 V30 baseline candidates giữ nguyên;
+- candidate 12: `ai_nn_distilled_router`;
+- candidate 13: `ai_linear_svr_router`;
+- candidate 14: `ai_rff_kernel_router`;
+- total = 15 candidates × 4 virtual books = 60 books.
 
-- 7,483 candidate-trades;
-- only 1,972 unique `(entry_time, direction)` opportunities;
-- mean multiplicity ~3.795;
-- 79.31% of opportunity groups contain >1 candidate variant.
+AI input contract = 73 dimensions:
 
-OOS 12m:
+- 42 causal bar/market/expert-state fields;
+- 19 safe entry-state fields;
+- 12 candidate one-hot fields.
 
-- 5,066 candidate-trades;
-- 1,347 unique opportunities;
-- mean multiplicity ~3.761;
-- 79.29% duplicated.
+Frozen models:
 
-Therefore unweighted catalog-trade ML numbers are exploratory only.
+1. Distilled DNN: `73 -> 96 -> 48 -> 24 -> 1`, ReLU, threshold `0.15744125843048096`.
+2. Linear SVR expected-R control, threshold `-0.10337714735872365`.
+3. RBF approximation teacher: 384 random Fourier features, gamma `0.004`, weighted Ridge, threshold `0.16803128`.
 
-Inverse-opportunity-weighted ExtraTrees with a global threshold:
+Training labels end before `2025-07-01`. July-2025 scores only are used to freeze thresholds. MT5 development/implementation interval is `2025-08-01 -> 2026-08-01`.
 
-- 40%-keep target: actual coverage ~49.1%, selected AvgR ~0.250R, CI crosses zero;
-- 50%-keep target: actual coverage ~58.6%, selected AvgR ~0.257R, sumR retention ~79.7%, paired-month CI roughly [+0.016R,+0.127R].
+V31 deployment SHA-256:
 
-Unique-opportunity-group ExtraTrees/HistGB models all have paired-month CIs crossing zero. No universal common market-opportunity ML edge is established.
+- `V31AiRouterLabV1.mq5`: `cef304997fc342740c15101d64a610d6265a4835a4cb601a741113868a078f0f`
+- `V31AiModelData.mqh`: `44c8edd55fc5a1b18fe5ec5d0a3454d95600f23d8c3f06ae6048e1c4d16211f3`
+- `V31AiNnWeights.mqh`: `6e977ff55b9ae7ddf5ffa8103642fa882a6a47cdc2ef0f9fe6f16582e242c8f3`
+- `V31AiSvmWeights.mqh`: `8b94f800959b32465302a8eb50c58fff82071368cf3310788c4c3fdb9cebf650`
+- `V31AiRffWeights.mqh`: `36905a57761ec216e2ca92ac87a2a9a23bd241bace4a86a87124ccb6f2ffe710`
+- packed release tar.gz SHA: `fbcf83f04d2e8661bc36ebba2bea66c172cbc4c08d4b13e74df45a8b9174b9e7`
+- start state after Jul-2025 SHA: `5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0`
 
-## Model decisions
+Local release QA before Windows:
 
-- Win/loss/tail classification: REJECT.
-- Static MLP: no robust uplift.
-- GRU64: no robust uplift.
-- causal TCN64: no robust uplift.
-- Patch Transformer64: no robust uplift.
-- Unweighted catalog ExtraTrees: not promotion evidence.
-- Weighted expected-R tree filtering: promising but context-dependent, not promotion-ready.
+- deployment/reconstruction hash checks PASS;
+- manual DNN/SVR/RFF inference parity checks PASS in development;
+- repo artifact tests 6/6 PASS after packed-release refactor;
+- Bash runner `bash -n` PASS;
+- static safety scan has no native/external order path.
 
-DL capacity does not beat the stronger tabular controls on the accepted 18m lake.
+Windows V31 compile/tester evidence is still PENDING. Do not claim V31 compile PASS or MT5 performance until user returns the generated ZIP.
 
-## Family-threshold gate completed
+## Economic target
 
-A shared inverse-opportunity-weighted ExtraTrees model was calibrated by family from previous-month score distributions.
+Research target from user:
 
-Candidate-aware aggregate:
+- starting capital: `$40`;
+- aspirational target: `15%` average monthly return;
+- risk ceiling: max 1.00% per trade.
 
-- 40%-keep target: actual coverage 50.14%, selected AvgR 0.2758R, sumR retention 73.14%, paired-month CI [+0.0169R,+0.1640R].
-- 50%-keep target: coverage 58.86%, selected AvgR 0.2523R, retention 78.56%, CI [+0.0005R,+0.1188R].
-- 60%-keep target: coverage 64.49%, selected AvgR 0.2397R, retention 81.76%, CI [+0.0086R,+0.1054R].
+Existing V30 `$40 / 1%` `adaptive_ewma_hl8_thr0` baseline averages about 7.45%/month over accepted 18-month monthly-reset evidence and reaches 15% in only 5/18 months. Therefore current accepted system does NOT meet 15%/month.
 
-Candidate-blind control fails robustness at all three thresholds; every paired-month interval crosses zero. Therefore the effect is not a clean universal market-state filter and depends partly on family/candidate context.
+The V31 gate evaluates the primary `usd40_r1p0_cent` book and also checks 0.5%/0.75% robustness. Mean >=15% alone is insufficient: median, hit-rate, worst month, MTM drawdown, volume/margin rejects, turnover and month concentration must also be acceptable.
 
-Family diagnostics:
+## V31 offline evidence — development only
 
-- EMA pullback is the strongest current lead; its candidate-aware weighted family threshold is positive across 40/50/60 targets, with high sumR retention.
-- Adaptive router is a secondary lead mainly at the tighter 40%-target gate.
-- Router EMA+BOS is marginal/unstable.
-- Slow momentum is not robust by month.
-- MACD sample is too small/unstable despite some positive bootstrap slices.
-- BOS/FVG and Trend20 do not clear a stable gate; BOS/FVG remains a useful negative/control family.
+Before MT5 implementation, frozen DNN candidate-trade scoring over Aug-2025→Jul-2026 showed approximately:
 
-This family analysis reuses the same 12 OOS months already inspected. It is robustness evidence, **not fresh confirmation**.
+- coverage 59.4%;
+- selected AvgR 0.318R vs ~0.189R baseline;
+- selected sumR retention ~99.95%;
+- paired-month uplift interval roughly `[+0.043R,+0.196R]`.
 
-## Current decision
+RFF teacher was also positive; linear SVR was weaker. These are not `$40` MT5 performance numbers and cannot establish the 15% target because opportunity duplication, overlapping catalog paths, virtual sizing, margin/volume rejects and full tester exit semantics must be evaluated inside MT5.
 
-V30 feature lake: ACCEPTED for offline research.
+## Current next gate
 
-No ML/DL model is promoted to PAPER/DEMO execution. REAL-MONEY LIVE remains forbidden.
+Run exactly one V31 Strategy Tester batch:
 
-Stop tuning/slicing the same 2025-08 → 2026-07 OOS sample. More optimization on those months now increases research-overfitting risk.
+- `XAUUSDm`, M15;
+- MT5 `Every tick` generated tester ticks;
+- `2025-08-01 -> 2026-08-01`;
+- 15 candidates × 4 virtual books;
+- expected 720 monthly-summary rows;
+- compile gate must be `0 errors / 0 warnings` before tester launches.
 
-The next meaningful gate is a genuinely fresh chronological holdout after 2026-08-01, with frozen model/threshold rules. A complete August-2026 month is preferable to a partial-month test because V30 `OnDeinit()` finalizes the active month and would create artificial EOM closes at a partial tester end date.
+The runner backs up/restores the user's current adaptive state and creates one ZIP. If a complete checkpoint exists it packages without rerunning MT5.
 
-When a fresh full month is available:
+After ZIP upload, formal evaluation will compare DNN, linear SVR, RFF router and best baseline on `$40 / 1%`, plus risk robustness at 0.5%/0.75%.
 
-1. train using only pre-July-label history according to the frozen monthly protocol;
-2. use July scores to freeze the family thresholds;
-3. apply unchanged rules to unseen August data;
-4. report candidate-trade and unique-opportunity economics;
-5. no re-tuning on August;
-6. only if fresh holdout survives should a new MT5 strategy variant / tick-level re-simulation be justified.
+This historical interval is an implementation/development backtest because it has already been inspected offline; it is not pristine confirmation. A future untouched holdout remains required before PAPER/DEMO. LIVE remains forbidden.
 
-## Evidence / code
+## Evidence / runtime
 
-- `docs/research/v30_18m_feature_lake_acceptance_and_first_ml.md`
-- `docs/research/v30_causal_ml_dl_tournament_v2.md`
-- `docs/research/v30_family_threshold_gate_v2.md`
-- `docs/adr/ADR-038-causal-feature-availability-and-opportunity-weighting.md`
-- `scripts/v30_causal_research_v2.py`
-- `scripts/v30_trade_tournament_v2.py`
-- `scripts/v30_sequence_tournament_v2.py`
-- `scripts/v30_opportunity_weighting_v2.py`
-- `scripts/v30_family_gate_v2.py`
-- `tests/test_v30_causal_research_v2.py`
+- `docs/research/v31_ai_router_offline_selection_and_mt5_gate.md`
+- `models/v31_ai_router/MODEL_META.json`
+- `models/v31_ai_router/MODEL_RELEASE.json`
+- `models/v31_ai_router/release/v31_model_release.tar.gz.b64`
+- `runtime/v31_ai_router_mt5_gate/RUN_V31_AI_ROUTER_MT5_GIT_BASH.sh`
+- `tests/test_v31_ai_router_artifacts.py`
 
-Local research QA at this checkpoint: Python compile PASS for the V30 offline utilities and `pytest` 5/5 PASS; one non-fatal PyTorch nested-tensor warning from the Transformer forward test.
-
-Historical V29 compile/distribution incidents (`missing helpers`, `dt.minute -> dt.min`, stale/corrupt recovery blob) remain lessons learned; do not reintroduce those artifacts.
+Historical V29/V30 compile/release incidents remain lessons learned; do not reuse broken stale artifacts.
