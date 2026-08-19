@@ -6,8 +6,8 @@ Mục đích: bỏ PowerShell orchestration. Script Bash chỉ compile EA, chạ
 
 1. Đóng MetaTrader 5 hoàn toàn.
 2. Không xóa `%APPDATA%\MetaQuotes\Terminal\Common\Files`.
-3. State Chunk 1 đã nằm trong repo và có hash check.
-4. EA được reconstruct từ các base64 text parts trong repo và bắt buộc khớp SHA-256 trước compile.
+3. State Chunk 1 đã nằm trong repo và được kiểm tra semantic state (`obs=647`).
+4. Runner dùng đúng `MlDlFeatureLakeV1.mq5` đã tồn tại trong MT5 Data Folder từ run Chunk 1, và bắt buộc SHA-256 phải là `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05` trước compile.
 5. REAL-MONEY LIVE TRADING = FORBIDDEN. EA/tester không có native order path.
 
 ## Chạy bằng Git Bash
@@ -22,8 +22,7 @@ bash ./RUN_V30_CHUNKS_2_3_GIT_BASH.sh
 ## Script sẽ tự làm
 
 - tìm đúng MT5 data folder qua `origin/origin.txt`;
-- reconstruct exact `MlDlFeatureLakeV1.mq5` từ source parts và verify SHA-256;
-- copy EA vào `MQL5/Experts/mt5_quant`;
+- tìm exact V30 EA source đã chạy Chunk 1 và verify SHA-256;
 - MetaEditor compile và bắt buộc `0 errors / 0 warnings`;
 - reset chain về state Chunk 1 đã được kiểm chứng;
 - chạy Chunk 2: `2025.08.01 -> 2026.02.01`;
