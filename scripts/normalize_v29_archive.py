@@ -6,32 +6,38 @@ from pathlib import Path
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
-def is_valid_zip(data: bytes) -> bool:
+def zip_integrity(data: bytes) -> tuple[bool, str]:
+    bio = io.BytesIO(data)
+    if not zipfile.is_zipfile(bio):
+        return False, "not_zip"
     try:
-        if not zipfile.is_zipfile(io.BytesIO(data)):
-            return False
         with zipfile.ZipFile(io.BytesIO(data)) as z:
-            return z.testzip() is None
-    except (OSError, zipfile.BadZipFile, RuntimeError):
-        return False
+            bad = z.testzip()
+            if bad is not None:
+                return False, f"crc_failed:{bad}"
+            return True, f"ok:{len(z.infolist())}_members"
+    except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
+        return False, f"zip_error:{type(exc).__name__}:{exc}"
 
 def layer_summary(depth: int, data: bytes) -> str:
     compact = re.sub(rb"\s+", b"", data)
+    ok, status = zip_integrity(data)
     return (
         f"ARCHIVE_LAYER depth={depth} bytes={len(data)} compact={len(compact)} "
         f"mod4={len(compact)%4} sha256={sha(data)} prefix_hex={data[:16].hex()} "
-        f"valid_zip={is_valid_zip(data)}"
+        f"suffix_hex={data[-24:].hex()} zip_status={status}"
     )
 
 def decode_to_zip(data: bytes, max_layers: int = 3) -> tuple[bytes, int]:
     data = data.strip()
     for depth in range(max_layers + 1):
         print(layer_summary(depth, data))
-        if is_valid_zip(data):
+        ok, status = zip_integrity(data)
+        if ok:
             return data, depth
+        if status != "not_zip":
+            raise RuntimeError(f"ZIP structure found but integrity failed at layer {depth}: {status}")
         compact = re.sub(rb"\s+", b"", data)
-        # Normalize padding only at the transport layer. Payload acceptance still
-        # requires a valid ZIP, pinned SHA-256 and full content-contract checks.
         core = compact.rstrip(b"=")
         normalized = core + b"=" * ((-len(core)) % 4)
         try:
