@@ -4,6 +4,7 @@ import argparse, base64, binascii, re, shutil, struct, zlib
 from pathlib import Path, PurePosixPath
 
 LOCAL = 0x04034B50
+LOCAL_BYTES = b"PK\x03\x04"
 HEADER = struct.Struct("<IHHHHHIIIHH")
 REQUIRED_SUFFIXES = (
     "/mql5/Experts/AdaptiveExpertLabV1.mq5",
@@ -38,6 +39,9 @@ def inflate(method: int, payload: bytes) -> bytes:
         return zlib.decompress(payload, -15)
     raise RuntimeError(f"unsupported compression method {method}")
 
+def next_local(raw: bytes, start: int) -> int:
+    return raw.find(LOCAL_BYTES, start)
+
 def recover(raw: bytes, output: Path, diagnostic: bool = False) -> tuple[list[str], list[str]]:
     if output.exists():
         shutil.rmtree(output)
@@ -50,22 +54,44 @@ def recover(raw: bytes, output: Path, diagnostic: bool = False) -> tuple[list[st
     while off + HEADER.size <= len(raw):
         sig = struct.unpack_from("<I", raw, off)[0]
         if sig != LOCAL:
-            report.append(f"STOP offset={off} signature=0x{sig:08x} raw_bytes={len(raw)}")
-            break
+            nxt = next_local(raw, off + 1)
+            if nxt < 0:
+                report.append(f"STOP offset={off} signature=0x{sig:08x} raw_bytes={len(raw)} no_later_local_header=1")
+                break
+            report.append(f"RESYNC from={off} to={nxt} skipped={nxt-off}")
+            errors.append(f"transport_gap from={off} to={nxt} skipped={nxt-off}")
+            off = nxt
+            continue
         (sig, version, flags, method, mtime, mdate, crc, csize, usize, nlen, xlen) = HEADER.unpack_from(raw, off)
         if flags & 0x08:
             errors.append(f"data_descriptor offset={off}")
-            break
+            nxt = next_local(raw, off + 4)
+            if nxt < 0:
+                break
+            off = nxt
+            continue
         start = off + HEADER.size
         end_name = start + nlen
         end_extra = end_name + xlen
         end_data = end_extra + csize
         if end_data > len(raw):
             errors.append(f"truncated offset={off} end_data={end_data} raw_bytes={len(raw)}")
-            break
+            nxt = next_local(raw, off + 4)
+            if nxt < 0:
+                break
+            off = nxt
+            continue
         name_bytes = raw[start:end_name]
         encoding = "utf-8" if flags & 0x800 else "cp437"
-        name = name_bytes.decode(encoding)
+        try:
+            name = name_bytes.decode(encoding)
+        except UnicodeDecodeError as exc:
+            errors.append(f"name_decode_failed offset={off}: {exc}")
+            nxt = next_local(raw, off + 4)
+            if nxt < 0:
+                break
+            off = nxt
+            continue
         if root_name is None and "/" in name:
             root_name = name.split("/", 1)[0]
         compressed = raw[end_extra:end_data]
@@ -91,7 +117,7 @@ def recover(raw: bytes, output: Path, diagnostic: bool = False) -> tuple[list[st
             names.append(name)
         status = "PASS" if size_ok and crc_ok else "FAIL"
         report.append(
-            f"{status} name={name} method={method} csize={csize} usize={usize} "
+            f"{status} offset={off} name={name} method={method} csize={csize} usize={usize} "
             f"actual_size={len(data)} expected_crc={crc:08x} actual_crc={actual_crc & 0xffffffff:08x}"
         )
         if not size_ok:
@@ -118,7 +144,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", type=Path, required=True)
     ap.add_argument("--output", type=Path, required=True)
-    ap.add_argument("--diagnostic", action="store_true", help="write all recoverable members/report and return success despite CRC failures")
+    ap.add_argument("--diagnostic", action="store_true", help="write all recoverable members/report and return success despite integrity failures")
     ns = ap.parse_args()
     raw = decode_transport(ns.input)
     _, errors = recover(raw, ns.output, diagnostic=ns.diagnostic)
