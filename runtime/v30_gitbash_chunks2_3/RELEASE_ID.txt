@@ -1,0 +1,7 @@
+release_id=v30_gitbash_chunks2_3_v2_github_bootstrap
+source_release_id=v30_ml_dl_feature_lake_v1
+start_state=verified_state_after_chunk1
+windows_orchestrator=git_bash
+source_transport=base64_parts_reassembled_and_sha256_verified
+powershell_runner=disabled
+real_money_live_trading=forbidden
