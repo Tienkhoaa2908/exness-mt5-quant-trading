@@ -11,10 +11,22 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
-RUN_IDS = [
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-02-01_00-00-00__756375",
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-08-01_00-00-00__22265",
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2026-02-01_00-00-00__519093",
+RUN_SPECS = [
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-02-01_00-00-00__756375",
+        pd.Timestamp("2025-02-01"),
+        pd.Timestamp("2025-08-01"),
+    ),
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-08-01_00-00-00__22265",
+        pd.Timestamp("2025-08-01"),
+        pd.Timestamp("2026-02-01"),
+    ),
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2026-02-01_00-00-00__519093",
+        pd.Timestamp("2026-02-01"),
+        pd.Timestamp("2026-08-01"),
+    ),
 ]
 
 MARKET = [
@@ -58,7 +70,8 @@ def sha256(path: Path) -> str:
 
 def load_lake(common: Path) -> pd.DataFrame:
     parts = []
-    for run_id in RUN_IDS:
+    audit = []
+    for run_id, start, end in RUN_SPECS:
         path = common / "mt5_quant" / "runs" / run_id / "bar_features.csv"
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -66,17 +79,31 @@ def load_lake(common: Path) -> pd.DataFrame:
         df["feature_time"] = pd.to_datetime(
             df.pop("time"), format="%Y.%m.%d %H:%M:%S", errors="raise"
         )
+        raw_rows = len(df)
+        df = df[(df.feature_time >= start) & (df.feature_time < end)].copy()
+        if df.empty:
+            raise RuntimeError(f"empty canonical V36 chunk run={run_id}")
+        audit.append(
+            {
+                "run_id": run_id,
+                "raw_rows": int(raw_rows),
+                "canonical_rows": int(len(df)),
+                "start": str(start),
+                "end_exclusive": str(end),
+            }
+        )
         parts.append(df)
-    lake = (
-        pd.concat(parts, ignore_index=True)
-        .sort_values("feature_time")
-        .drop_duplicates("feature_time", keep="last")
-        .reset_index(drop=True)
-    )
+    lake = pd.concat(parts, ignore_index=True).sort_values("feature_time").reset_index(drop=True)
+    dup = int(lake.feature_time.duplicated().sum())
+    if len(lake) != 35344 or dup != 0:
+        raise RuntimeError(
+            f"canonical V36 bar lake mismatch rows={len(lake)} duplicates={dup} audit={audit}"
+        )
     missing = [c for c in MARKET if c not in lake.columns]
     if missing:
         raise RuntimeError(f"V36 market feature columns missing: {missing}")
     lake["available"] = lake["feature_time"] + pd.Timedelta(minutes=15)
+    print(f"V36 canonical V30 lake PASS rows={len(lake)} duplicates={dup}")
     return lake
 
 
@@ -145,8 +172,6 @@ def prepare(common: Path, run: Path, book: str) -> pd.DataFrame:
         raise RuntimeError("missing causal V36 market state for telemetry rows")
     tel = tel.merge(market, on="time", how="left", validate="many_to_one")
 
-    # Primary controller question: if the position is held from the current mark,
-    # how much additional realized R remains versus exiting now?
     tel["future_delta_r"] = tel.final_r - tel.unrealized_r
     tel["future_upside_r"] = np.maximum(0.0, tel.final_mfe_r - tel.peak_r)
     tel["future_giveback_r"] = np.maximum(0.0, tel.unrealized_r - tel.final_r)
@@ -179,7 +204,6 @@ def make_samples(df: pd.DataFrame, seq_len: int = 32, step: int = 4):
             .ffill()
             .to_numpy(np.float32)
         )
-        # Preserve missing values as NaN until fold-specific train-only scaling.
         indices = list(range(1, len(group), max(1, step)))
         if len(group) > 1 and (len(group) - 1) not in indices:
             indices.append(len(group) - 1)
@@ -193,7 +217,6 @@ def make_samples(df: pd.DataFrame, seq_len: int = 32, step: int = 4):
             length = len(seq)
             pad = np.full((seq_len, len(numeric_features)), np.nan, dtype=np.float32)
             valid = np.zeros(seq_len, dtype=np.bool_)
-            # Left-align real history. Every model receives an explicit valid mask.
             pad[:length] = seq
             valid[:length] = True
             row = group.iloc[j]
@@ -274,7 +297,7 @@ def train_eval(
     n_candidates = len(candidates)
     seq_len = x_numeric.shape[1]
     numeric_dim = x_numeric.shape[2]
-    model_dim = numeric_dim + n_candidates + 1  # + explicit valid-mask channel
+    model_dim = numeric_dim + n_candidates + 1
 
     def make_fold_input(indices, mean, std):
         raw = x_numeric[indices]
