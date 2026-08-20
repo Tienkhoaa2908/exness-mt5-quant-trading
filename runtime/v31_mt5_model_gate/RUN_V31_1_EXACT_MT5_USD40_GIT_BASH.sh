@@ -74,9 +74,9 @@ for rid in \
   [[ -s "$rd/bar_features.csv" && -s "$rd/trades.csv" && -s "$rd/manifest.txt" ]] || die "Accepted V30 run files missing: $rd"
 done
 
-export MSYS_NO_PATHCONV=1
-export MSYS2_ARG_CONV_EXCL='*'
-
+# Keep normal MSYS argument conversion enabled for native Windows Python.
+# Disable it only on MetaEditor/MT5 calls, because their /compile:, /log and
+# /config: switches must reach the Windows programs byte-for-byte.
 BASE_SRC="$OUT/V31_1_ModelGateUsd40.base.mq5"
 say "Build tester-only V31.1 source from accepted V30 source"
 "$VENV_PY" "$SOURCE_BUILDER" --source "$(cygpath -w "$V30_SRC")" --output "$(cygpath -w "$BASE_SRC")"
@@ -104,7 +104,7 @@ trap 'cleanup_origin' EXIT
 read_kv(){ awk -F= -v k="$1" '$1==k{sub(/^[^=]*=/,"");gsub(/\r/,"");print;exit}' "$2"; }
 compile_ea(){
   local src="$1" log="${src%.mq5}.log" ex5="${src%.mq5}.ex5"; rm -f "$log" "$ex5"
-  "$METAEDITOR_EXE" "/compile:$(cygpath -w "$src")" /log || true
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$METAEDITOR_EXE" "/compile:$(cygpath -w "$src")" /log || true
   [[ -s "$log" ]] || die "MetaEditor log missing for $src"
   local u8="$OUT/.compile.txt"; if ! iconv -f UTF-16 -t UTF-8 "$log" > "$u8" 2>/dev/null; then tr -d '\r' < "$log" > "$u8"; fi
   local summary="$(tr -d '\r' < "$u8"|grep -Eio 'Result:[[:space:]]*[0-9]+[[:space:]]+errors?,[[:space:]]*[0-9]+[[:space:]]+warnings?'|tail -1||true)"; echo "$summary"
@@ -166,7 +166,7 @@ run_mode(){
   say "Compile $tag gate_bit=$bit"; compile_ea "$src"
   local before=""; [[ -s "$LATEST" ]] && before="$(read_kv run_id "$LATEST"||true)"; local ini="$(make_ini "$ea" "$tag")"
   say "RUN $tag — MT5 Strategy Tester Deposit=40 USD, continuous book risk=1.00%/trade, 2026-02-01 -> 2026-08-01"
-  "$TERMINAL_EXE" "/config:$(cygpath -w "$ini")"; local rc=$?; say "MT5 returned rc=$rc for $tag"; [[ $rc -eq 0 ]] || die "MT5 failed for $tag"
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TERMINAL_EXE" "/config:$(cygpath -w "$ini")"; local rc=$?; say "MT5 returned rc=$rc for $tag"; [[ $rc -eq 0 ]] || die "MT5 failed for $tag"
   local after="$(read_kv run_id "$LATEST"||true)"; [[ -n "$after" && "$after" != "$before" ]] || die "LATEST did not refresh for $tag"
   collect "$tag"
 }
