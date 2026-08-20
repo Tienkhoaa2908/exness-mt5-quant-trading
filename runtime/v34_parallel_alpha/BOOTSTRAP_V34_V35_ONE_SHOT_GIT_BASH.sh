@@ -5,7 +5,7 @@ BRANCH="${BRANCH:-agent/v30-ml-dl-feature-lake}"
 LOG="$HOME/v34_v35_bootstrap.log"
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== V34/V35 PARALLEL ALPHA + AI META-ROUTER — ESCAPE FIX V4 ==="
+echo "=== V34/V35 PARALLEL ALPHA + AI META-ROUTER — RUNNER FIX V5 ==="
 date
 RC=0
 
@@ -20,7 +20,7 @@ fi
 
 if [[ $RC -eq 0 ]]; then
   echo "HEAD=$(git -C "$WORK" rev-parse HEAD)"
-  echo "Applying exact Python-to-MQL escaping fixes..."
+  echo "Applying exact Python-to-MQL + Bash runner fixes..."
   python - "$WORK" <<'PY'
 from pathlib import Path
 import re, sys
@@ -53,7 +53,6 @@ changed.append(('v34_manifest', rawify_block_containing(v34, 'v34_parallel_alpha
 changed.append(('v35_input_path', rawify_block_containing(v35, 'input string InpV35RouterTapeFile')))
 changed.append(('v35_manifest', rawify_block_containing(v35, 'v35_ai_all_expert_meta_router=1')))
 
-# Exact real bug from the Windows lint: telemetry path had one MQL backslash.
 s34 = v34.read_text(encoding='utf-8')
 old = r'string V34IntraTradeFile(){ return g_run_folder+"\intra_trade_m15.csv"; }'
 new = r'string V34IntraTradeFile(){ return g_run_folder+"\\intra_trade_m15.csv"; }'
@@ -66,6 +65,17 @@ elif new not in s34:
 v34.write_text(s34, encoding='utf-8', newline='\n')
 
 s = runner.read_text(encoding='utf-8')
+
+# Fix nounset hazard: dest referenced $tag in the same `local` command that assigns tag.
+old_local = 'run_mt5_checkpoint(){ local tag="$1" expert="$2" from="$3" to="$4" state="$5" marker="$6" dest="$CP/$tag";'
+new_local = 'run_mt5_checkpoint(){ local tag="$1" expert="$2" from="$3" to="$4" state="$5" marker="$6"; local dest="$CP/$tag";'
+if old_local in s:
+    s = s.replace(old_local, new_local, 1)
+    local_fixed = True
+elif new_local in s:
+    local_fixed = False
+else:
+    raise SystemExit('runner run_mt5_checkpoint local-declaration anchor not found')
 
 # Build V34 twice from accepted V30 source, compare bytes, then lint generated MQL.
 start = s.find('BASE34="$OUT/V34ParallelAlphaLab.base.mq5";')
@@ -93,14 +103,12 @@ for ln,line in enumerate(text.splitlines(),1):
         if ch=='"': ins=not ins
     if ins:
         bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
-    # Only an ODD run of backslashes before i is invalid. "\\\\inputs" is valid MQL.
     if any(len(m.group(1)) % 2 == 1 for m in re.finditer(r'(\\+)i', line)):
         bad.append(f'line {ln}: invalid unescaped MQL \\i sequence: {line[:180]}')
 if bad:
     print('GENERATED MQL STRING LINT FAILED'); print('\n'.join(bad[:30])); raise SystemExit(78)
 print('Generated MQL string lint PASS:',p)
 PYMQLLINT
-# Pin V35 builder to the exact V34 bytes produced in this run.
 "$PY" - "$S35" "$V34_SHA_ACTUAL" <<'PYV35PIN'
 from pathlib import Path
 import re,sys
@@ -148,7 +156,6 @@ PYMQLLINT
 '''
 s = s[:start] + new_v35 + s[end:]
 
-# Print full decoded MetaEditor diagnostics once.
 needle = 'local sum; sum="$(tr -d \'\\r\' < "$u8"|grep -Eio'
 if needle in s:
     s = s.replace(needle, 'cat "$u8"; local sum; sum="$(tr -d \'\\r\' < "$u8"|grep -Eio', 1)
@@ -158,7 +165,7 @@ elif 'cat "$u8"; local sum;' not in s:
 runner.write_text(s, encoding='utf-8', newline='\n')
 print('Raw-string hardening:', ', '.join(f'{k}={int(v)}' for k,v in changed))
 print('Telemetry path fix applied='+str(int(telemetry_fixed)))
-print('Lint V4: escaped \\\\inputs accepted; only odd-backslash \\i rejected')
+print('Bash nounset local fix applied='+str(int(local_fixed)))
 print('Source policy: deterministic double-build + lint + MetaEditor compile 0/0')
 PY
   RC=$?
@@ -167,7 +174,11 @@ fi
 if [[ $RC -eq 0 ]]; then
   RUNNER="$WORK/runtime/v34_parallel_alpha/RUN_V34_V35_PARALLEL_ALPHA_GIT_BASH.sh"
   if [[ -s "$RUNNER" ]]; then
-    bash "$RUNNER"; RC=$?
+    bash -n "$RUNNER"
+    RC=$?
+    if [[ $RC -eq 0 ]]; then
+      bash "$RUNNER"; RC=$?
+    fi
   else
     echo "FATAL: runner missing $RUNNER"
     RC=3
