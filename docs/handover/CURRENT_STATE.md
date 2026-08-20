@@ -12,21 +12,11 @@ Ngày cập nhật: 2026-08-20.
 
 ## Accepted V30 data/runtime
 
-Accepted `MlDlFeatureLakeV1.mq5` source SHA-256:
+Accepted `MlDlFeatureLakeV1.mq5` SHA-256:
 
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-Windows compile: `0 errors / 0 warnings`.
-
-Canonical 18-month M15 lake:
-
-- 35,344 rows, 2025-02 through 2026-07;
-- 136 raw fields;
-- 0 duplicate timestamps;
-- 0 NaN / 0 Inf in accepted raw lake;
-- 864 monthly-summary rows;
-- 28,128 total ledger rows;
-- adaptive state continuous across three chunks.
+Windows compile 0/0. Canonical 18-month M15 lake: 35,344 unique rows, 2025-02 through 2026-07, 136 raw fields, 0 duplicate timestamps, 0 NaN/Inf, 28,128 ledger rows, adaptive state continuous.
 
 Final acquisition ZIP SHA-256:
 
@@ -36,89 +26,117 @@ Mandatory causal contract:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-Trade/current-bar inference uses only the latest row available by decision time. Across session/weekend gaps, model tapes are keyed by actual current M15 bar start using causal as-of availability.
+All decisions use only the latest feature row available by decision time; session/weekend gaps require causal as-of joins keyed by actual current M15 bar starts.
 
-## Accepted V31.1 exact-MT5 milestone
+## Accepted V31.1 exact-MT5 evidence
 
-Uploaded V31.1 ZIP SHA-256:
+ZIP SHA-256:
 
 `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
 
-Seven complete MT5 Strategy Tester passes: baseline, CatBoost, ExtraTrees, DeepMLP 64-32-16, LinearSVM/SVR, CatBoost AND ExtraTrees, majority 2-of-4.
+Seven complete exact-MT5 model passes. Primary `adaptive_ewma_hl8_thr0`:
 
-All compiled 0/0, MT5 rc=0, tester-only, no native/external broker orders, continuous USD40. Common contract: XAUUSDm M15, 2026-02-01 -> 2026-08-01, Deposit=USD40, `usd40_r1p0_cent_continuous`, <=1.00% risk target/trade, leverage assumption 1:200, identical starting state before every pass.
+- baseline: USD40 -> USD62.3573, geo 7.6807%/month, DD 10.8159%, 222 trades, AvgR 0.2401R, PF 1.5579;
+- DeepMLP keep50: USD60.4393, geo 7.1215%, DD 7.3551%, 146 trades, AvgR 0.3329R, PF 1.8037;
+- CatBoost, ExtraTrees, LinearSVM and simple voting rejected as primary binary gates.
 
-Primary `adaptive_ewma_hl8_thr0`:
+V31.1 causal tape SHA: `0df85b572f8273f6fef8624bbc12cbded1f77bded046c938eaa9ff5e2e7a3f7f`.
 
-- baseline: end USD62.3573, geo 7.6807%/month, DD 10.8159%, 222 trades, AvgR 0.2401R, PF 1.5579;
-- DeepMLP keep50: end USD60.4393, geo 7.1215%, DD 7.3551%, 146 trades, AvgR 0.3329R, PF 1.8037;
-- CatBoost / ExtraTrees / LinearSVM / simple voting materially underperform as primary binary gates and are rejected in that role.
+## Accepted V32 development evidence
 
-V31.1 causal tape SHA:
-
-`0df85b572f8273f6fef8624bbc12cbded1f77bded046c938eaa9ff5e2e7a3f7f`
-
-Read `docs/research/v31_1_exact_mt5_usd40_results.md`.
-
-## Accepted V32 development sweep
-
-Uploaded V32 ZIP SHA-256:
+ZIP SHA-256:
 
 `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
 
-Six complete passes: baseline and DeepMLP keep50/60/70/80/90. All compile 0/0, MT5 rc=0, tester-only, no native/external orders, six months written, continuous USD40.
+V32 source SHA: `ff131ff8ce1d5ba7c3be42c8d6acdbb6f64a898d51fe6c64771f29e91ae5543a`.
+V32 nested tape SHA: `8b3550dbdf451d558349be46d4a1b9391feba04c29cd21968594473eae716356`.
 
-V32 source SHA:
+Primary keep-rate result:
 
-`ff131ff8ce1d5ba7c3be42c8d6acdbb6f64a898d51fe6c64771f29e91ae5543a`
+| Mode | End USD | Geo/month | Max DD | Trades | AvgR | PF |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline | 62.3573 | 7.6807% | 10.8159% | 222 | 0.2401R | 1.5579 |
+| **DeepMLP keep60** | **62.1444** | **7.6193%** | **7.3639%** | **153** | **0.3250R** | **1.8326** |
 
-V32 nested causal tape SHA:
+Freeze `adaptive_ewma_hl8_thr0 + DeepMLP keep60` for future fresh confirmation. Do not retune February-July 2026. No current mode meets the aspirational 15% geometric/month objective; do not increase risk to force it.
 
-`8b3550dbdf451d558349be46d4a1b9391feba04c29cd21968594473eae716356`
+## Accepted V33 multi-task diagnostic
 
-It matched the reference byte-for-byte.
+Uploaded ZIP SHA-256:
 
-### Primary `adaptive_ewma_hl8_thr0`
+`16db78c40543495c790d83019999169d566206a591cc4ec570c6b7056df8fefa`
 
-| Mode | End USD | Geo/month | Max DD | Trades | AvgR | PF | Turnover/$40 |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| baseline | 62.3573 | 7.6807% | 10.8159% | 222 | 0.2401R | 1.5579 | 1045.67x |
-| **keep60** | **62.1444** | **7.6193%** | **7.3639%** | **153** | **0.3250R** | **1.8326** | **764.42x** |
-| keep80 | 60.9896 | 7.2834% | 9.9301% | 191 | 0.2502R | 1.6374 | 883.29x |
-| keep70 | 60.9569 | 7.2738% | 9.0562% | 179 | 0.2695R | 1.6670 | 857.14x |
-| keep50 | 60.4393 | 7.1215% | 7.3551% | 146 | 0.3329R | 1.8037 | 728.65x |
-| keep90 | 53.2804 | 4.8942% | 16.3281% | 210 | 0.1699R | 1.3828 | 840.60x |
+12 chronological OOS months / 4,845 rows:
 
-keep60 is the bounded development winner for the preregistered primary lane. Relative to baseline it finishes only ~0.34% lower in capital while reducing max DD ~31.9%, trades ~31.1% and turnover ~26.9%; AvgR rises ~35.4%, PF ~17.6%, and return/DD ~45.5%.
+- expected-R Spearman +0.0249;
+- MFE Spearman -0.0050;
+- adverse/MAE Spearman -0.0366;
+- giveback Spearman -0.0132.
 
-It still does **not** improve the explicit 15%-month target: keep60 has 1/6 months >=15% versus baseline 2/6. No V32 mode reaches 15% geometric/month. Do not raise risk to force the target.
+Decision: entry-snapshot neural features are not sufficient for stable MFE/MAE/giveback prediction. Do not merely enlarge the MLP. True exit-DL requires intra-trade sequences.
 
-Important: nested model-score masks do not create nested realized trade sets because a filtered trade changes later adaptive/one-position state. Exact MT5 replay remains mandatory.
+Read `docs/research/v33_multitask_diagnostic_results.md`.
 
-Exploratory only: `adaptive_ewma_hl12_thr0p05 + keep80` ends USD66.6393, geo 8.8792%/month, DD 7.0573%, AvgR 0.3128R, PF 1.8086. It is post-hoc candidate/threshold selection and cannot replace primary evidence.
+## Current exact-MT5 gate — V34 Parallel Alpha Lab
 
-Read:
+V34 expands independent opportunity generation before any risk escalation. New causal specialists:
 
-- `docs/research/v32_deep_mlp_keep_sweep_plan.md`
-- `docs/research/v32_deep_mlp_keep_sweep_results.md`
+1. SMC/ICT: confirmed swings, BOS, liquidity sweeps, recent FVG, displacement, premium/discount;
+2. Price Action: engulfing/pin, breakout, inside-break, compression;
+3. Wyckoff proxy: range location, spring/upthrust, effort/absorption proxies;
+4. tick microstructure proxy: tick-direction imbalance, mid-path efficiency, M1 path state, spread stability;
+5. specialist confluence.
 
-## Frozen confirmation lane
+The microstructure specialist is an **L1/tick-path proxy**, not true L2/L3 order flow. Current V30 `real_volume=0`; no institutional-orderflow claim is allowed without real depth data.
 
-Freeze `adaptive_ewma_hl8_thr0 + DeepMLP keep60` exactly. Do not tune its threshold again on February-July 2026. A promotion claim requires a genuinely fresh complete chronological holdout versus the frozen baseline.
+Pinned V34 causal tape, 2025-08-01 -> 2026-08-01:
 
-## V33 development lane
+- 23,617 rows plus header;
+- SHA-256 `d70d92d0023c1862af6363d60a7d9e927f928e75ffcf1c0cedcb4f7798128863`.
 
-Binary gating has reached diminishing returns. V33 moves the neural signal toward **policy control** rather than adding another larger classifier.
+Pinned V34 deterministic tester-only source SHA:
 
-Plan:
+`8d3700911e2fe680a2a4b02994680e812825ab6cf517bf509aaa4ac230526a77`
 
-- shared neural state with targets for expected R, MFE, MAE and giveback;
-- bounded soft-risk actions that never exceed 1.00% stop-risk;
-- bounded exit routing between fixed-4R behavior and previously studied profit-protection policies;
-- source/regime conditioning because primary adaptive-router ledgers show EMA/slow-momentum healthy while Trend20 remains weak;
-- exact MT5 remains the economic judge because policy changes alter later adaptive state/opportunities;
-- complementary independent opportunity generation/allocation remains necessary to move materially toward the aspirational 15% monthly objective.
+One exact MT5 pass evaluates the original 12 candidates plus five new specialists on the same ticks/execution engine, Deposit USD40, continuous book3 at <=1.00% current-balance stop-risk. It also exports `intra_trade_m15.csv` for later true sequence research.
 
-Read `docs/research/v33_neural_policy_controller_plan.md`.
+Read `docs/research/v34_parallel_alpha_lab_plan.md`.
+
+## V35 AI all-expert meta-router
+
+V35 trains only after V34 exact outcomes exist. Expert pool = five existing source families (EMA, MACD, BOS/FVG, Trend20, slow momentum) + five V34 specialists.
+
+Training labels are V34 exact-MT5 norm-book `r_multiple`; duplicate `(entry_bar,direction)` opportunities are inverse-weighted. ExtraTrees + HistGradientBoosting + MLP 64-32-16 score active experts. Previous-month calibration threshold is frozen into the next test month; no test-month quantile peeking.
+
+Pinned V35 deterministic source SHA:
+
+`663d97b9345341aa98827e5da31ad441792f944d7c597b7a91bd94c6485e6709`
+
+Offline router scores are not PnL evidence. V35 returns to exact MT5 for final economics.
+
+Read `docs/research/v35_all_expert_meta_router_plan.md`.
+
+## V36 true intra-trade sequence DL
+
+V36 is already implemented but must wait for V34 telemetry. It uses actual open-position M15 sequences and trains:
+
+- GRU48;
+- causal dilated TCN48;
+- Transformer48x2.
+
+Targets: final R, future additional upside >=0.5R, future giveback >=0.5R. Validation is chronological and train-only scaled. V36 is diagnostic only; any useful policy must return to a tester-only MT5 EA.
+
+Read `docs/research/v36_sequence_exit_dl_plan.md`.
+
+## Runtime
+
+Primary next one-shot runner:
+
+- `runtime/v34_parallel_alpha/BOOTSTRAP_V34_V35_ONE_SHOT_GIT_BASH.sh`
+- `runtime/v34_parallel_alpha/RUN_V34_V35_PARALLEL_ALPHA_GIT_BASH.sh`
+
+It runs V34 exact MT5, collects/analyzes, trains V35 from exact V34 outcomes, then runs V35 exact MT5 and emits one ZIP. Checkpoints use `MT5_DONE.txt` so a collection failure must not double-run the tester or double-advance adaptive state.
+
+After V34/V35 evidence is accepted, V36 can run read-only from the V34 intra-trade telemetry.
 
 PAPER/DEMO only after gates. LIVE remains forbidden.
