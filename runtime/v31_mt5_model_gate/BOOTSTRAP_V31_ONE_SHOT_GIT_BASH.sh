@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# V31 one-shot interactive bootstrap. Never intentionally closes the parent Git Bash.
+# V31.1 one-shot interactive bootstrap. Never intentionally closes the parent Git Bash.
 set +e
 
 REPO="https://github.com/Tienkhoaa2908/exness-mt5-quant-trading.git"
@@ -8,10 +8,11 @@ WORK="$HOME/v31_mt5_40usd"
 BOOTLOG="$HOME/v31_mt5_40usd_bootstrap.log"
 
 {
-  echo "=== V31 USD40 EXACT-MT5 MODEL GATE ==="
+  echo "=== V31.1 CONTINUOUS USD40 EXACT-MT5 MODEL GATE ==="
   date
   echo "Safety: Strategy Tester research only; REAL-MONEY LIVE TRADING FORBIDDEN."
-  echo "Decision capital: USD40; research risk ceiling: 1.00%/trade."
+  echo "Tester Deposit=USD40; continuous target book risk=1.00%/trade."
+  echo "Models: baseline, CatBoost, ExtraTrees, DeepMLP 64-32-16, LinearSVM, CB+ET, majority."
   echo "WORK=$WORK"
 
   if [[ -d "$WORK/.git" ]]; then
@@ -32,14 +33,14 @@ BOOTLOG="$HOME/v31_mt5_40usd_bootstrap.log"
     exit 70
   fi
 
-  RUNNER="$WORK/runtime/v31_mt5_model_gate/RUN_V31_MT5_MODEL_GATE_V2_GIT_BASH.sh"
-  [[ -s "$RUNNER" ]] || { echo "ERROR: runner missing: $RUNNER"; exit 71; }
-  echo "[3/3] Run exact MT5 model gate + exact output analysis..."
+  RUNNER="$WORK/runtime/v31_mt5_model_gate/RUN_V31_1_EXACT_MT5_USD40_GIT_BASH.sh"
+  [[ -s "$RUNNER" ]] || { echo "ERROR: V31.1 runner missing: $RUNNER"; exit 71; }
+  echo "[3/3] Run exact MT5 model tournament..."
   cd "$WORK/runtime/v31_mt5_model_gate" || exit 72
-  bash ./RUN_V31_MT5_MODEL_GATE_V2_GIT_BASH.sh
+  bash ./RUN_V31_1_EXACT_MT5_USD40_GIT_BASH.sh
   rc=$?
   echo
-  echo "=== V31 RUNNER FINISHED rc=$rc ==="
+  echo "=== V31.1 RUNNER FINISHED rc=$rc ==="
   exit $rc
 } 2>&1 | tee "$BOOTLOG"
 
@@ -47,15 +48,15 @@ RC=${PIPESTATUS[0]}
 echo
 echo "============================================================"
 if [[ $RC -eq 0 ]]; then
-  echo "V31 COMPLETED SUCCESSFULLY"
-  echo "Find the LAST line 'UPLOAD THIS ONE ZIP' above and upload that analyzed ZIP."
+  echo "V31.1 COMPLETED SUCCESSFULLY"
+  echo "The exact MT5 comparison is printed above."
+  echo "Find 'UPLOAD THIS ONE ZIP' and upload that ZIP."
 else
-  echo "V31 FAILED rc=$RC"
-  echo "Do NOT repeatedly restart MT5 if a completed model checkpoint exists."
-  echo "Send this log instead:"
-  echo "$BOOTLOG"
+  echo "V31.1 FAILED rc=$RC"
+  echo "Do NOT repeatedly rerun completed model checkpoints."
+  echo "Send this log: $BOOTLOG"
   echo "Runner log:"
-  echo "$WORK/runtime/v31_mt5_model_gate/OUTPUT_V31_MT5/v31_mt5_model_gate_runner.log"
+  echo "$WORK/runtime/v31_mt5_model_gate/OUTPUT_V31_1_MT5/v31_1_mt5_usd40_runner.log"
 fi
 echo "============================================================"
 echo
