@@ -77,66 +77,96 @@ Decision: entry-snapshot neural features are not sufficient for stable MFE/MAE/g
 
 Read `docs/research/v33_multitask_diagnostic_results.md`.
 
-## Current exact-MT5 gate — V34 Parallel Alpha Lab
+## Accepted V34 Parallel Alpha Lab exact-MT5 evidence
 
-V34 expands independent opportunity generation before any risk escalation. New causal specialists:
+Uploaded V34/V35 ZIP SHA-256:
 
-1. SMC/ICT: confirmed swings, BOS, liquidity sweeps, recent FVG, displacement, premium/discount;
-2. Price Action: engulfing/pin, breakout, inside-break, compression;
-3. Wyckoff proxy: range location, spring/upthrust, effort/absorption proxies;
-4. tick microstructure proxy: tick-direction imbalance, mid-path efficiency, M1 path state, spread stability;
-5. specialist confluence.
+`ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
 
-The microstructure specialist is an **L1/tick-path proxy**, not true L2/L3 order flow. Current V30 `real_volume=0`; no institutional-orderflow claim is allowed without real depth data.
+V34 compile 0/0 and exact MT5 completed for 2025-08 through 2026-07, Deposit USD40, continuous book3. Manifest confirms tester-only, no native/external broker orders.
 
-Pinned V34 causal tape, 2025-08-01 -> 2026-08-01:
+Integrity:
 
-- 23,617 rows plus header;
-- SHA-256 `d70d92d0023c1862af6363d60a7d9e927f928e75ffcf1c0cedcb4f7798128863`.
+- 816 monthly rows = 12 months x 17 candidates x 4 books;
+- 34,508 trade-ledger rows;
+- 266,613 intra-trade M15 telemetry rows;
+- summary/ledger trade-count mismatch = 0;
+- max PnL/AvgR reconciliation error ~6e-6.
 
-Pinned V34 deterministic tester-only source SHA:
+Continuous USD40 results:
 
-`8d3700911e2fe680a2a4b02994680e812825ab6cf517bf509aaa4ac230526a77`
+| Candidate | End USD | Geo/month | Max DD | Trades | AvgR | PF |
+|---|---:|---:|---:|---:|---:|---:|
+| adaptive_ewma_hl8_thr0 | 107.43 | 8.58% | 9.90% | 563 | 0.215R | 1.501 |
+| **v34_smc_ict_causal** | **66.83** | **4.37%** | **15.58%** | **1,077** | **0.066R** | **1.108** |
+| v34_specialist_confluence | 56.60 | 2.93% | 21.30% | 860 | 0.043R | 1.094 |
+| v34_price_action_causal | 50.86 | 2.02% | 20.72% | 1,158 | 0.028R | 1.051 |
+| v34_tick_microstructure_proxy | 35.24 | -1.05% | 35.25% | 620 | -0.044R | 0.956 |
+| v34_wyckoff_proxy_causal | 25.53 | -3.67% | 43.53% | 527 | -0.128R | 0.798 |
 
-One exact MT5 pass evaluates the original 12 candidates plus five new specialists on the same ticks/execution engine, Deposit USD40, continuous book3 at <=1.00% current-balance stop-risk. It also exports `intra_trade_m15.csv` for later true sequence research.
+Decision:
 
-Read `docs/research/v34_parallel_alpha_lab_plan.md`.
+- SMC/ICT is a positive but weak/high-turnover independent-alpha research lane, not a primary replacement.
+- Price Action is marginal only.
+- current Wyckoff and L1/tick-path microstructure proxies are rejected.
+- microstructure remains a proxy, not true L2/L3 order flow.
 
-## V35 AI all-expert meta-router
+SMC monthly-return correlation to `adaptive_ewma_hl8_thr0` is low (~0.13), so diversification/routing research is justified only with aggregate risk capped; never stack full 1% risk from multiple same-symbol agents.
 
-V35 trains only after V34 exact outcomes exist. Expert pool = five existing source families (EMA, MACD, BOS/FVG, Trend20, slow momentum) + five V34 specialists.
+Read `docs/research/v34_v35_exact_mt5_results.md`.
 
-Training labels are V34 exact-MT5 norm-book `r_multiple`; duplicate `(entry_bar,direction)` opportunities are inverse-weighted. ExtraTrees + HistGradientBoosting + MLP 64-32-16 score active experts. Previous-month calibration threshold is frozen into the next test month; no test-month quantile peeking.
+## V35 AI all-expert meta-router — REJECTED
 
-Pinned V35 deterministic source SHA:
+V35 compile 0/0 and exact MT5 completed for 2026-02 through 2026-07. Cross-run reproducibility PASS: all 17 common norm-book candidates match V34 exactly on entry, exit, direction and R over the overlap period.
 
-`663d97b9345341aa98827e5da31ad441792f944d7c597b7a91bd94c6485e6709`
+Primary comparison, continuous USD40:
 
-Offline router scores are not PnL evidence. V35 returns to exact MT5 for final economics.
+| Candidate | End USD | Geo/month | Max DD | Trades | AvgR | PF |
+|---|---:|---:|---:|---:|---:|---:|
+| adaptive_ewma_hl8_thr0 | 62.36 | +7.68% | 10.82% | 222 | +0.240R | 1.558 |
+| **v35_ai_all_expert_meta_router** | **24.49** | **-7.85%** | **39.71%** | **571** | **-0.105R** | **0.788** |
 
-Read `docs/research/v35_all_expert_meta_router_plan.md`.
+The router lost money in every test month. Generic cross-expert expected-R routing is rejected; do not retune thresholds/model size on the same February-July period.
 
-## V36 true intra-trade sequence DL
+## Current next gate — V36 true intra-trade sequence DL
 
-V36 is already implemented but must wait for V34 telemetry. It uses actual open-position M15 sequences and trains:
+V34 telemetry is now accepted and available:
+
+- V34 total telemetry rows: 266,613;
+- norm-book telemetry covers 9,077 / 9,457 trades = 95.98%; the uncovered 380 trades exited before the first post-entry M15 telemetry point;
+- covered sequence length median 9, p75 20, p90 32, p95 44, max 422.
+
+V36 models:
 
 - GRU48;
-- causal dilated TCN48;
-- Transformer48x2.
+- true causal dilated TCN48;
+- small Transformer encoder with positional information.
 
-Targets: final R, future additional upside >=0.5R, future giveback >=0.5R. Validation is chronological and train-only scaled. V36 is diagnostic only; any useful policy must return to a tester-only MT5 EA.
+V36 must use:
 
-Read `docs/research/v36_sequence_exit_dl_plan.md`.
+- causal market-state join `feature_available_time <= telemetry_time`;
+- candidate identity/context;
+- train-only scaling over real timesteps only;
+- explicit padding mask;
+- future incremental R from current mark as the primary regression target, plus hold/protect classification heads;
+- chronological folds with trades in training fully exited before the embargo/calibration month.
 
-## Runtime
+V36 remains diagnostic. No reconstructed/offline PnL is promotion evidence. If sequence heads are stable, convert exactly one bounded hold/protect/exit hypothesis into tester-only MT5 and compare against the frozen baseline/challenger.
 
-Primary next one-shot runner:
+## Parallel research lane — dedicated SMC quality filter
 
-- `runtime/v34_parallel_alpha/BOOTSTRAP_V34_V35_ONE_SHOT_GIT_BASH.sh`
-- `runtime/v34_parallel_alpha/RUN_V34_V35_PARALLEL_ALPHA_GIT_BASH.sh`
+Do not revive the failed V35 generic router. A dedicated SMC filter may use only prior exact-MT5 SMC outcomes plus causal entry/regime features, with chronological validation and aggregate-risk-aware MT5 replay. The goal is to improve SMC AvgR/PF and reduce its 1,077-trade turnover while preserving its low correlation to the baseline.
 
-It runs V34 exact MT5, collects/analyzes, trains V35 from exact V34 outcomes, then runs V35 exact MT5 and emits one ZIP. Checkpoints use `MT5_DONE.txt` so a collection failure must not double-run the tester or double-advance adaptive state.
+## Current decision stack
 
-After V34/V35 evidence is accepted, V36 can run read-only from the V34 intra-trade telemetry.
+- Frozen risk-efficiency challenger: `adaptive_ewma_hl8_thr0 + DeepMLP keep60`.
+- Baseline remains economically stronger in absolute return on the viewed period.
+- V35 generic router: reject.
+- SMC/ICT: research-only positive specialist.
+- Price Action: marginal/research-only.
+- Wyckoff proxy: reject.
+- L1 microstructure proxy: reject/redesign.
+- V36 sequence exit DL: next diagnostic.
+- Aspirational 15% geometric/month objective remains unmet; never raise stop-risk above 1.00% merely to force the target.
 
 PAPER/DEMO only after gates. LIVE remains forbidden.
