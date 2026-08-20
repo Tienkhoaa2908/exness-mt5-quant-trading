@@ -16,26 +16,34 @@ BOOTLOG="$HOME/v31_mt5_40usd_bootstrap.log"
   echo "WORK=$WORK"
 
   if [[ -d "$WORK/.git" ]]; then
-    echo "[1/3] Update repository..."
+    echo "[1/4] Update repository..."
     git -C "$WORK" fetch origin "$BRANCH" || exit $?
     git -C "$WORK" checkout -f "$BRANCH" || exit $?
     git -C "$WORK" reset --hard "origin/$BRANCH" || exit $?
   else
-    echo "[1/3] Clone repository..."
+    echo "[1/4] Clone repository..."
     rm -rf "$WORK"
     git clone --depth 1 --single-branch --branch "$BRANCH" "$REPO" "$WORK" || exit $?
   fi
 
   echo "HEAD=$(git -C "$WORK" rev-parse HEAD)"
-  echo "[2/3] Preflight..."
+  echo "[2/4] Preflight..."
   if tasklist.exe //FI "IMAGENAME eq terminal64.exe" 2>/dev/null | tr -d '\r' | grep -qi terminal64.exe; then
     echo "ERROR: MetaTrader 5 is currently open. Close MT5 completely and rerun this same block."
     exit 70
   fi
 
   RUNNER="$WORK/runtime/v31_mt5_model_gate/RUN_V31_1_EXACT_MT5_USD40_GIT_BASH.sh"
+  PATCHER="$WORK/scripts/patch_v31_1_runner_locals.py"
   [[ -s "$RUNNER" ]] || { echo "ERROR: V31.1 runner missing: $RUNNER"; exit 71; }
-  echo "[3/3] Run exact MT5 model tournament..."
+  [[ -s "$PATCHER" ]] || { echo "ERROR: V31.1 runner patcher missing: $PATCHER"; exit 73; }
+
+  echo "[3/4] Apply deterministic Bash local-declaration hardening..."
+  if command -v python >/dev/null 2>&1; then PY_BOOT="$(command -v python)"; elif command -v python3 >/dev/null 2>&1; then PY_BOOT="$(command -v python3)"; else echo "ERROR: Python 3 not found for bootstrap patch"; exit 74; fi
+  "$PY_BOOT" "$PATCHER" "$RUNNER" || exit $?
+  bash -n "$RUNNER" || { echo "ERROR: patched runner failed bash -n"; exit 75; }
+
+  echo "[4/4] Run exact MT5 model tournament..."
   cd "$WORK/runtime/v31_mt5_model_gate" || exit 72
   bash ./RUN_V31_1_EXACT_MT5_USD40_GIT_BASH.sh
   rc=$?
