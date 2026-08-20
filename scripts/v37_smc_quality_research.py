@@ -12,10 +12,22 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-RUN_IDS = [
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-02-01_00-00-00__756375",
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-08-01_00-00-00__22265",
-    "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2026-02-01_00-00-00__519093",
+RUN_SPECS = [
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-02-01_00-00-00__756375",
+        pd.Timestamp("2025-02-01"),
+        pd.Timestamp("2025-08-01"),
+    ),
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2025-08-01_00-00-00__22265",
+        pd.Timestamp("2025-08-01"),
+        pd.Timestamp("2026-02-01"),
+    ),
+    (
+        "ml_dl_feature_lake_v1__XAUUSDm__PERIOD_M15__2026-02-01_00-00-00__519093",
+        pd.Timestamp("2026-02-01"),
+        pd.Timestamp("2026-08-01"),
+    ),
 ]
 
 BAR_NUM = [
@@ -44,26 +56,40 @@ def parse_time(series):
 
 def load_lake(common: Path) -> pd.DataFrame:
     parts = []
-    for run_id in RUN_IDS:
+    audit = []
+    for run_id, start, end in RUN_SPECS:
         path = common / "mt5_quant" / "runs" / run_id / "bar_features.csv"
         if not path.is_file():
             raise FileNotFoundError(path)
         df = pd.read_csv(path)
         df["dt"] = parse_time(df.time)
+        raw_rows = len(df)
+        df = df[(df.dt >= start) & (df.dt < end)].copy()
+        if df.empty:
+            raise RuntimeError(f"empty canonical V37 chunk run={run_id}")
+        audit.append(
+            {
+                "run_id": run_id,
+                "raw_rows": int(raw_rows),
+                "canonical_rows": int(len(df)),
+                "start": str(start),
+                "end_exclusive": str(end),
+            }
+        )
         parts.append(df)
-    lake = (
-        pd.concat(parts, ignore_index=True)
-        .sort_values("dt")
-        .drop_duplicates("dt", keep="last")
-        .reset_index(drop=True)
-    )
-    lake = lake[(lake.dt >= pd.Timestamp("2025-02-01")) & (lake.dt < pd.Timestamp("2026-08-01"))].copy()
-    if len(lake) != 35344 or lake.dt.duplicated().any():
-        raise RuntimeError(f"canonical bar lake mismatch rows={len(lake)}")
+    lake = pd.concat(parts, ignore_index=True).sort_values("dt").reset_index(drop=True)
+    dup = int(lake.dt.duplicated().sum())
+    if len(lake) != 35344 or dup != 0:
+        raise RuntimeError(
+            f"canonical bar lake mismatch rows={len(lake)} duplicates={dup} audit={audit}"
+        )
+    if lake.dt.iloc[0] < pd.Timestamp("2025-02-01") or lake.dt.iloc[-1] >= pd.Timestamp("2026-08-01"):
+        raise RuntimeError("canonical V37 lake boundary violation")
     lake["available"] = lake.dt + pd.Timedelta(minutes=15)
     missing = [c for c in BAR_NUM + EXPERT if c not in lake.columns]
     if missing:
         raise RuntimeError(f"missing V37 lake features: {missing}")
+    print(f"V37 canonical V30 lake PASS rows={len(lake)} duplicates={dup}")
     return lake
 
 
@@ -178,7 +204,6 @@ def main():
         for name, model in models().items():
             model.fit(x.iloc[train], y[train])
             calibration_scores = model.predict(x.iloc[calibration])
-            # Frozen development hypothesis: keep approximately top 60% of prior-month score distribution.
             threshold = float(np.quantile(calibration_scores, 0.40))
             score = model.predict(x.iloc[test])
             keep = score >= threshold
@@ -240,7 +265,6 @@ def main():
             "mean_score_spearman": float(group.score_spearman.dropna().mean()),
         }
 
-    # This is deliberately a development diagnostic, not an MT5 PnL claim.
     hist = aggregate.get("histgb", {})
     promising = (
         hist.get("months_selected_avg_r_positive", 0) >= 5
@@ -249,7 +273,7 @@ def main():
     )
     output = {
         "schema": "v37_smc_quality_research_v1",
-        "source": "V34 exact-MT5 norm-book SMC trades + causal V30 bar state",
+        "source": "V34 exact-MT5 norm-book SMC trades + causal canonical V30 bar state",
         "candidate": "v34_smc_ict_causal",
         "models": ["HistGradientBoostingRegressor", "ExtraTreesRegressor", "MLPRegressor_48_24"],
         "keep_rule": "score >= prior-month 40th percentile (approximately keep60)",
