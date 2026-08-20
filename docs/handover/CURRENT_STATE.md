@@ -2,165 +2,144 @@
 
 Ngày cập nhật: 2026-08-20.
 
-## Safety
+## Safety invariants
 
-REAL-MONEY LIVE TRADING = FORBIDDEN. Không tháo tester/live guards. Không Martingale/grid/doubling. Stop-risk research ceiling 1.00%/trade. Không native/external broker order trong research screening.
+- REAL-MONEY LIVE TRADING = FORBIDDEN.
+- Không tháo tester/live guards.
+- Không Martingale/grid/loss doubling.
+- Research stop-risk ceiling: 1.00%/trade.
+- Không native/external broker orders trong current research gates.
 
-## Canonical runtime/data state
+## Accepted V30 data/runtime
 
-V29/V30 giữ catalog 12 candidates × 4 virtual books và adaptive shadow-expert semantics. V30 `MlDlFeatureLakeV1.mq5` bổ sung M15 bar-feature export cho offline ML/DL; không ghi future labels trong EA và không có native broker-order path.
+V30 `MlDlFeatureLakeV1.mq5` source SHA-256:
 
-Accepted V30 source SHA-256:
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-Windows MetaEditor: `0 errors / 0 warnings`.
+Windows compile: `0 errors / 0 warnings`.
 
-Final Git Bash acquisition ZIP SHA-256:
-`8771ae988be46191c724e74f3a84b76b1bc7a0385a703ef963dee95414cdbb4a`
+Canonical 18-month M15 feature lake after half-open trim/stitch:
 
-Canonical 18m lake after half-open trim/stitch:
-
-- 35,344 M15 rows, 2025-02 → 2026-07;
-- 136 raw V30 feature columns;
+- 35,344 rows, 2025-02 through 2026-07;
+- 136 raw fields;
 - 0 duplicate timestamps;
 - 0 NaN / 0 Inf in accepted raw lake;
-- 864 monthly-summary rows = 18 × 12 × 4;
-- 28,128 total ledger trades;
-- 7,483 `norm10k_r0p5_continuous` trades;
-- summary ↔ ledger counts exact; PnL/AvgR only CSV-rounding differences.
+- 864 monthly-summary rows;
+- 28,128 total trade-ledger rows;
+- adaptive state continuous across the three chunks.
 
-Adaptive state is continuous across all chunks. Final Chunk-3 expert obs counts:
+Final acquisition ZIP SHA-256:
 
-- EMA 590
-- MACD 251
-- BOS 221
-- Trend 360
-- Slow momentum 612
+`8771ae988be46191c724e74f3a84b76b1bc7a0385a703ef963dee95414cdbb4a`
 
-No additional MT5 run is needed to analyze the accepted 18-month lake.
-
-## Mandatory causal timing contract
-
-CRITICAL: `bar_features.time` is the OPEN timestamp of `r[1]`, the just-closed M15 bar. The feature row is only available after that bar closes.
-
-Offline ML must use:
+Mandatory causal contract:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-Trade entries may only join rows satisfying:
+Trade/current-bar inference may only use the latest row with availability <= decision time. Across weekend/session gaps, a gate tape must be keyed by the actual current M15 bar start, not by blindly adding 15 minutes to the previous row timestamp.
 
-`feature_available_time <= entry_time`
+## Accepted V31.1 exact-MT5 evidence
 
-Any experiment using raw `bar_features.time <= entry_time` without the +15-minute availability shift is INVALID.
+V31.1 is the accepted first exact Strategy Tester comparison of ML/NN/SVM gating on a **continuous USD40 virtual research account**.
 
-Incomplete future-label horizons remain NaN; never coerce missing future returns to class 0.
+Uploaded V31.1 result ZIP SHA-256:
 
-## Strict causal ML/DL V2 protocol
+`7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
 
-12 OOS months: 2025-08 → 2026-07. Baseline: 5,066 norm-book candidate-trades, pooled AvgR 0.189049R, sumR 957.72205R.
+All seven passes:
 
-For each test month:
+- compiled `0 errors / 0 warnings`;
+- MT5 returned rc=0;
+- fresh collection completed;
+- manifest `tester_only=1`;
+- `native_broker_orders=0`;
+- `external_broker_orders=0`;
+- `continuous_usd40=1`.
 
-- previous month = score-calibration month;
-- train only on trades with `exit_time < calibration_month_start`;
-- frozen model scores calibration month;
-- threshold is derived from calibration **scores only**;
-- absolute threshold is applied unchanged to next test month;
-- no test-month quantile peeking;
-- no random K-fold.
+Exact common test contract:
 
-## Duplicate-opportunity confound
+- XAUUSDm, M15;
+- 2026-02-01 -> 2026-08-01;
+- Strategy Tester Deposit = USD40;
+- continuous book `usd40_r1p0_cent_continuous`;
+- risk target <=1.00% of current book balance per trade;
+- leverage assumption 1:200;
+- same accepted adaptive state restored before every model pass;
+- month-end liquidation retained.
 
-Norm-book 18m:
+V31.1 causal model tape SHA-256:
 
-- 7,483 candidate-trades;
-- only 1,972 unique `(entry_time, direction)` opportunities;
-- mean multiplicity ~3.795;
-- 79.31% of opportunity groups contain >1 candidate variant.
+`0df85b572f8273f6fef8624bbc12cbded1f77bded046c938eaa9ff5e2e7a3f7f`
 
-OOS 12m:
+It matched the pinned reference byte-for-byte on Windows.
 
-- 5,066 candidate-trades;
-- 1,347 unique opportunities;
-- mean multiplicity ~3.761;
-- 79.29% duplicated.
+### Primary same-candidate result
 
-Therefore unweighted catalog-trade ML numbers are exploratory only.
+Frozen primary candidate: `adaptive_ewma_hl8_thr0`.
 
-Inverse-opportunity-weighted ExtraTrees with a global threshold:
+| Mode | End USD | Geo/month | Max MTM DD | Trades | AvgR | Ledger PF |
+|---|---:|---:|---:|---:|---:|---:|
+| baseline | 62.3573 | 7.6807% | 10.8159% | 222 | 0.2401R | 1.5579 |
+| DeepMLP 64-32-16 | 60.4393 | 7.1215% | 7.3551% | 146 | 0.3329R | 1.8037 |
+| CatBoost | 51.2744 | 4.2254% | 11.8421% | 172 | 0.1559R | 1.3845 |
+| CatBoost AND ExtraTrees | 47.3229 | 2.8415% | 12.2095% | 118 | 0.1930R | 1.3749 |
+| majority 2-of-4 | 46.1485 | 2.4117% | 18.1616% | 202 | 0.1286R | 1.1828 |
+| ExtraTrees | 45.6841 | 2.2392% | 14.7440% | 134 | 0.1359R | 1.2692 |
+| LinearSVM / SVR | 44.0550 | 1.6223% | 9.7890% | 179 | 0.0952R | 1.1296 |
 
-- 40%-keep target: actual coverage ~49.1%, selected AvgR ~0.250R, CI crosses zero;
-- 50%-keep target: actual coverage ~58.6%, selected AvgR ~0.257R, sumR retention ~79.7%, paired-month CI roughly [+0.016R,+0.127R].
+Profit factor is computed from exact trade-ledger `total_pnl`. The first V31.1 analyzer used the wrong optional name `net_pnl` and printed NaN; `scripts/analyze_v31_1_mt5_usd40.py` has been repaired.
 
-Unique-opportunity-group ExtraTrees/HistGB models all have paired-month CIs crossing zero. No universal common market-opportunity ML edge is established.
+### Decision from V31.1
 
-## Model decisions
+- Baseline remains the return winner.
+- DeepMLP is a **quality/risk winner**, not a return winner: materially higher AvgR/PF and lower DD/turnover, but its 50%-score gate removes too much profitable breadth.
+- CatBoost, ExtraTrees, LinearSVM and simple voting are rejected as primary binary entry gates on this exact-MT5 comparison.
+- No mode meets the aspirational 15% geometric monthly target. USD40 compounded at 15% for six months would be ~USD92.52; baseline ends at ~USD62.36.
+- Do not raise risk/leverage to force the target.
 
-- Win/loss/tail classification: REJECT.
-- Static MLP: no robust uplift.
-- GRU64: no robust uplift.
-- causal TCN64: no robust uplift.
-- Patch Transformer64: no robust uplift.
-- Unweighted catalog ExtraTrees: not promotion evidence.
-- Weighted expected-R tree filtering: promising but context-dependent, not promotion-ready.
+Primary baseline ledger still shows meaningful excursion/capture information: mean MFE ~1.33R versus realized mean ~0.24R, but prior Profit Protection Lab already showed exit-only improvements do not reach the monthly objective. Opportunity-adjusted alpha remains a major bottleneck.
 
-DL capacity does not beat the stronger tabular controls on the accepted 18m lake.
+Evidence:
 
-## Family-threshold gate completed
+- `docs/research/v31_1_exact_mt5_usd40_results.md`
+- `docs/research/v31_1_exact_mt5_usd40_model_gate.md`
 
-A shared inverse-opportunity-weighted ExtraTrees model was calibrated by family from previous-month score distributions.
+## Current next gate — V32 DeepMLP keep-rate sweep
 
-Candidate-aware aggregate:
+V32 is a bounded **development** sweep on the already inspected February-July 2026 period. It is not fresh confirmation.
 
-- 40%-keep target: actual coverage 50.14%, selected AvgR 0.2758R, sumR retention 73.14%, paired-month CI [+0.0169R,+0.1640R].
-- 50%-keep target: coverage 58.86%, selected AvgR 0.2523R, retention 78.56%, CI [+0.0005R,+0.1188R].
-- 60%-keep target: coverage 64.49%, selected AvgR 0.2397R, retention 81.76%, CI [+0.0086R,+0.1054R].
+Question: can the same V31.1 DeepMLP preserve more profitable breadth at a broader threshold while retaining some of its DD/AvgR/PF advantage?
 
-Candidate-blind control fails robustness at all three thresholds; every paired-month interval crosses zero. Therefore the effect is not a clean universal market-state filter and depends partly on family/candidate context.
+Exact MT5 modes:
 
-Family diagnostics:
+- baseline
+- DeepMLP keep50
+- keep60
+- keep70
+- keep80
+- keep90
 
-- EMA pullback is the strongest current lead; its candidate-aware weighted family threshold is positive across 40/50/60 targets, with high sumR retention.
-- Adaptive router is a secondary lead mainly at the tighter 40%-target gate.
-- Router EMA+BOS is marginal/unstable.
-- Slow momentum is not robust by month.
-- MACD sample is too small/unstable despite some positive bootstrap slices.
-- BOS/FVG and Trend20 do not clear a stable gate; BOS/FVG remains a useful negative/control family.
+Same Deposit=USD40, continuous book, <=1.00%/trade risk ceiling, same state and same exact period.
 
-This family analysis reuses the same 12 OOS months already inspected. It is robustness evidence, **not fresh confirmation**.
+Pinned V32 source SHA-256:
 
-## Current decision
+`ff131ff8ce1d5ba7c3be42c8d6acdbb6f64a898d51fe6c64771f29e91ae5543a`
 
-V30 feature lake: ACCEPTED for offline research.
+Pinned V32 nested causal tape SHA-256:
 
-No ML/DL model is promoted to PAPER/DEMO execution. REAL-MONEY LIVE remains forbidden.
+`8b3550dbdf451d558349be46d4a1b9391feba04c29cd21968594473eae716356`
 
-Stop tuning/slicing the same 2025-08 → 2026-07 OOS sample. More optimization on those months now increases research-overfitting risk.
+Offline score-only diagnostics suggest the V31 median gate is over-aggressive; e.g. the ~90%-keep region preserves much more realized R. This is only a development clue. Exact MT5 is required because gating changes trade/adaptive paths.
 
-The next meaningful gate is a genuinely fresh chronological holdout after 2026-08-01, with frozen model/threshold rules. A complete August-2026 month is preferable to a partial-month test because V30 `OnDeinit()` finalizes the active month and would create artificial EOM closes at a partial tester end date.
+V32 runtime:
 
-When a fresh full month is available:
+- `runtime/v32_mlp_keep_sweep/BOOTSTRAP_V32_ONE_SHOT_GIT_BASH.sh`
+- `runtime/v32_mlp_keep_sweep/RUN_V32_DEEP_MLP_KEEP_SWEEP_GIT_BASH.sh`
 
-1. train using only pre-July-label history according to the frozen monthly protocol;
-2. use July scores to freeze the family thresholds;
-3. apply unchanged rules to unseen August data;
-4. report candidate-trade and unique-opportunity economics;
-5. no re-tuning on August;
-6. only if fresh holdout survives should a new MT5 strategy variant / tick-level re-simulation be justified.
+V32 preregistration:
 
-## Evidence / code
+- `docs/research/v32_deep_mlp_keep_sweep_plan.md`
 
-- `docs/research/v30_18m_feature_lake_acceptance_and_first_ml.md`
-- `docs/research/v30_causal_ml_dl_tournament_v2.md`
-- `docs/research/v30_family_threshold_gate_v2.md`
-- `docs/adr/ADR-038-causal-feature-availability-and-opportunity-weighting.md`
-- `scripts/v30_causal_research_v2.py`
-- `scripts/v30_trade_tournament_v2.py`
-- `scripts/v30_sequence_tournament_v2.py`
-- `scripts/v30_opportunity_weighting_v2.py`
-- `scripts/v30_family_gate_v2.py`
-- `tests/test_v30_causal_research_v2.py`
+After V32, freeze or reject the threshold region. Do not continue endlessly tuning February-July. Any selected rule must face a genuinely fresh chronological holdout before promotion claims.
 
-Local research QA at this checkpoint: Python compile PASS for the V30 offline utilities and `pytest` 5/5 PASS; one non-fatal PyTorch nested-tensor warning from the Transformer forward test.
-
-Historical V29 compile/distribution incidents (`missing helpers`, `dt.minute -> dt.min`, stale/corrupt recovery blob) remain lessons learned; do not reintroduce those artifacts.
+If V32 cannot materially improve the exact-MT5 return/quality tradeoff, move away from binary entry gating toward neural risk/exit control plus genuinely independent opportunity generation/allocation. LIVE remains forbidden.
