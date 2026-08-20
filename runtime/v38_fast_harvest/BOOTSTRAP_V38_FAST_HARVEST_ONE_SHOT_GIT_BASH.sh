@@ -65,7 +65,32 @@ if [[ $RC -eq 0 ]]; then
   if [[ ! -s "$RUNNER" ]]; then
     echo "FATAL: V38 runner missing: $RUNNER"
     RC=3
-  elif ! bash -n "$RUNNER"; then
+  else
+    echo "Hardening V38 static-test runner: pytest package is optional..."
+    python - "$RUNNER" <<'PYRUNNER'
+from pathlib import Path
+import sys
+p=Path(sys.argv[1])
+s=p.read_text(encoding='utf-8')
+old='"$PY" -m pytest -q "$REPO_ROOT/tests/test_v38_fast_harvest_static.py"'
+new='"$PY" "$REPO_ROOT/tests/test_v38_fast_harvest_static.py"'
+if old in s:
+    s=s.replace(old,new,1)
+    changed=1
+elif new in s:
+    changed=0
+else:
+    raise SystemExit('V38 pytest runner anchor missing')
+p.write_text(s,encoding='utf-8',newline='\n')
+print(f'V38 pytest-free static-test patch PASS changed={changed}')
+PYRUNNER
+    RC=$?
+  fi
+fi
+
+if [[ $RC -eq 0 ]]; then
+  RUNNER="$WORK/runtime/v38_fast_harvest/RUN_V38_FAST_HARVEST_EXACT_MT5_GIT_BASH.sh"
+  if ! bash -n "$RUNNER"; then
     echo "FATAL: bash -n failed for V38 runner"
     RC=4
   else
