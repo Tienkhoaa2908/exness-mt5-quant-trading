@@ -5,7 +5,7 @@ BRANCH="${BRANCH:-agent/v30-ml-dl-feature-lake}"
 LOG="$HOME/v34_v35_bootstrap.log"
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== V34/V35 PARALLEL ALPHA + AI META-ROUTER — STRING FIX V3 ==="
+echo "=== V34/V35 PARALLEL ALPHA + AI META-ROUTER — ESCAPE FIX V4 ==="
 date
 RC=0
 
@@ -20,7 +20,7 @@ fi
 
 if [[ $RC -eq 0 ]]; then
   echo "HEAD=$(git -C "$WORK" rev-parse HEAD)"
-  echo "Applying V34/V35 Python-to-MQL string hardening..."
+  echo "Applying exact Python-to-MQL escaping fixes..."
   python - "$WORK" <<'PY'
 from pathlib import Path
 import re, sys
@@ -47,46 +47,27 @@ def rawify_block_containing(path: Path, needle: str) -> bool:
     path.write_text(s, encoding='utf-8', newline='\n')
     return True
 
-# These four Python replacement blocks emit MQL string literals. They MUST be raw
-# so \\r\\n remains two MQL escape sequences and \\\\ remains two MQL backslashes.
 changed = []
 changed.append(('v34_input_path', rawify_block_containing(v34, 'input string InpV34AlphaTapeFile')))
 changed.append(('v34_manifest', rawify_block_containing(v34, 'v34_parallel_alpha_lab=1')))
 changed.append(('v35_input_path', rawify_block_containing(v35, 'input string InpV35RouterTapeFile')))
 changed.append(('v35_manifest', rawify_block_containing(v35, 'v35_ai_all_expert_meta_router=1')))
 
+# Exact real bug from the Windows lint: telemetry path had one MQL backslash.
+s34 = v34.read_text(encoding='utf-8')
+old = r'string V34IntraTradeFile(){ return g_run_folder+"\intra_trade_m15.csv"; }'
+new = r'string V34IntraTradeFile(){ return g_run_folder+"\\intra_trade_m15.csv"; }'
+telemetry_fixed = False
+if old in s34:
+    s34 = s34.replace(old, new, 1)
+    telemetry_fixed = True
+elif new not in s34:
+    raise SystemExit('V34 telemetry path anchor not found')
+v34.write_text(s34, encoding='utf-8', newline='\n')
+
 s = runner.read_text(encoding='utf-8')
 
-lint_block = r'''"$PY" - "$BASE34" <<'PYMQLLINT'
-from pathlib import Path
-import sys
-p=Path(sys.argv[1])
-text=p.read_text(encoding='utf-8-sig')
-bad=[]
-for ln,line in enumerate(text.splitlines(),1):
-    ins=False; esc=False
-    for ch in line:
-        if esc:
-            esc=False
-            continue
-        if ch=='\\':
-            esc=True
-            continue
-        if ch=='"':
-            ins=not ins
-    if ins:
-        bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
-    if '\\i' in line:
-        bad.append(f'line {ln}: invalid MQL escape \\i: {line[:180]}')
-if bad:
-    print('GENERATED MQL STRING LINT FAILED')
-    print('\n'.join(bad[:30]))
-    raise SystemExit(78)
-print('Generated MQL string lint PASS:', p)
-PYMQLLINT
-'''
-
-# Build V34 twice from the exact accepted V30 source and require byte equality.
+# Build V34 twice from accepted V30 source, compare bytes, then lint generated MQL.
 start = s.find('BASE34="$OUT/V34ParallelAlphaLab.base.mq5";')
 end = s.find("! grep -Eq 'OrderSend", start)
 if start < 0 or end < 0:
@@ -102,7 +83,7 @@ rm -f "$BASE34_CHECK"
 say "V34 deterministic source PASS sha=$V34_SHA_ACTUAL"
 "$PY" - "$BASE34" <<'PYMQLLINT'
 from pathlib import Path
-import sys
+import re,sys
 p=Path(sys.argv[1]); text=p.read_text(encoding='utf-8-sig'); bad=[]
 for ln,line in enumerate(text.splitlines(),1):
     ins=False; esc=False
@@ -110,13 +91,16 @@ for ln,line in enumerate(text.splitlines(),1):
         if esc: esc=False; continue
         if ch=='\\': esc=True; continue
         if ch=='"': ins=not ins
-    if ins: bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
-    if '\\i' in line: bad.append(f'line {ln}: invalid MQL escape \\i: {line[:180]}')
+    if ins:
+        bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
+    # Only an ODD run of backslashes before i is invalid. "\\\\inputs" is valid MQL.
+    if any(len(m.group(1)) % 2 == 1 for m in re.finditer(r'(\\+)i', line)):
+        bad.append(f'line {ln}: invalid unescaped MQL \\i sequence: {line[:180]}')
 if bad:
     print('GENERATED MQL STRING LINT FAILED'); print('\n'.join(bad[:30])); raise SystemExit(78)
 print('Generated MQL string lint PASS:',p)
 PYMQLLINT
-# Pin V35 builder to the exact V34 bytes produced in this same run.
+# Pin V35 builder to the exact V34 bytes produced in this run.
 "$PY" - "$S35" "$V34_SHA_ACTUAL" <<'PYV35PIN'
 from pathlib import Path
 import re,sys
@@ -129,7 +113,7 @@ PYV35PIN
 '''
 s = s[:start] + new_v34 + s[end:]
 
-# Build V35 twice, lint generated MQL, then compile.
+# Build V35 twice, compare bytes, lint, then compile.
 start = s.find('BASE35="$OUT/V35AiSpecialistMetaRouter.base.mq5";')
 end = s.find('EA35="$EXPERT_DIR/V35AiSpecialistMetaRouter.mq5";', start)
 if start < 0 or end < 0:
@@ -145,7 +129,7 @@ rm -f "$BASE35_CHECK"
 say "V35 deterministic source PASS sha=$V35_SHA_ACTUAL"
 "$PY" - "$BASE35" <<'PYMQLLINT'
 from pathlib import Path
-import sys
+import re,sys
 p=Path(sys.argv[1]); text=p.read_text(encoding='utf-8-sig'); bad=[]
 for ln,line in enumerate(text.splitlines(),1):
     ins=False; esc=False
@@ -153,8 +137,10 @@ for ln,line in enumerate(text.splitlines(),1):
         if esc: esc=False; continue
         if ch=='\\': esc=True; continue
         if ch=='"': ins=not ins
-    if ins: bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
-    if '\\i' in line: bad.append(f'line {ln}: invalid MQL escape \\i: {line[:180]}')
+    if ins:
+        bad.append(f'line {ln}: unterminated MQL string literal: {line[:180]}')
+    if any(len(m.group(1)) % 2 == 1 for m in re.finditer(r'(\\+)i', line)):
+        bad.append(f'line {ln}: invalid unescaped MQL \\i sequence: {line[:180]}')
 if bad:
     print('GENERATED MQL STRING LINT FAILED'); print('\n'.join(bad[:30])); raise SystemExit(78)
 print('Generated MQL string lint PASS:',p)
@@ -162,7 +148,7 @@ PYMQLLINT
 '''
 s = s[:start] + new_v35 + s[end:]
 
-# Always print decoded MetaEditor diagnostics.
+# Print full decoded MetaEditor diagnostics once.
 needle = 'local sum; sum="$(tr -d \'\\r\' < "$u8"|grep -Eio'
 if needle in s:
     s = s.replace(needle, 'cat "$u8"; local sum; sum="$(tr -d \'\\r\' < "$u8"|grep -Eio', 1)
@@ -170,9 +156,10 @@ elif 'cat "$u8"; local sum;' not in s:
     raise SystemExit('runner: compile diagnostic anchor not found')
 
 runner.write_text(s, encoding='utf-8', newline='\n')
-print('Python-to-MQL raw-string hardening PASS:', ', '.join(f'{k}={int(v)}' for k,v in changed))
-print('Generated-source lint enabled for V34 and V35')
-print('Source policy: deterministic double-build equality + lint + MetaEditor compile 0/0')
+print('Raw-string hardening:', ', '.join(f'{k}={int(v)}' for k,v in changed))
+print('Telemetry path fix applied='+str(int(telemetry_fixed)))
+print('Lint V4: escaped \\\\inputs accepted; only odd-backslash \\i rejected')
+print('Source policy: deterministic double-build + lint + MetaEditor compile 0/0')
 PY
   RC=$?
 fi
@@ -192,7 +179,7 @@ echo "=== V34/V35 FINISHED rc=$RC ==="
 echo "Bootstrap log: $LOG"
 echo "Runner log: $WORK/runtime/v34_parallel_alpha/OUTPUT_V34_V35/v34_v35_runner.log"
 if [[ $RC -ne 0 ]]; then
-  echo "Do not blindly rerun if MT5_DONE.txt exists; the runner will collect-only on retry."
+  echo "If MT5_DONE.txt exists, do not rerun tester manually; this runner recovers collection-only."
 fi
 read -r -p "Press ENTER after copying the final status... " _
 exit $RC
