@@ -8,7 +8,7 @@ OUT="$ROOT/OUTPUT_V36"
 LOG="$HOME/v36_sequence_exit_bootstrap.log"
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== V36 TRUE INTRA-TRADE SEQUENCE DL — READ ONLY ==="
+echo "=== V36 SEQUENCE DL + V37 SMC QUALITY — READ ONLY ==="
 date
 echo "No MT5 launch. No broker orders. No adaptive-state writes."
 RC=0
@@ -25,8 +25,9 @@ fi
 if [[ $RC -eq 0 ]]; then
   mkdir -p "$OUT"
   echo "HEAD=$(git -C "$WORK" rev-parse HEAD)"
-  SCRIPT="$WORK/scripts/v36_sequence_exit_models.py"
-  [[ -s "$SCRIPT" ]] || { echo "FATAL: V36 script missing"; RC=3; }
+  SCRIPT36="$WORK/scripts/v36_sequence_exit_models.py"
+  SCRIPT37="$WORK/scripts/v37_smc_quality_research.py"
+  [[ -s "$SCRIPT36" && -s "$SCRIPT37" ]] || { echo "FATAL: V36/V37 scripts missing"; RC=3; }
 fi
 
 if [[ $RC -eq 0 ]]; then
@@ -64,7 +65,7 @@ PYTORCH
 fi
 
 if [[ $RC -eq 0 ]]; then
-  "$PY" -m py_compile "$SCRIPT"
+  "$PY" -m py_compile "$SCRIPT36" "$SCRIPT37"
   RC=$?
 fi
 
@@ -87,18 +88,32 @@ if [[ $RC -eq 0 ]]; then
 fi
 
 if [[ $RC -eq 0 ]]; then
-  SUMMARY="$OUT/v36_sequence_summary.json"
-  PREDS="$OUT/v36_sequence_predictions.csv"
-  rm -f "$SUMMARY" "$PREDS"
+  SUMMARY36="$OUT/v36_sequence_summary.json"
+  PREDS36="$OUT/v36_sequence_predictions.csv"
+  SUMMARY37="$OUT/v37_smc_quality_summary.json"
+  PREDS37="$OUT/v37_smc_quality_predictions.csv"
+  rm -f "$SUMMARY36" "$PREDS36" "$SUMMARY37" "$PREDS37"
+
   echo
-  echo "Training chronological GRU48 / true-causal TCN48 / Transformer48x2..."
+  echo "[V37] Dedicated causal SMC quality diagnostic first..."
+  "$PY" "$SCRIPT37" \
+    --common-files "$(cygpath -w "$COMMON")" \
+    --v34-run-folder "$(cygpath -w "$V34_RUN")" \
+    --output "$(cygpath -w "$SUMMARY37")" \
+    --predictions "$(cygpath -w "$PREDS37")"
+  RC=$?
+fi
+
+if [[ $RC -eq 0 ]]; then
+  echo
+  echo "[V36] Training chronological GRU48 / true-causal TCN48 / Transformer48x2..."
   echo "Source telemetry: $V34_RUN/intra_trade_m15.csv"
-  "$PY" "$SCRIPT" \
+  "$PY" "$SCRIPT36" \
     --common-files "$(cygpath -w "$COMMON")" \
     --v34-run-folder "$(cygpath -w "$V34_RUN")" \
     --book "norm10k_r0p5_continuous" \
-    --summary "$(cygpath -w "$SUMMARY")" \
-    --predictions "$(cygpath -w "$PREDS")" \
+    --summary "$(cygpath -w "$SUMMARY36")" \
+    --predictions "$(cygpath -w "$PREDS36")" \
     --epochs 12 \
     --seq-len 32 \
     --sample-step 4
@@ -106,29 +121,34 @@ if [[ $RC -eq 0 ]]; then
 fi
 
 if [[ $RC -eq 0 ]]; then
-  [[ -s "$SUMMARY" && -s "$PREDS" ]] || { echo "FATAL: V36 outputs missing"; RC=7; }
+  for f in "$SUMMARY36" "$PREDS36" "$SUMMARY37" "$PREDS37"; do
+    [[ -s "$f" ]] || { echo "FATAL: expected research output missing: $f"; RC=7; break; }
+  done
 fi
 
 if [[ $RC -eq 0 ]]; then
-  ZIP="$OUT/v36_sequence_exit_diagnostic.zip"
+  ZIP="$OUT/v36_v37_read_only_research.zip"
   "$PY" - "$OUT" "$ZIP" <<'PYZIP'
 import os,sys,zipfile
 root,out=sys.argv[1],sys.argv[2]
+names=[
+ 'v36_sequence_summary.json','v36_sequence_predictions.csv',
+ 'v37_smc_quality_summary.json','v37_smc_quality_predictions.csv']
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
-    for name in ['v36_sequence_summary.json','v36_sequence_predictions.csv']:
+    for name in names:
         p=os.path.join(root,name)
         z.write(p,name)
 PYZIP
   SHA="$(sha256sum "$ZIP" | awk '{print $1}')"
   echo
-  echo "=== V36 DONE ==="
+  echo "=== V36/V37 DONE ==="
   echo "UPLOAD THIS ONE ZIP:"
   cygpath -w "$ZIP"
   echo "SHA256=$SHA"
 fi
 
 echo
-echo "V36 rc=$RC"
+echo "V36/V37 rc=$RC"
 echo "Bootstrap log: $LOG"
 read -r -p "Press ENTER after copying the final status... " _
 exit $RC
