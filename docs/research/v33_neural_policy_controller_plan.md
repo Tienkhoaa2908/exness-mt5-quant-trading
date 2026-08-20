@@ -30,6 +30,12 @@ Use the same causal entry features plus shared hidden layers and multi-task targ
 
 All labels are outcomes and therefore training-only. Current decisions still use only features available by decision time.
 
+The first causal multi-task diagnostic is materialized as:
+
+`scripts/v33_multitask_policy_research.py`
+
+It uses expanding monthly folds, inverse duplicate-opportunity weighting, labels only from trades exited before the calibration-month start, and reports target correlations/MAE without reconstructing a PnL curve. That diagnostic is a model-information gate only; it cannot replace MT5 economics.
+
 ### Bounded policy arms
 
 The exact MT5 lab should isolate changes rather than run an open optimizer:
