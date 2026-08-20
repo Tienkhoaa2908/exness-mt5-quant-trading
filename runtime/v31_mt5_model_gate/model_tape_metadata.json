@@ -1,0 +1,42 @@
+{
+  "models_bits": {
+    "0": "catboost",
+    "1": "extratrees",
+    "2": "mlp_64_32",
+    "3": "linear_svr",
+    "4": "catboost_AND_extratrees",
+    "5": "majority_2of4"
+  },
+  "candidate_order": [
+    "ema_h1_skip20",
+    "macd_h1_gap10",
+    "bos_fvg_h1_gap8",
+    "trend20_h1_gap5",
+    "router_ema_bos8",
+    "slow_mom_16h24h_timebox8h",
+    "slow_mom_16h24h_peaklock_timebox8h",
+    "adaptive_ewma_hl8_thr0",
+    "adaptive_ewma_hl8_thr0p05",
+    "adaptive_ewma_hl10_thr0p05",
+    "adaptive_ewma_hl12_thr0p05",
+    "adaptive_cp_fast5_slow20_thr0p30"
+  ],
+  "months": [
+    {"test_month":"2025_08","calibration_month":"2025_07","thresholds":{"catboost":0.16676068025662333,"extratrees":0.387866962251984,"mlp":-0.02916241146887516,"linear_svr":0.08999553418052482},"train_rows":2111,"cal_rows":306,"bars":1932},
+    {"test_month":"2025_09","calibration_month":"2025_08","thresholds":{"catboost":0.6159269736287155,"extratrees":0.8796345319030545,"mlp":0.5478564096190445,"linear_svr":0.08812714431160848},"train_rows":2417,"cal_rows":316,"bars":2013},
+    {"test_month":"2025_10","calibration_month":"2025_09","thresholds":{"catboost":0.40920427786072544,"extratrees":0.3894421582853218,"mlp":-0.12604892343501214,"linear_svr":-0.5006886380350872},"train_rows":2733,"cal_rows":646,"bars":2108},
+    {"test_month":"2025_11","calibration_month":"2025_10","thresholds":{"catboost":0.15369410299437805,"extratrees":0.039966455351245975,"mlp":-0.29862957750329394,"linear_svr":-0.5553524706394704},"train_rows":3379,"cal_rows":656,"bars":1823},
+    {"test_month":"2025_12","calibration_month":"2025_11","thresholds":{"catboost":0.25307905771961636,"extratrees":0.156492417609127,"mlp":0.06051665848302834,"linear_svr":-0.17954340031234164},"train_rows":4035,"cal_rows":339,"bars":2005},
+    {"test_month":"2026_01","calibration_month":"2025_12","thresholds":{"catboost":0.14204168028514427,"extratrees":0.3093016653695436,"mlp":1.2778214669795163,"linear_svr":0.15459662820779158},"train_rows":4374,"cal_rows":382,"bars":1921},
+    {"test_month":"2026_02","calibration_month":"2026_01","thresholds":{"catboost":0.2298438380602842,"extratrees":0.17380128495110464,"mlp":1.0454527399844902,"linear_svr":0.4585883800796586},"train_rows":4756,"cal_rows":532,"bars":1830},
+    {"test_month":"2026_03","calibration_month":"2026_02","thresholds":{"catboost":0.7973897852998789,"extratrees":1.0204667471590907,"mlp":0.24792453663770908,"linear_svr":-0.25689345610481995},"train_rows":5288,"cal_rows":276,"bars":2032},
+    {"test_month":"2026_04","calibration_month":"2026_03","thresholds":{"catboost":0.3145196399116114,"extratrees":0.5020972610119048,"mlp":-0.006347789406391691,"linear_svr":0.04970450164608149},"train_rows":5564,"cal_rows":283,"bars":1931},
+    {"test_month":"2026_05","calibration_month":"2026_04","thresholds":{"catboost":0.12124052924533879,"extratrees":0.12049938349154395,"mlp":0.1401214779754439,"linear_svr":-0.06612101713863269},"train_rows":5847,"cal_rows":240,"bars":1922},
+    {"test_month":"2026_06","calibration_month":"2026_05","thresholds":{"catboost":0.0045678660355247536,"extratrees":0.0869811920560838,"mlp":-0.684555406104587,"linear_svr":-0.6137429676512483},"train_rows":6087,"cal_rows":299,"bars":2008},
+    {"test_month":"2026_07","calibration_month":"2026_06","thresholds":{"catboost":0.809689578866232,"extratrees":0.45170494014512685,"mlp":-0.30946938051234585,"linear_svr":-0.25207988229730605},"train_rows":6386,"cal_rows":506,"bars":2091}
+  ],
+  "feature_count": 91,
+  "protocol": "fit exits before prior calibration month; threshold=median prior-month scores; score every bar/candidate/direction causally",
+  "tape_sha256": "44c11a98b75c7764e7a07eff245e1864d9dc85acc4a116a5cd162acb241539fc",
+  "v31_source_sha256": "8dccbe939bb93a188675c4c61f2030f335a311113d97c813ec1e021ebcc052eb"
+}
