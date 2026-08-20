@@ -32,11 +32,11 @@ BOOTLOG="$HOME/v31_mt5_40usd_bootstrap.log"
     exit 70
   fi
 
-  RUNNER="$WORK/runtime/v31_mt5_model_gate/RUN_V31_MT5_MODEL_GATE_GIT_BASH.sh"
+  RUNNER="$WORK/runtime/v31_mt5_model_gate/RUN_V31_MT5_MODEL_GATE_V2_GIT_BASH.sh"
   [[ -s "$RUNNER" ]] || { echo "ERROR: runner missing: $RUNNER"; exit 71; }
-  echo "[3/3] Run exact MT5 model gate..."
+  echo "[3/3] Run exact MT5 model gate + exact output analysis..."
   cd "$WORK/runtime/v31_mt5_model_gate" || exit 72
-  bash ./RUN_V31_MT5_MODEL_GATE_GIT_BASH.sh
+  bash ./RUN_V31_MT5_MODEL_GATE_V2_GIT_BASH.sh
   rc=$?
   echo
   echo "=== V31 RUNNER FINISHED rc=$rc ==="
@@ -48,7 +48,7 @@ echo
 echo "============================================================"
 if [[ $RC -eq 0 ]]; then
   echo "V31 COMPLETED SUCCESSFULLY"
-  echo "Find the line 'UPLOAD THIS ONE ZIP' above and upload that ZIP."
+  echo "Find the LAST line 'UPLOAD THIS ONE ZIP' above and upload that analyzed ZIP."
 else
   echo "V31 FAILED rc=$RC"
   echo "Do NOT repeatedly restart MT5 if a completed model checkpoint exists."
