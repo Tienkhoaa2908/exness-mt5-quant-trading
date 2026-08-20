@@ -14,6 +14,8 @@ REPLACEMENTS = {
         '  local tag="$1"\n  local bit="$2"\n  local dest="$CP/$tag"',
     '  local ea="V31_1_ModelGateUsd40_${tag}" src="$EXPERT_DIR/${ea}.mq5"; cp -f "$BASE_SRC" "$src"':
         '  local ea="V31_1_ModelGateUsd40_${tag}"\n  local src="$EXPERT_DIR/${ea}.mq5"\n  cp -f "$BASE_SRC" "$src"',
+    'say "Train causal CatBoost / ExtraTrees / DeepMLP / LinearSVM and build current-bar score tape"\n"$VENV_PY" "$TAPE_BUILDER" --common-files "$(cygpath -w "$COMMON")" --output "$(cygpath -w "$TAPE")" --metadata "$(cygpath -w "$TAPE_META")"\n[[ -s "$TAPE" ]] || die "V31.1 gate tape missing"\nLINES="$(wc -l < "$TAPE"|tr -d \' \')"; [[ "$LINES" == "23617" ]] || die "Unexpected gate tape line count=$LINES expected=23617"\nTAPE_SHA="$(sha256sum "$TAPE"|awk \'{print $1}\')"':
+        'if [[ -s "$TAPE" && -s "$TAPE_META" ]]; then\n  EXISTING_LINES="$(wc -l < "$TAPE"|tr -d \' \')"\n  EXISTING_SHA="$(sha256sum "$TAPE"|awk \'{print $1}\')"\nelse\n  EXISTING_LINES=""\n  EXISTING_SHA=""\nfi\nif [[ "$EXISTING_LINES" == "23617" && "$EXISTING_SHA" == "$REFERENCE_TAPE_SHA" ]]; then\n  say "REUSE verified causal gate tape sha=$EXISTING_SHA — model training NOT repeated"\nelse\n  say "Train causal CatBoost / ExtraTrees / DeepMLP / LinearSVM and build current-bar score tape"\n  "$VENV_PY" "$TAPE_BUILDER" --common-files "$(cygpath -w "$COMMON")" --output "$(cygpath -w "$TAPE")" --metadata "$(cygpath -w "$TAPE_META")"\nfi\n[[ -s "$TAPE" ]] || die "V31.1 gate tape missing"\nLINES="$(wc -l < "$TAPE"|tr -d \' \')"; [[ "$LINES" == "23617" ]] || die "Unexpected gate tape line count=$LINES expected=23617"\nTAPE_SHA="$(sha256sum "$TAPE"|awk \'{print $1}\')"',
 }
 
 
@@ -29,7 +31,6 @@ def main() -> int:
             raise RuntimeError(f"expected exactly one runner pattern, found {n}: {old}")
         s = s.replace(old, new, 1)
     p.write_text(s, encoding="utf-8", newline="\n")
-    # Fail closed if the known unsafe forms somehow remain.
     forbidden = [
         'local src="$1" log="${src%.mq5}.log"',
         'local expert="$1" tag="$2" ini=',
@@ -40,7 +41,7 @@ def main() -> int:
     bad = [x for x in forbidden if x in s]
     if bad:
         raise RuntimeError(f"unsafe local declaration(s) remain: {bad}")
-    print(f"V31.1 runner local-declaration hotfix PASS: {p}")
+    print(f"V31.1 runner hardening PASS: {p}")
     return 0
 
 
