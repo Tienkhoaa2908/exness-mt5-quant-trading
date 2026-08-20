@@ -39,3 +39,17 @@ def test_v38_hard_stop_precedes_fast_exit():
     fast = 'if(V38FastExitTriggered(ci,B[ix],tick,px,v38Reason))'
     assert anchor in text and fast in text
     assert text.index(anchor) < text.index(fast)
+
+def _run_without_pytest():
+    tests = [
+        test_v38_has_bounded_preregistered_fast_arms,
+        test_v38_builder_preserves_v34_and_tester_only_contract,
+        test_v38_hard_stop_precedes_fast_exit,
+    ]
+    for fn in tests:
+        fn()
+        print(f"PASS {fn.__name__}")
+    print(f"V38 static tests PASS count={len(tests)}")
+
+if __name__ == "__main__":
+    _run_without_pytest()
