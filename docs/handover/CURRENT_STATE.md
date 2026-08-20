@@ -9,91 +9,80 @@ Ngày cập nhật: 2026-08-20.
 - Không Martingale/grid/loss doubling.
 - Research stop-risk ceiling: 1.00%/trade.
 - Không native/external broker orders trong current research gates.
+- PAPER/DEMO only after gates. LIVE remains forbidden.
 
-## Accepted V30 data/runtime
+## Accepted V30 canonical data
 
 Accepted `MlDlFeatureLakeV1.mq5` SHA-256:
 
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-Windows compile 0/0. Canonical 18-month M15 lake: 35,344 unique rows, 2025-02 through 2026-07, 136 raw fields, 0 duplicate timestamps, 0 NaN/Inf, 28,128 ledger rows, adaptive state continuous.
+Canonical M15 lake:
 
-Final acquisition ZIP SHA-256:
+- 35,344 unique rows, 2025-02-01 through 2026-07-31;
+- 136 raw fields;
+- 0 duplicate timestamps;
+- 0 NaN/Inf in accepted raw lake;
+- 28,128 trade-ledger rows;
+- adaptive state continuous.
 
-`8771ae988be46191c724e74f3a84b76b1bc7a0385a703ef963dee95414cdbb4a`
+Mandatory stitch contract:
+
+- chunk1 `[2025-02-01, 2025-08-01)`;
+- chunk2 `[2025-08-01, 2026-02-01)`;
+- chunk3 `[2026-02-01, 2026-08-01)`.
+
+Never concatenate the raw chunk rows globally without first applying these half-open boundaries; each later chunk contains a pre-roll row.
 
 Mandatory causal contract:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-All decisions use only the latest feature row available by decision time; session/weekend gaps require causal as-of joins keyed by actual current M15 bar starts.
+All inference uses latest features satisfying `feature_available_time <= decision_time`.
 
-## Accepted V31.1 exact-MT5 evidence
+## Accepted V31.1 / V32 exact-MT5 gate
 
-ZIP SHA-256:
+V31.1 ZIP SHA:
 
 `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
 
-Seven complete exact-MT5 model passes. Primary `adaptive_ewma_hl8_thr0`:
-
-- baseline: USD40 -> USD62.3573, geo 7.6807%/month, DD 10.8159%, 222 trades, AvgR 0.2401R, PF 1.5579;
-- DeepMLP keep50: USD60.4393, geo 7.1215%, DD 7.3551%, 146 trades, AvgR 0.3329R, PF 1.8037;
-- CatBoost, ExtraTrees, LinearSVM and simple voting rejected as primary binary gates.
-
-V31.1 causal tape SHA: `0df85b572f8273f6fef8624bbc12cbded1f77bded046c938eaa9ff5e2e7a3f7f`.
-
-## Accepted V32 development evidence
-
-ZIP SHA-256:
+V32 ZIP SHA:
 
 `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
 
-V32 source SHA: `ff131ff8ce1d5ba7c3be42c8d6acdbb6f64a898d51fe6c64771f29e91ae5543a`.
-V32 nested tape SHA: `8b3550dbdf451d558349be46d4a1b9391feba04c29cd21968594473eae716356`.
-
-Primary keep-rate result:
+Primary `adaptive_ewma_hl8_thr0`, Feb-Jul 2026, continuous USD40:
 
 | Mode | End USD | Geo/month | Max DD | Trades | AvgR | PF |
 |---|---:|---:|---:|---:|---:|---:|
 | baseline | 62.3573 | 7.6807% | 10.8159% | 222 | 0.2401R | 1.5579 |
 | **DeepMLP keep60** | **62.1444** | **7.6193%** | **7.3639%** | **153** | **0.3250R** | **1.8326** |
 
-Freeze `adaptive_ewma_hl8_thr0 + DeepMLP keep60` for future fresh confirmation. Do not retune February-July 2026. No current mode meets the aspirational 15% geometric/month objective; do not increase risk to force it.
+Freeze `adaptive_ewma_hl8_thr0 + DeepMLP keep60` for future genuinely fresh confirmation. Do not retune Feb-Jul 2026.
 
-## Accepted V33 multi-task diagnostic
+## Accepted V33 entry-snapshot multi-task diagnostic
 
-Uploaded ZIP SHA-256:
+ZIP SHA:
 
 `16db78c40543495c790d83019999169d566206a591cc4ec570c6b7056df8fefa`
 
-12 chronological OOS months / 4,845 rows:
-
-- expected-R Spearman +0.0249;
-- MFE Spearman -0.0050;
-- adverse/MAE Spearman -0.0366;
-- giveback Spearman -0.0132.
-
-Decision: entry-snapshot neural features are not sufficient for stable MFE/MAE/giveback prediction. Do not merely enlarge the MLP. True exit-DL requires intra-trade sequences.
-
-Read `docs/research/v33_multitask_diagnostic_results.md`.
+Entry-snapshot neural prediction of future path was weak: expected-R Spearman +0.0249; MFE -0.0050; adverse/MAE -0.0366; giveback -0.0132. Decision: do not enlarge entry MLPs; sequence telemetry is required for exit control.
 
 ## Accepted V34 Parallel Alpha Lab exact-MT5 evidence
 
-Uploaded V34/V35 ZIP SHA-256:
+V34/V35 ZIP SHA:
 
 `ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
 
-V34 compile 0/0 and exact MT5 completed for 2025-08 through 2026-07, Deposit USD40, continuous book3. Manifest confirms tester-only, no native/external broker orders.
-
 Integrity:
 
-- 816 monthly rows = 12 months x 17 candidates x 4 books;
-- 34,508 trade-ledger rows;
-- 266,613 intra-trade M15 telemetry rows;
-- summary/ledger trade-count mismatch = 0;
-- max PnL/AvgR reconciliation error ~6e-6.
+- V34/V35 compile 0/0;
+- exact MT5 complete;
+- tester-only, no native/external orders;
+- V34 816 monthly rows, 34,508 trades, 266,613 intra-trade M15 telemetry rows;
+- summary/ledger counts reconcile;
+- all 17 common V34/V35 candidates reproduce exactly over the overlap period.
 
-Continuous USD40 results:
+Continuous USD40 V34, 12 months:
 
 | Candidate | End USD | Geo/month | Max DD | Trades | AvgR | PF |
 |---|---:|---:|---:|---:|---:|---:|
@@ -104,69 +93,78 @@ Continuous USD40 results:
 | v34_tick_microstructure_proxy | 35.24 | -1.05% | 35.25% | 620 | -0.044R | 0.956 |
 | v34_wyckoff_proxy_causal | 25.53 | -3.67% | 43.53% | 527 | -0.128R | 0.798 |
 
-Decision:
+SMC is a positive but weak/high-turnover specialist. Its monthly-return correlation to the adaptive baseline is low (~0.13), so it remains an independent-alpha research lane. Price Action is marginal. Current Wyckoff and L1/tick-path microstructure proxies are rejected. Never call the latter true L2/L3 order flow.
 
-- SMC/ICT is a positive but weak/high-turnover independent-alpha research lane, not a primary replacement.
-- Price Action is marginal only.
-- current Wyckoff and L1/tick-path microstructure proxies are rejected.
-- microstructure remains a proxy, not true L2/L3 order flow.
+## V35 generic AI all-expert router — REJECTED
 
-SMC monthly-return correlation to `adaptive_ewma_hl8_thr0` is low (~0.13), so diversification/routing research is justified only with aggregate risk capped; never stack full 1% risk from multiple same-symbol agents.
+Feb-Jul 2026, continuous USD40:
 
-Read `docs/research/v34_v35_exact_mt5_results.md`.
+- baseline: USD62.36 end, +7.68% geo/month, DD 10.82%, 222 trades, +0.240R, PF 1.558;
+- V35 router: USD24.49 end, -7.85% geo/month, DD 39.71%, 571 trades, -0.105R, PF 0.788.
 
-## V35 AI all-expert meta-router — REJECTED
+The generic router lost money in 6/6 months. Do not retune its thresholds or make the same router deeper on Feb-Jul.
 
-V35 compile 0/0 and exact MT5 completed for 2026-02 through 2026-07. Cross-run reproducibility PASS: all 17 common norm-book candidates match V34 exactly on entry, exit, direction and R over the overlap period.
+## Accepted V36 true intra-trade sequence-DL diagnostic
 
-Primary comparison, continuous USD40:
+Uploaded V36/V37 ZIP SHA:
 
-| Candidate | End USD | Geo/month | Max DD | Trades | AvgR | PF |
-|---|---:|---:|---:|---:|---:|---:|
-| adaptive_ewma_hl8_thr0 | 62.36 | +7.68% | 10.82% | 222 | +0.240R | 1.558 |
-| **v35_ai_all_expert_meta_router** | **24.49** | **-7.85%** | **39.71%** | **571** | **-0.105R** | **0.788** |
+`7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`
 
-The router lost money in every test month. Generic cross-expert expected-R routing is rejected; do not retune thresholds/model size on the same February-July period.
+V36 used the corrected canonical 35,344-row V30 stitch, true sequence masking and chronological folds for Feb-Jul 2026.
 
-## Current next gate — V36 true intra-trade sequence DL
+Mean chronological metrics:
 
-V34 telemetry is now accepted and available:
+| Model | Future-delta Spearman | Final-R Spearman | Hold AUC | Protect AUC |
+|---|---:|---:|---:|---:|
+| GRU48 | +0.0187 | +0.5246 | 0.6426 | 0.6150 |
+| causal TCN48 | -0.0116 | +0.4767 | 0.6152 | 0.5524 |
+| **Transformer48x2** | **+0.0403** | **+0.5148** | **0.6757** | **0.6771** |
 
-- V34 total telemetry rows: 266,613;
-- norm-book telemetry covers 9,077 / 9,457 trades = 95.98%; the uncovered 380 trades exited before the first post-entry M15 telemetry point;
-- covered sequence length median 9, p75 20, p90 32, p95 44, max 422.
+Interpretation:
 
-V36 models:
+- direct future-incremental-R regression remains too weak for continuous expected-R control;
+- high final-R correlation is partly mechanical because current unrealized R already contains information about final R;
+- Transformer hold/protect classification is materially stronger and stable: both AUCs >0.5 in all 6 months.
 
-- GRU48;
-- true causal dilated TCN48;
-- small Transformer encoder with positional information.
+Development-only first-trigger diagnostic: among trade paths where current unrealized R is at least +1.0R and Transformer `p_hold < 0.10`, 603 first triggers occur. The original final exit is on average 0.205R below the trigger mark; 79.3% of triggered trades finish below the trigger mark; mean avoided giveback is positive in all six inspected months. This is not PnL evidence because intervening exits change subsequent state/path.
 
-V36 must use:
+Decision: Transformer sequence classification is **promising enough for one bounded exact-MT5 exit-policy test**. No promotion before exact replay.
 
-- causal market-state join `feature_available_time <= telemetry_time`;
-- candidate identity/context;
-- train-only scaling over real timesteps only;
-- explicit padding mask;
-- future incremental R from current mark as the primary regression target, plus hold/protect classification heads;
-- chronological folds with trades in training fully exited before the embargo/calibration month.
+Read `docs/research/v36_v37_results.md`.
 
-V36 remains diagnostic. No reconstructed/offline PnL is promotion evidence. If sequence heads are stable, convert exactly one bounded hold/protect/exit hypothesis into tester-only MT5 and compare against the frozen baseline/challenger.
+## V37 dedicated SMC quality gate — REJECTED / redesign
 
-## Parallel research lane — dedicated SMC quality filter
+Same uploaded ZIP SHA as V36.
 
-Do not revive the failed V35 generic router. A dedicated SMC filter may use only prior exact-MT5 SMC outcomes plus causal entry/regime features, with chronological validation and aggregate-risk-aware MT5 replay. The goal is to improve SMC AvgR/PF and reduce its 1,077-trade turnover while preserving its low correlation to the baseline.
+OOS Feb-Jul 2026, prior-month keep60-style threshold:
 
-## Current decision stack
+- HistGB selected AvgR -0.0497R, uplift -0.0679R, 1/6 uplift-positive months;
+- ExtraTrees selected AvgR -0.0587R, uplift -0.0768R, 0/6 uplift-positive months;
+- MLP selected AvgR +0.0254R vs baseline +0.0181R, but total selected sumR only +3.44R vs baseline +10.74R and monthly stability is insufficient.
+
+Decision: do not send current V37 generic SMC filter to MT5. If SMC continues, use regime/direction/structure-specific redesign rather than threshold tuning.
+
+## Current next gate — V38 neural exit/protection exact MT5
+
+The next economic gate should use the sequence classifier only after a trade is already profitable; no risk increase. Candidate hypothesis:
+
+- apply to the adaptive primary path;
+- require current unrealized R >= +1.0R;
+- very low Transformer hold probability triggers a bounded profit-protection action;
+- compare against the exact baseline under the same USD40 continuous book, <=1% stop-risk and execution mechanics;
+- development sweep may bracket a small fixed set of low `p_hold` thresholds, but any winner must be frozen before fresh confirmation.
+
+MQL5 natively supports ONNX model execution and Strategy Tester validation, so V38 may use tester-only ONNX inference rather than approximating the sequence model with subset arithmetic.
+
+## Decision stack
 
 - Frozen risk-efficiency challenger: `adaptive_ewma_hl8_thr0 + DeepMLP keep60`.
-- Baseline remains economically stronger in absolute return on the viewed period.
+- Baseline remains stronger in absolute return on the viewed period.
 - V35 generic router: reject.
-- SMC/ICT: research-only positive specialist.
-- Price Action: marginal/research-only.
+- SMC/ICT: positive independent specialist, research-only.
+- V37 current SMC ML gate: reject/redesign.
+- Price Action: marginal.
 - Wyckoff proxy: reject.
 - L1 microstructure proxy: reject/redesign.
-- V36 sequence exit DL: next diagnostic.
-- Aspirational 15% geometric/month objective remains unmet; never raise stop-risk above 1.00% merely to force the target.
-
-PAPER/DEMO only after gates. LIVE remains forbidden.
+- V36 Transformer sequence classifier: promising development signal; next exact-MT5 exit gate.
+- Aspirational 15% geometric/month target remains unmet. Never raise stop-risk above 1.00% to force it.
