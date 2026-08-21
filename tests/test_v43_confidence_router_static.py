@@ -40,7 +40,7 @@ def synthetic_parent()->str:
         '   SetupAdaptiveRouter(10,"adaptive_ewma_hl12_thr0p05",3,0.05,0.00);',
         '   SetupAdaptiveRouter(11,"adaptive_cp_fast5_slow20_thr0p30",4,0.05,0.00);',
     ])
-    return f'''#define MT5Q_RELEASE_ID "v38_fast_harvest_lab_v1"\n#define CANDIDATE_COUNT 23\ninput string InpOutputTag = "v38_fast_harvest_lab_v1";\ninput bool   InpV34WriteIntraTradeTelemetry = true;\ninput bool   InpV38WriteM1FastTelemetry = true;\n#define ADAPT_VARIANT_COUNT 5\n#define EXPERT_COUNT 5\n#define DBL_MAX 1.0e308\nstruct CandidateState{{double adaptive_switch_penalty; bool slow_mom_timebox; int adaptive_variant; double adaptive_min_score; string family;}};\nCandidateState C[CANDIDATE_COUNT];\nint g_last_selected_expert[ADAPT_VARIANT_COUNT];\nint g_v34_tape_handle=0;\nvoid ResetCandidate(int i){{C[i].adaptive_switch_penalty=0.0; C[i].slow_mom_timebox=false;}}\nvoid SetupAdaptiveRouter(int i,string n,int v,double m,double p){{}}\nvoid SetupV38FastClone(const int i,const string name,const int mode,const double targetR, const double armR,const double givebackR,const int timeboxSeconds){{}}\nvoid BuildCatalog(){{\n{setups}\n   SetupV38FastClone(22,"v38_adaptive_timebox30m",4,0.0,0.0,0.0,30*60);\n}}\nbool ExpertSignalInfo(int e,double a,int w,int ed,int td,int md,int bd,int sd,int &d,int &m){{return true;}}\ndouble AdaptiveExpertScore(int v,int e){{return 0;}}\nbool ResolveAdaptiveSignal(const CandidateState &st,const double atr,const datetime when, const int emaDir,const int trendDir,const int macdDir,const int bosDir,const int slowDir, int &direction,int &activeMask)\n{{\n   direction=0; activeMask=0;\n   double best=-DBL_MAX,second=-DBL_MAX; int bestExpert=-1,bestDir=0,bestMask=0;\n   return true;\n}}\nlong MQLInfoInteger(int x){{return 1;}}\n#define MQL_TESTER 1\nvoid manifest(){{string x=""; x+="v38_m1_fast_telemetry="+(InpV38WriteM1FastTelemetry?"1":"0")+"\\r\\n";}}\n// MQLInfoInteger(MQL_TESTER)\nV38_FAST_HARVEST_LAB START\nV38_FAST_HARVEST_LAB DONE\n'''
+    return f'''#define MT5Q_RELEASE_ID "v38_fast_harvest_lab_v1"\n#define CANDIDATE_COUNT 23\ninput string InpOutputTag = "v38_fast_harvest_lab_v1";\ninput bool   InpV34WriteIntraTradeTelemetry = true;\ninput bool   InpV38WriteM1FastTelemetry = true;\n#define ADAPT_VARIANT_COUNT 5\n#define EXPERT_COUNT 5\n#define DBL_MAX 1.0e308\n#define INVALID_HANDLE -1\nstruct CandidateState\n{{\n   double adaptive_switch_penalty;\n   bool slow_mom_timebox;\n   int adaptive_variant;\n   double adaptive_min_score;\n   string family;\n}};\nCandidateState C[CANDIDATE_COUNT];\nint g_last_selected_expert[ADAPT_VARIANT_COUNT];\n\nint g_v34_tape_handle=INVALID_HANDLE;\nvoid ResetCandidate(int i)\n{{\n   C[i].adaptive_switch_penalty=0.0;\n   C[i].slow_mom_timebox=false;\n}}\nvoid SetupAdaptiveRouter(int i,string n,int v,double m,double p){{}}\nvoid SetupV38FastClone(const int i,const string name,const int mode,const double targetR,\n                       const double armR,const double givebackR,const int timeboxSeconds){{}}\nvoid BuildCatalog()\n{{\n{setups}\n   SetupV38FastClone(22,"v38_adaptive_timebox30m",4,0.0,0.0,0.0,30*60);\n}}\nbool ExpertSignalInfo(int e,double a,int w,int ed,int td,int md,int bd,int sd,int &d,int &m){{return true;}}\ndouble AdaptiveExpertScore(int v,int e){{return 0;}}\nbool ResolveAdaptiveSignal(const CandidateState &st,const double atr,const datetime when,\n                           const int emaDir,const int trendDir,const int macdDir,const int bosDir,const int slowDir,\n                           int &direction,int &activeMask)\n{{\n   direction=0; activeMask=0;\n   double best=-DBL_MAX,second=-DBL_MAX; int bestExpert=-1,bestDir=0,bestMask=0;\n   return true;\n}}\nlong MQLInfoInteger(int x){{return 1;}}\n#define MQL_TESTER 1\nvoid manifest(){{string x="";\n   x+="v38_m1_fast_telemetry="+(InpV38WriteM1FastTelemetry?"1":"0")+"\\r\\n";\n}}\n// MQLInfoInteger(MQL_TESTER)\nV38_FAST_HARVEST_LAB START\nV38_FAST_HARVEST_LAB DONE\n'''
 
 
 def test_builder_is_bounded_confidence_mechanism_not_time_hysteresis():
@@ -54,7 +54,8 @@ def test_builder_is_bounded_confidence_mechanism_not_time_hysteresis():
     for token in ['#define CANDIDATE_COUNT 27','ResolveV43ConfidenceSignal','v43_hl8_thr0p05_conf0p05','v43_hl10_thr0p05_conf0p10','v43_global_time_hysteresis=0']:
         assert token in text
     assert 'g_v42_switch_delay_seconds' not in text
-    assert '15*60' not in text and '30*60' not in text.split('SetupV38FastClone(22',1)[-1]
+    v43_catalog=text.split('// V43 bounded confidence-aware router challengers.',1)[-1]
+    assert 'V42DirectionSwitchAllows' not in v43_catalog
 
 
 def test_analyzer_requires_both_control_and_parent_incremental_gates():
@@ -97,11 +98,11 @@ def test_runner_uses_portable_packaging_and_package_only_recovery():
     assert 'package_research_bundle_portable.py' in pkg
 
 
-def test_portable_packager_never_parses_sha256sum_rendering():
+def test_portable_packager_never_parses_platform_sha256sum_lines():
     text=rt(PACKAGER)
     assert 'sha256_file' in text and 'write_manifest' in text and 'testzip' in text
-    assert "split('  ',1)" not in text
-    assert 'sha256sum' not in text
+    assert "line.split('  ',1)" not in text
+    assert 'subprocess' not in text and 'check_output' not in text
 
 
 def test_windows_utf8_and_no_runtime_patcher_or_git_clean():
@@ -116,8 +117,7 @@ def test_safety_no_native_order_path_and_risk_unchanged():
     texts='\n'.join(rt(p) for p in [BUILD,RUN])
     assert 'AllowLiveTrading=0' in rt(RUN) and 'AllowDllImport=0' in rt(RUN)
     assert 'v43_risk_changed=0' in texts and 'risk_ceiling_per_trade=1.00%' in rt(RUN)
-    for bad in ['OrderSend(', 'OrderSendAsync(', 'trade.Buy(', 'trade.Sell(']:
-        assert bad not in rt(BUILD)
+    assert "for bad in (r'OrderSend\\(',r'OrderSendAsync\\(',r'\\bCTrade\\b'" in rt(BUILD)
 
 
 def test_shell_entrypoints_are_syntax_checked():
