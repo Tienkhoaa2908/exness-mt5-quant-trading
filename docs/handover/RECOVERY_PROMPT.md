@@ -1,164 +1,138 @@
 # RECOVERY PROMPT — Exness / MT5 Quant Trading System
 
-Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
+Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Source of truth
 
-`main` is stale. Continue from branch:
+Do not reconstruct state from memory when GitHub/evidence disagree.
 
-`agent/v39-selective-harvest`
+Current branch:
+`agent/v40-upgrade-campaign`
 
-V39 implementation parent:
+Base accepted V39 commit:
+`a28146448c4cf8020e6fa1147e39d97506fa08e6`
 
-`97223ae7459ee401651b8e36d53f725854c79d3e`
+Windows recovery:
 
-Accepted V39 evidence was generated from implementation head:
+`git fetch --no-tags origin "+refs/heads/agent/v40-upgrade-campaign:refs/remotes/origin/agent/v40-upgrade-campaign"`
 
-`399a8dede123da525fec6d5242ca78e6f33cf085`
+`git checkout -B agent/v40-upgrade-campaign refs/remotes/origin/agent/v40-upgrade-campaign`
 
-Do not reconstruct state from memory when GitHub/docs/evidence disagree.
-
-Windows recovery must use explicit refspec:
-
-`git fetch --no-tags origin "+refs/heads/agent/v39-selective-harvest:refs/remotes/origin/agent/v39-selective-harvest"`
-
-then:
-
-`git checkout -B agent/v39-selective-harvest refs/remotes/origin/agent/v39-selective-harvest`
-
-Do not use `git clean`; accepted runtime evidence and `.venv` may be untracked.
-
-Runner fixes that must not regress:
-
-- pytest optional with dependency-free static fallback;
-- secret scan scans tracked working-tree source/config via `git ls-files -z`, not `.venv/site-packages` or generated outputs;
-- V36 offline runner probes `numpy,pandas,torch,sklearn,scipy`, explicit `scikit-learn==1.8.0`, reuses existing `.venv`, and fail-fast checks imports before training.
+Do not use `git clean`; accepted V36/V38 runtime outputs and Python environments may be untracked.
 
 ## Safety invariants
 
 - REAL-MONEY LIVE TRADING = FORBIDDEN.
-- Never remove tester/live guards.
-- No Martingale, uncontrolled grid, or doubling after loss.
-- Research stop-risk ceiling <=1.00%/trade.
-- Do not raise risk or tune thresholds just to force 15% geometric/month.
-- Exact-MT5/PAPER/DEMO promotion requires explicit gates; LIVE remains forbidden.
+- Research stop-risk <=1.00%/trade.
+- No Martingale, uncontrolled grid or doubling after loss.
+- Do not remove tester/live guards.
+- V40 Stage A is offline/read-only and launches no MT5/MetaEditor.
+- Do not tune risk merely to force 15% geometric/month.
 
-## Canonical evidence to preserve
+## Canonical evidence
 
-V30 source SHA:
-`4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
+- V30 source SHA:
+  `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
+- V31.1 ZIP:
+  `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
+- V32 ZIP:
+  `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
+- V34/V35 ZIP:
+  `ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
+- V34 source:
+  `8bae2c56d43d11809ae96b5ee2f4bfe59007231ed5642bebe73dfbe2db7a7f10`
+- V36/V37 ZIP:
+  `7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`
+- V38 exact ZIP:
+  `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
+- V39 accepted HOLD ZIP:
+  `27de4ef769833df0433755dd0e80ec39a5d39f7e8c153837015edd69be475b1b`
 
-V31.1 ZIP SHA:
-`7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
+Exact baseline remains:
+$40 -> $107.43 over 12 months, 8.58% geometric/month, DD 9.90%, 563 trades, AvgR 0.215R, PF 1.501.
 
-V32 ZIP SHA:
-`3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
+15% geometric/month target would imply about $214.01 from $40 over 12 months. It is not achieved.
 
-V34/V35 ZIP SHA:
-`ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
+## Frozen evidence
 
-Accepted V34 source SHA:
-`8bae2c56d43d11809ae96b5ee2f4bfe59007231ed5642bebe73dfbe2db7a7f10`
+V32 DeepMLP keep60 remains frozen risk-efficiency evidence:
+near-same Feb-Jul return with DD reduced from 10.82% to 7.36%, 153 vs 222 trades, AvgR 0.325 vs 0.240, PF 1.833 vs 1.558.
 
-V36/V37 ZIP SHA:
-`7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`
+V36 Transformer remains reproducible sequence evidence:
+final-R Spearman 0.5148, Hold AUC 0.6757, Protect AUC 0.6771, both AUCs >0.5 in 6/6 months.
 
-V38 exact-MT5 ZIP SHA:
-`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
+Do not retune either evidence lane on its accepted window.
 
-V39 Stage-A ZIP SHA:
-`27de4ef769833df0433755dd0e80ec39a5d39f7e8c153837015edd69be475b1b`
+## V39 decision
 
-## Accepted baseline / V38
+V39 fusion is HOLD:
+17 triggers, 3/6 positive months, 32% mean monthly false-big-winner. Do not promote to exact-MT5 and do not rescue it by sweeping quantiles, `p_hold`, source/direction filters or risk.
 
-12-month baseline `adaptive_ewma_hl8_thr0`, continuous USD40:
+Root problem is event ordering.
 
-- end $107.43;
-- 8.58% geometric/month;
-- max DD 9.90%;
-- 563 trades;
-- AvgR 0.215R;
-- PF 1.501.
+## V40 research contract
 
-V38 exact evidence: MetaEditor 0 errors/0 warnings, V34 control reproduction PASS, 1,104 monthly rows, 56,321 trades, summary↔ledger mismatch 0, 260,471 M1 telemetry rows, baseline M1 coverage 563/563.
+Decision zone:
+`current_R >= +1R`.
 
-Universal fast exits remain rejected. TP1R is close to baseline but cuts right-tail winners; +1R remains a decision zone only.
+First-passage events:
 
-## V36 reproducibility
+- down barrier = `current_R - 0.25R`;
+- up barrier = `max(current_R + 0.75R, +2R)`.
 
-Accepted/recomputed Transformer48x2 Feb-Jul means:
+Primary model:
+HistGradientBoostingClassifier for GIVEBACK_FIRST vs TAIL_FIRST.
 
-- future-delta Spearman 0.040294;
-- final-R Spearman 0.514812;
-- Hold AUC 0.675683;
-- Protect AUC 0.677066;
-- both AUCs >0.5 in 6/6 months.
+Fixed chronology:
+past fully-exited train -> trailing 2-month calibration -> one-month test.
+Threshold = 80th percentile calibration probability.
+No test-month tuning.
 
-Accepted V39-run V36 predictions SHA:
+Primary action:
+`STATIC_PROTECT_0.25R`.
 
-`a82d07a81e6ddc9f82d95f37e9bbe4641d1683301b8a31ccbffa99d7b5baf335`
+Secondary:
+`SELECTIVE_TRAIL_0.25R`.
 
-Preserve V36 as sequence/tail-state evidence; it is not PnL evidence.
+Both add zero entries and do not change initial risk.
 
-## Accepted V39 Stage A result — HOLD
+Stage-A PASS requires:
+>=5 folds, >=30 triggers, 5%-35% coverage, mean AUC >=0.60, GIVEBACK_FIRST rate >=60%, TAIL_FIRST rate <=25%, positive static shadow delta in >=4 test months, and total static delta R >0.
 
-Bundle integrity: CRC PASS and 9/9 `bundle_manifest_sha256.txt` entries PASS.
+Shadow equity is not exact-MT5 PnL. A PASS only permits frozen Stage B exact-MT5.
 
-Inputs: 129,311 filtered control M1 rows, 563 control trades, 563/563 M1 coverage, 29,514 +1R-zone rows, 283 +1R-zone trades.
+## Runner hardening
 
-Primary `fusion_v36_m1` lane:
+V40 Windows schema lesson that must not regress:
 
-- 6 folds;
-- 17 first triggers;
-- 14.655% coverage;
-- 3/6 positive avoided-giveback months;
-- mean monthly avoided giveback +0.120864R;
-- mean monthly false-big-winner rate 32.0%;
-- mean giveback AUC 0.5834;
-- mean tail AUC 0.6117;
-- final status: **STAGE_A_HOLD**.
+- canonical entry `scripts/v40_upgrade_campaign_stage_a.py` adapts schema and re-exports the frozen research core `scripts/v40_upgrade_campaign_stage_a_core.py`;
+- accepted V38 `trades.csv` can already carry `signal_sources`;
+- never blindly merge another same-named M15 column into it;
+- preserve the existing non-empty `signal_sources`, fill blanks from M15, and reject/avoid `_x/_y` suffix collisions;
+- dependency-free static suite includes a synthetic regression test for this exact case.
 
-Gate failures: trigger count <30, positive months <75% (needed 5/6), false-big-winner >20%.
+Must preserve:
 
-Additional warning: pooled 17-trigger mean avoided giveback is -0.04524R and pooled false-big-winner rate 41.18%. Do not replace preregistered gate with this statistic; use it only as diagnosis.
+- explicit branch refspec;
+- no `git clean`;
+- pytest optional/static fallback;
+- tracked-source secret scan;
+- V36 full dependency probe including sklearn/scipy;
+- one run -> one ZIP;
+- internal manifest and CRC verification.
 
-`m1_only` also HOLD: 59 triggers, 38.31% coverage, mean monthly avoided -0.14491R, 2 positive months, false-big-winner 39.72%.
+## Output contract
 
-Full result document:
+User runs one Git Bash bootstrap and uploads only:
 
-`docs/research/v39_selective_harvest_stage_a_result.md`
+`runtime/v40_upgrade_campaign/OUTPUT_V40_STAGE_A/v40_upgrade_campaign_stage_a.zip`
 
-## Root-cause and next research contract
-
-Do not promote V39 to exact-MT5 Stage B.
-
-Do not sweep V39 score quantile, `p_hold`, source/direction filters, or risk on Jan-Jul 2026 to force PASS.
-
-Observed failure pattern indicates target/action mismatch: V39 labels eventual giveback and future maximum separately, but an immediate exit decision needs first-passage event order from the current mark. Several false-big-winner triggers were eventually giveback-prone yet first extended strongly into the right tail.
-
-Next research should be preregistered as a structural target redesign:
-
-- decision zone stays current R >= +1R;
-- model whether a protective giveback boundary is hit before a tail-extension boundary from each current state;
-- use first-passage / competing-risk event ordering, not another threshold sweep on V39 labels;
-- keep first-trigger-per-trade and explicit false-tail protection;
-- distinguish retrospective feasibility on V39 development months from genuinely fresh prospective evidence;
-- no risk increase.
-
-Do not source-gate or direction-gate from the 17 V39 fusion triggers: SLOW_MOM/EMA and SHORT concentration is diagnostic only and sample is too small for production filtering.
-
-## Decision stack
-
-- Baseline: KEEP/control.
-- DeepMLP keep60: KEEP frozen risk-efficiency evidence.
-- V36 Transformer: KEEP.
-- SMC: research-only specialist.
-- V35 generic router: REJECT.
-- V37 generic SMC gate: REJECT/redesign.
-- V38 universal fast exits: REJECT.
-- V39 selective harvest: HOLD/redesign target.
-- 15% geometric/month: aspirational, not an acceptance override.
-
-## One run -> one ZIP
-
-Every important run must output one ZIP with `bundle_manifest_sha256.txt`. Verify outer SHA, CRC, internal manifest, evidence head/branch, and summary before accepting. Do not ask for screenshots when the bundle is sufficient.
+On receipt:
+1. verify outer SHA;
+2. CRC/testzip;
+3. verify every manifest hash;
+4. verify head/branch/input SHAs;
+5. report exact baseline vs shadow policy vs 15% target separately;
+6. evaluate gate without discretionary rescue tuning;
+7. if PASS, design frozen exact-MT5 Stage B;
+8. if HOLD, identify structural failure and preserve baseline.
