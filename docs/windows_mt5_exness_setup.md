@@ -1,62 +1,32 @@
-# Windows MT5 / Exness — current research workflow
+# Windows MT5 / Exness — V41 research workflow
 
-- Broker research environment: Exness Technologies Ltd.
-- Symbol: `XAUUSDm`.
-- Main timeframe: M15.
-- REAL-MONEY LIVE TRADING = FORBIDDEN.
-- Exact-MT5 uses `Every tick based on real ticks` only when an exact gate is explicitly promoted.
+Broker environment: Exness Technologies Ltd.; research symbol `XAUUSDm`; main timeframe M15. REAL-MONEY LIVE TRADING is forbidden.
 
-## Current milestone — V40 Upgrade Campaign Stage A
+## V41 Stage A
 
-V40 Stage A is offline/read-only. It does not launch MT5 or MetaEditor.
+V41 is offline/read-only. It reuses accepted V38 exact telemetry and V36 predictions; it does **not** launch MT5 or MetaEditor.
 
-Canonical branch:
-`agent/v40-upgrade-campaign`
+Canonical branch: `agent/v41-baseline-stack-action-value`.
 
-One-shot bootstrap:
-`runtime/v40_upgrade_campaign/BOOTSTRAP_V40_UPGRADE_CAMPAIGN_ONE_SHOT_GIT_BASH.sh`
+One-shot bootstrap: `runtime/v41_baseline_stack/BOOTSTRAP_V41_BASELINE_STACK_ONE_SHOT_GIT_BASH.sh`.
 
-The bootstrap:
+The runner:
 
-1. fetches the branch with an explicit refspec;
-2. resets the local branch without `git clean`;
-3. preserves untracked accepted V36/V38 evidence and `.venv`;
-4. runs compile/static tests/secret scan;
+1. validates branch/HEAD environment;
+2. compiles V41 plus V40 schema/core dependencies;
+3. runs nine static/unit gates (pytest if installed, dependency-free fallback otherwise);
+4. secret-scans tracked source only;
 5. verifies/reuses accepted V38 evidence;
-6. reuses V36 predictions or recomputes them offline if missing;
-7. runs the V40 first-passage research campaign;
-8. builds and verifies one ZIP.
+6. reuses accepted V36 predictions or invokes the hardened offline V36 recovery runner if missing;
+7. runs entry expected-R, V36 calibration, direct action-value and integrated baseline-stack diagnostics;
+8. writes one manifest-verified ZIP and validates it with `scripts/analyze_mt5_research_bundle.py`.
 
-V40 runner environment/data-schema rules:
-
-- canonical entry `scripts/v40_upgrade_campaign_stage_a.py` delegates the frozen research logic to `scripts/v40_upgrade_campaign_stage_a_core.py` and packages that core into the evidence output;
-- accepted V38 `trades.csv` may already contain `signal_sources`; V40 preserves it and uses M15 only as fallback, avoiding pandas `_x/_y` suffix collisions;
-- the dependency-free static suite includes the exact duplicate-column regression case;
-- pytest is optional; dependency-free static fallback is mandatory if pytest is absent;
-- secret scan targets tracked repository source/config only;
-- V36 environment repair probes numpy/pandas/torch/sklearn/scipy and reuses installed packages;
-- no package or runner action is allowed to launch MT5 in V40 Stage A.
-
-## Output
+Do not use `git clean`; accepted runtime evidence and Python environments can be untracked.
 
 Upload only:
 
-`runtime/v40_upgrade_campaign/OUTPUT_V40_STAGE_A/v40_upgrade_campaign_stage_a.zip`
+`runtime/v41_baseline_stack/OUTPUT_V41_STAGE_A/v41_baseline_stack_action_value_stage_a.zip`
 
-Do not upload screenshots if the ZIP is complete.
+The terminal reports exact baseline 8.58%/month separately from entry/action/stack shadow economics and the 15%/month target. Shadow results are not exact-MT5 PnL.
 
-The ZIP reports:
-
-- exact accepted baseline $40 -> $107.43, 8.58% geometric/month, DD 9.90%;
-- V40 calibrated shadow economics for protective actions;
-- 15%/month aspirational target;
-- first-passage model metrics;
-- monthly/action/segment/V36 calibration diagnostics.
-
-Shadow economics are not exact-MT5 PnL.
-
-## Future exact-MT5 gate
-
-Only a preregistered V40 Stage-A PASS may advance to a frozen exact-MT5 Stage B. Stage B must preserve baseline entries/router/initial risk and verify tick/history coverage again.
-
-Do not switch to manual/live orders to debug research failures. Research stop-risk remains <=1.00%/trade.
+Only a preregistered Stage-A promotion lane may be frozen for a future exact-MT5 Stage B. Stage B must preserve <=1.00% stop-risk and re-verify tick/history coverage. Never use manual/live orders to debug a research failure.
