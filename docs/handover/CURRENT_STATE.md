@@ -6,173 +6,166 @@ Ngày cập nhật: 2026-08-21.
 
 - REAL-MONEY LIVE TRADING = FORBIDDEN.
 - Không tháo tester/live guards.
-- Không Martingale/grid/loss doubling.
+- Không Martingale, uncontrolled grid hoặc doubling after loss.
 - Research stop-risk ceiling: 1.00%/trade.
-- Không native/external broker orders trong current research gates.
-- PAPER/DEMO only after gates. LIVE remains forbidden.
-- Multiple virtual candidates are research only; any later combined same-symbol controller must keep aggregate stop-risk <=1.00%.
+- Current V39 Stage A không launch MT5/MetaEditor và không có native/external broker-order path.
+- PAPER/DEMO chỉ được xem xét sau safety/economic gates; LIVE vẫn cấm.
+- Nếu sau này combine agents trên cùng symbol, aggregate stop-risk phải <=1.00%.
 
-## Accepted V30 canonical data
+## Repository recovery state
 
-Accepted `MlDlFeatureLakeV1.mq5` SHA-256:
+`main` hiện là historical/stale line và không chứa chuỗi nghiên cứu V22→V39 mới nhất. Commit recovery source-of-truth trước V39 implementation là:
 
+`97223ae7459ee401651b8e36d53f725854c79d3e` — `research: define V39 selective-harvest controller gate`.
+
+Milestone V39 phải chạy từ branch `agent/v39-selective-harvest`, không chạy từ `main` cũ.
+
+Windows recovery note: một số local clone có remote fetch config không materialize non-default remote-tracking branches. Canonical V39 recovery dùng explicit refspec:
+
+`git fetch --no-tags origin "+refs/heads/agent/v39-selective-harvest:refs/remotes/origin/agent/v39-selective-harvest"`
+
+sau đó `git checkout -B agent/v39-selective-harvest refs/remotes/origin/agent/v39-selective-harvest`. Không dùng `git clean`, vì accepted V36/V38 runtime evidence có thể là untracked local data.
+
+Windows environment gate: `pytest` là optional runner dependency, không phải research dependency. Nếu selected Python có pytest thì runner dùng pytest; nếu không có, runner phải chạy trực tiếp `tests/test_v39_selective_harvest_static.py` qua dependency-free fallback. Static tests vẫn bắt buộc và không được silently skip.
+
+Secret-scan contract: trong Git checkout, `scripts/secret_scan.py` lấy danh sách file bằng `git ls-files -z` và scan **tracked working-tree source/config only**. Untracked `.venv`, `site-packages`, runtime outputs, checkpoints và package caches không được coi là repository source nên không tạo false positive. Local edits trên tracked files vẫn bị scan. Nếu chạy ngoài Git checkout, fallback scanner bỏ qua `.venv`, `site-packages`, `node_modules`, cache và `OUTPUT_*` directories.
+
+V36 environment recovery contract: nếu `v36_sequence_predictions.csv` chưa tồn tại, V39 được phép gọi lại runner V36 offline. Runner V36 phải probe đầy đủ `numpy`, `pandas`, `torch`, `scikit-learn` và `scipy` trước training; `scikit-learn==1.8.0` là dependency explicit vì script import `sklearn.metrics.roc_auc_score`, đồng thời SciPy cần cho Spearman path của pandas. Environment repair phải reuse package đã cài; không xóa `.venv` hoặc tải lại torch nếu package đã thỏa mãn. Sau repair runner in exact versions và fail-fast trước training nếu import vẫn lỗi.
+
+## Accepted canonical data / model evidence
+
+### V30 feature lake
+
+Accepted source SHA-256:
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
 
-Canonical M15 lake:
-
-- 35,344 unique rows, 2025-02-01 through 2026-07-31;
-- 136 raw fields;
-- 0 duplicate timestamps;
-- 0 NaN/Inf in accepted raw lake;
-- 28,128 trade-ledger rows;
-- adaptive state continuous.
-
-Mandatory stitch contract:
-
-- chunk1 `[2025-02-01, 2025-08-01)`;
-- chunk2 `[2025-08-01, 2026-02-01)`;
-- chunk3 `[2026-02-01, 2026-08-01)`.
-
-Trim each raw chunk before concatenation because later chunks contain pre-roll rows.
-
-Mandatory causal rule:
+Canonical M15 lake: 35,344 unique rows, 2025-02-01→2026-07-31, 136 raw fields, 0 duplicate timestamps. Causal availability rule:
 
 `feature_available_time = bar_features.time + 15 minutes`
 
-All inference uses latest features satisfying `feature_available_time <= decision_time`.
-
-## Accepted V31.1 / V32 exact-MT5 gate
+### V31.1 / V32
 
 V31.1 ZIP SHA:
-
 `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
 
 V32 ZIP SHA:
-
 `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
 
-Primary `adaptive_ewma_hl8_thr0`, Feb-Jul 2026, continuous USD40:
+Feb-Jul 2026 continuous USD40:
 
 | Mode | End USD | Geo/month | Max DD | Trades | AvgR | PF |
 |---|---:|---:|---:|---:|---:|---:|
 | baseline | 62.3573 | 7.6807% | 10.8159% | 222 | 0.2401R | 1.5579 |
-| **DeepMLP keep60** | **62.1444** | **7.6193%** | **7.3639%** | **153** | **0.3250R** | **1.8326** |
+| DeepMLP keep60 | 62.1444 | 7.6193% | 7.3639% | 153 | 0.3250R | 1.8326 |
 
-Freeze `adaptive_ewma_hl8_thr0 + DeepMLP keep60` for future genuinely fresh confirmation. Do not retune Feb-Jul 2026.
+DeepMLP keep60 remains frozen as risk-efficiency evidence; do not retune Feb-Jul 2026.
 
-## Accepted V33 entry-snapshot multi-task diagnostic
-
-ZIP SHA:
-
-`16db78c40543495c790d83019999169d566206a591cc4ec570c6b7056df8fefa`
-
-Entry-snapshot future-path prediction was weak: expected-R Spearman +0.0249; MFE -0.0050; adverse/MAE -0.0366; giveback -0.0132. Decision: do not enlarge entry MLPs merely to predict exit path; sequence telemetry is required.
-
-## Accepted V34 Parallel Alpha Lab exact-MT5 evidence
+### V34 / V35
 
 V34/V35 ZIP SHA:
-
 `ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
 
 Accepted generated V34 source SHA:
-
 `8bae2c56d43d11809ae96b5ee2f4bfe59007231ed5642bebe73dfbe2db7a7f10`
 
-Integrity:
+12-month continuous USD40 baseline:
 
-- V34/V35 compile 0/0;
-- exact MT5 complete;
-- tester-only, no native/external orders;
-- V34 816 monthly rows, 34,508 trades, 266,613 intra-trade M15 telemetry rows;
-- summary/ledger counts reconcile;
-- all 17 common V34/V35 candidates reproduce exactly over the overlap period.
+- end USD107.43;
+- 8.58% geometric/tháng;
+- max DD 9.90%;
+- 563 trades;
+- AvgR 0.215R;
+- PF 1.501.
 
-Continuous USD40 V34, 12 months:
+V35 generic all-expert router is rejected. SMC remains weak/high-turnover research-only specialist.
 
-| Candidate | End USD | Geo/month | Max DD | Trades | AvgR | PF |
-|---|---:|---:|---:|---:|---:|---:|
-| adaptive_ewma_hl8_thr0 | 107.43 | 8.58% | 9.90% | 563 | 0.215R | 1.501 |
-| **v34_smc_ict_causal** | **66.83** | **4.37%** | **15.58%** | **1,077** | **0.066R** | **1.108** |
-| v34_specialist_confluence | 56.60 | 2.93% | 21.30% | 860 | 0.043R | 1.094 |
-| v34_price_action_causal | 50.86 | 2.02% | 20.72% | 1,158 | 0.028R | 1.051 |
-| v34_tick_microstructure_proxy | 35.24 | -1.05% | 35.25% | 620 | -0.044R | 0.956 |
-| v34_wyckoff_proxy_causal | 25.53 | -3.67% | 43.53% | 527 | -0.128R | 0.798 |
+### V36 sequence-DL diagnostic
 
-SMC remains a positive but weak/high-turnover independent-alpha research lane. Price Action is marginal. Current Wyckoff and L1/tick-path microstructure proxies are rejected; do not label the latter true L2/L3 order flow.
-
-The accepted adaptive baseline also shows a speed/capture bottleneck: median hold ~157.7 minutes, mean hold ~326.7 minutes, average giveback ~1.081R and average MFE ~1.296R. This motivates V38 fast-harvest research without deleting the baseline.
-
-## V35 generic AI all-expert router — REJECTED
-
-Feb-Jul 2026, continuous USD40:
-
-- baseline: USD62.36 end, +7.68% geo/month, DD 10.82%, 222 trades, +0.240R, PF 1.558;
-- V35 router: USD24.49 end, -7.85% geo/month, DD 39.71%, 571 trades, -0.105R, PF 0.788.
-
-The generic router lost money in 6/6 months. Do not revive it by threshold/model-size tuning on the same period.
-
-## Accepted V36 true intra-trade sequence-DL diagnostic
-
-Uploaded V36/V37 ZIP SHA:
-
+V36/V37 ZIP SHA:
 `7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`
 
-Mean chronological Feb-Jul 2026 metrics:
+Transformer48x2 chronological Feb-Jul means:
 
-| Model | Future-delta Spearman | Final-R Spearman | Hold AUC | Protect AUC |
-|---|---:|---:|---:|---:|
-| GRU48 | +0.0187 | +0.5246 | 0.6426 | 0.6150 |
-| causal TCN48 | -0.0116 | +0.4767 | 0.6152 | 0.5524 |
-| **Transformer48x2** | **+0.0403** | **+0.5148** | **0.6757** | **0.6771** |
+- future-delta Spearman +0.0403;
+- final-R Spearman +0.5148;
+- Hold AUC 0.6757;
+- Protect AUC 0.6771;
+- both AUC heads >0.5 in 6/6 months.
 
-Direct future-delta regression remains weak, while Transformer hold/protect classification is stable: both AUCs >0.5 in all six months.
+V36 is preserved as tail-state evidence. It is not PnL evidence by itself.
 
-Development-only clue: current R >= +1R with Transformer `p_hold < 0.10` gives 603 first triggers; original final exit averages 0.205R below the trigger mark, 79.3% finish below it, and mean avoided giveback is positive in all six inspected months. This is not PnL evidence because intervention changes subsequent path/state.
+## Accepted V38 exact-MT5 evidence
 
-V36 evidence is preserved. V38 does not replace or discard the sequence-AI lane.
+Uploaded ZIP SHA-256:
+`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
 
-## V37 dedicated SMC quality gate — REJECTED / redesign
+Integrity/evidence:
 
-Current generic keep60-style SMC filter is rejected. HistGB and ExtraTrees reduce AvgR; MLP retains too little SMC sumR with insufficient stability. If SMC continues, redesign by direction/regime/structure rather than threshold tuning.
+- MetaEditor 0 errors / 0 warnings;
+- V34 control reproduction PASS;
+- 1,104 monthly rows = 12×23×4;
+- 56,321 trades;
+- summary↔ledger trade mismatch = 0;
+- 260,471 M1 telemetry rows;
+- baseline USD40 M1 coverage = 563/563 trades.
 
-## Current exact-MT5 gate — V38 Fast Harvest Lab
+Primary continuous-USD40 comparison:
 
-V38 changes the research objective from merely maximizing terminal R per trade to testing whether XAUUSD economics improve by harvesting the impulse sooner. It is an **incremental exit-only layer** built from the accepted V34 source; the original 17 candidates remain present and the adaptive baseline is a mandatory control.
+| Exit | End USD | Geo/month | DD | Trades | AvgR | Median hold |
+|---|---:|---:|---:|---:|---:|---:|
+| Baseline | 107.43 | 8.58% | 9.90% | 563 | 0.215R | 157.7m |
+| TP 0.50R | 65.09 | 4.14% | 8.50% | 1069 | 0.056R | 41.6m |
+| TP 0.75R | 90.13 | 7.00% | 9.42% | 880 | 0.109R | 64.9m |
+| TP 1.00R | 104.42 | 8.32% | 10.23% | 750 | 0.158R | 94.4m |
+| GB 0.25 after 0.75R | 96.65 | 7.63% | 10.11% | 831 | 0.133R | 70.7m |
+| Velocity exit | 83.41 | 6.32% | 9.89% | 979 | 0.087R | 51.4m |
+| Timebox 30m | 54.25 | 2.57% | 12.92% | 1388 | 0.028R | 30m |
 
-Six bounded fast-exit clones of `adaptive_ewma_hl8_thr0` are preregistered:
+Decision: all unconditional fast exits are rejected as production candidates. +1R is a promising decision zone but not a universal TP. Right-tail preservation is the current problem.
 
-1. `v38_adaptive_fast_tp0p50`: close at +0.50R;
-2. `v38_adaptive_fast_tp0p75`: close at +0.75R;
-3. `v38_adaptive_fast_tp1p00`: close at +1.00R;
-4. `v38_adaptive_fast_gb0p25_after0p75`: after MFE >=0.75R, close while profitable on 0.25R giveback;
-5. `v38_adaptive_velocity_decay_after0p50`: causal 60-second R samples; after MFE >=0.50R and current >=0.25R, close on bounded negative/flat velocity decay;
-6. `v38_adaptive_timebox30m`: close at first tick at/after 30 minutes.
+## Current milestone — V39 Selective Harvest Stage A
 
-Hard stop remains before the new fast-exit logic. Existing V34 protection/TP remains active when a fast rule does not fire. Entry/router logic, 2ATR initial stop geometry and book risk fractions are unchanged.
+V39 Stage A is offline/read-only. It uses accepted V38 control telemetry and accepted V36 Transformer predictions.
 
-Exact development contract:
+Implemented contract:
 
-- XAUUSDm M15, Every Tick / Model=0;
-- 2025-08-01 to 2026-08-01;
-- Deposit USD40, leverage 1:200;
-- continuous USD40 decision book;
-- accepted state-after-chunk1;
-- tester-only; no native/external broker orders;
-- one V38 MT5 pass evaluates the accepted control plus all fast virtual candidates on the same tick stream.
+- only evaluate states with current unrealized R >= +1.0R;
+- M1 HistGradientBoosting models estimate giveback risk and tail continuation;
+- M1 harvest score threshold comes from the trailing 2-month calibration 85th percentile;
+- no test-month threshold tuning;
+- V36 Transformer is an external tail veto, not retrained from OOS predictions;
+- fusion requires `p_hold <= 0.15` and V36 state age <=75 minutes;
+- first trigger per trade;
+- false harvest of large winners is a first-class rejection metric.
 
-Before any V38 result is interpreted, the control must reproduce accepted V34: 12 months, 563 trades, final USD107.432645, and the accepted monthly trade-count/ending-capital path.
+Stage-A PASS requirements are bounded and diagnostic: >=4 folds, >=30 triggers, 3%-35% coverage, avoided-giveback positive in at least 75% of folds, positive mean avoided giveback, false-big-winner rate <=20%.
 
-V38 additionally exports `intra_trade_m1_fast.csv` for the untouched control candidate, using completed prior-minute tick aggregates plus the causally available current mark. It records current R/MFE/MAE/giveback, one-minute delta R, tick count/imbalance, mid-price net/path/range and spread. This extends — not replaces — V36: the next AI controller should focus on 5–15 minute continuation/giveback and speed-aware exits.
+`STAGE_A_PASS` is permission to design Stage B only. It is not exact-MT5 PnL, not evidence of profitability, and does not authorize PAPER/DEMO/LIVE.
 
-Read `docs/research/v38_fast_harvest_lab_plan.md`.
+Primary files:
+
+- `scripts/v39_selective_harvest_stage_a.py`
+- `tests/test_v39_selective_harvest_static.py`
+- `runtime/v39_selective_harvest/RUN_V39_SELECTIVE_HARVEST_STAGE_A_GIT_BASH.sh`
+- `runtime/v39_selective_harvest/BOOTSTRAP_V39_SELECTIVE_HARVEST_ONE_SHOT_GIT_BASH.sh`
+- `scripts/package_mt5_research.py`
+- `scripts/package_mt5_research.cmd`
+- `scripts/analyze_mt5_research_bundle.py`
+- `docs/research/v39_selective_harvest_plan.md`
+- `docs/adr/ADR-039-selective-harvest-stage-a-before-exact-mt5.md`
+
+## One run -> one ZIP
+
+After every important run, upload one ZIP only. The bundle must contain `bundle_manifest_sha256.txt`; verify hashes/CRC with `scripts/analyze_mt5_research_bundle.py` or equivalent. Do not request screenshots if the ZIP already contains sufficient evidence.
 
 ## Decision stack
 
-- Accepted absolute-return baseline: `adaptive_ewma_hl8_thr0`.
-- Frozen risk-efficiency challenger: `adaptive_ewma_hl8_thr0 + DeepMLP keep60`.
-- V35 generic router: reject.
-- SMC/ICT: positive independent specialist, research-only.
-- V37 current SMC ML gate: reject/redesign.
-- V36 Transformer sequence classifier: preserved promising AI evidence.
-- V38 Fast Harvest Lab: current exact-MT5 development gate.
-- Aspirational 15% geometric/month target remains unmet. Never raise stop-risk above 1.00% to force it.
+- Baseline `adaptive_ewma_hl8_thr0`: KEEP / control.
+- DeepMLP keep60: KEEP frozen risk-efficiency evidence.
+- V36 Transformer: KEEP sequence/tail-state evidence.
+- SMC: KEEP research-only specialist lane.
+- V35 generic router: REJECT.
+- V37 generic SMC quality gate: REJECT / redesign.
+- V38 universal fast exits: REJECT.
+- +1R selective harvest decision zone: current V39 research lane.
+- 15% geometric/month: aspirational and unmet. Never increase risk or curve-fit thresholds merely to force it.
