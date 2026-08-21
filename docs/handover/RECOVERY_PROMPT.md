@@ -1,128 +1,130 @@
 # RECOVERY PROMPT — Exness / MT5 Quant Trading System
 
-Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
+Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
-## Current source of truth
+## Recover current work
 
-Branch: `agent/v42-baseline-router-exact-mt5`.
-Base: V41 implementation `60cd93ad9eefd07447f65b2e6909a20edf60f3ae`.
-Never `git clean`; accepted runtime evidence, compiled EA artifacts, checkpoints, state and `.venv` may be untracked.
+Current campaign branch:
+
+`agent/v44-baseline-robustness-validation`
+
+Base acceptance commit:
+
+`e96262f4600e57cd956a9a78f3e717dca8b24ccb`
+
+Do not `git clean`.
+
+Read first:
+
+1. `docs/handover/CURRENT_STATE.md`
+2. `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`
+3. `docs/research/v44_baseline_robustness_validation_plan.md`
+4. `docs/adr/ADR-044-baseline-robustness-before-deployment.md`
 
 ## Safety
 
-REAL-MONEY LIVE TRADING forbidden. Research risk <=1.00%/trade. No Martingale/grid/doubling. Strategy Tester only; `AllowLiveTrading=0`, `AllowDllImport=0`, Model=0. No native/external broker orders.
+REAL-MONEY LIVE TRADING remains forbidden. Research risk <=1.00%/trade.
+No Martingale/grid/doubling. All V44 runs are Strategy Tester only with
+`AllowLiveTrading=0` and `AllowDllImport=0`.
 
-## Exact baseline / target
+A V44 PASS means PAPER/DEMO research readiness only. `LIVE_AUTHORIZED=0`.
 
-Accepted exact control `adaptive_ewma_hl8_thr0`, USD40 continuous, 2025-08-01 -> 2026-08-01:
+## Accepted baseline
 
-- $40 -> $107.432645;
-- total return +168.5816%;
-- geometric/month 8.58163%;
-- max DD 9.9038%;
+`adaptive_ewma_hl8_thr0`, USD40 continuous, exact 2025-08-01 -> 2026-08-01:
+
+- end $107.432645;
+- total +168.5816%;
+- 8.58163% geometric/month;
+- DD 9.9038%;
 - 563 trades;
 - AvgR 0.214608R;
 - PF 1.500756.
 
-15%/month would imply about $214.01 after 12 months from $40. Exact gap remains 6.41837pp/month.
-Hard reproduction vectors in `scripts/analyze_v42_baseline_router_mt5.py` must not be weakened.
+Historical exact comparators frozen for V44:
 
-## V42 exact result — CLOSED HOLD
+- HL8 threshold0.05: $111.285257 / 8.900900% month / DD 10.4368%.
+- HL10 threshold0.05: $110.025682 / 8.797648% month / DD 9.8587%.
 
-The exact Strategy Tester run completed successfully on 2026-08-21 from the verified compiled V42 EA. Control reproduction PASS.
+Do not retune these on V44.
 
-Best V42 challenger by ending equity:
+## V44 exact protocol
 
-`v42_cp_fast5_slow20_switch15m`
+19 exact windows:
 
-- end $106.387574;
-- geometric/month 8.493214%;
-- DD 9.6614%;
-- 507 trades;
-- AvgR 0.243553R;
-- PF 1.534444;
-- turnover -3.01% vs control;
-- beats control 6/12 months;
-- end equity -$1.045071 vs control;
-- geo -0.08842pp/month vs control.
+- annual first: 2025-08-01 -> 2026-08-01;
+- 2 half-years;
+- 4 sequential quarter blocks;
+- 12 independent monthly windows.
 
-`eligible_to_freeze_for_fresh_holdout=[]`.
+Every window restarts from accepted state SHA
+`5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0`.
 
-Best V42 risk-efficiency arm was `v42_hl8_thr0p05_switch15m`: end $103.358584, 8.232381%/month, DD 7.9188%, 465 trades, AvgR 0.266639R, PF 1.538075, return/DD 20.0026. Keep as research insight only; it is not a return upgrade.
+The annual run is a hard semantic gate. It must reproduce:
 
-Historical exact comparators remain hypotheses, not promoted policies:
+- final $107.432645;
+- 563 trades;
+- exact 12 monthly trade counts;
+- exact 12 monthly final balances.
 
-- `adaptive_ewma_hl8_thr0p05`: $111.285257, 8.900900%/month, DD 10.4368%;
-- `adaptive_ewma_hl10_thr0p05`: $110.025682, 8.797648%/month, DD 9.8587%;
-- `adaptive_ewma_hl12_thr0p05`: $107.797276, 8.612293%/month;
-- `adaptive_cp_fast5_slow20_thr0p30`: $102.206843, 8.131360%/month.
+If that gate fails, stop. Do not run the remaining 18 windows.
 
-Do not retune V42 switching delays on the same 12-month development window.
+## Provenance
 
-## Accepted V42 evidence identity
+Accepted V38 ZIP SHA:
+`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`.
 
-Successful run evidence says:
+Accepted V38 source SHA:
+`4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
 
-- head `9ddd9a99c708e66f62f0eae7bd85750ad32f2f13`;
-- branch `agent/v42-baseline-router-exact-mt5`;
-- V42 source SHA `142bb4fdb066de712395f32942e8ff24cbc3af0a4c9d82c88f96317d8acc248e`;
-- compiler `Result: 0 errors, 0 warnings`;
-- V38 parent ZIP SHA `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`;
-- V38 parent source SHA `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`;
-- V34 tape SHA `d70d92d0023c1862af6363d60a7d9e927f928e75ffcf1c0cedcb4f7798128863`;
-- frozen state SHA `5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0`.
+Frozen V44 source SHA:
+`cfde6716916cd6adcf89cec2c7c2795ff762ea845795a9108e0247ee84e311d3`.
 
-User supplied a RAR containing the completed output after ZIP packaging failed. RAR outer SHA256:
+V44 source changes telemetry/output markers only; strategy logic/risk stay frozen.
 
-`3cd562b7b3f636b8ba88ce42765f1d38574f9d680c50b272e87d9e05f0697910`
+## Recovery ladder
 
-The bundle contains 18 manifest members and all 18 hashes verify.
+Follow:
 
-## Packaging defect — diagnosed and fixed
+`provenance -> source -> compile -> MT5 -> collection -> analysis -> packaging`
 
-MT5 and analysis completed. Final ZIP creation failed only because Git Bash/MSYS `sha256sum` generated manifest rows as:
+Never restart earlier stages without evidence that they failed.
 
-`<64hex> *filename`
+- valid compile checkpoint => reuse it;
+- `MT5_DONE.txt` + source run folder => collection-only;
+- `DONE.txt` => that window must not rerun MT5;
+- all 19 DONE + aggregate analysis => package-only recovery;
+- packaging failure never justifies another Strategy Tester run.
 
-while the inline Python packager incorrectly assumed:
+Historical failures already encountered and fixed:
 
-`<64hex><two spaces>filename`
+- historical V34/V38 builder hash drift -> immutable V38 ZIP;
+- CP1252 decoding -> explicit UTF-8 and Python UTF-8 env;
+- Bash ERR trap + `set +e` -> conditional return-code capture only;
+- runtime shell patcher -> prohibited;
+- MetaEditor rc/artifact race -> source SHA + final 0/0 + EX5;
+- MT5 rc ambiguity -> new LATEST + complete manifested outputs;
+- MSYS `<hash> *filename` -> portable Python packager;
+- V42 packaging-only failure -> package completed evidence without rerunning MT5.
 
-and executed `line.split('  ',1)`.
+See `WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md` for full incident details.
 
-This is packaging-only evidence; do not rerun MT5 to repair it.
+## Readiness interpretation
 
-Canonical fix:
+Analyzer status:
 
-- `scripts/package_research_bundle_portable.py` computes SHA256 in Python and writes a canonical platform-independent `<hash><two spaces>filename` manifest;
-- `runtime/v42_baseline_router_exact_mt5/PACKAGE_V42_EXISTING_OUTPUT_GIT_BASH.sh` packages already completed V42 output only and never launches MetaEditor or MT5;
-- bootstrap may call package-only recovery only when completed V42 evidence, analyzer JSON, monthly summary, trades and tester manifest already exist. It must not mask earlier runtime/research failures.
+- `PAPER_DEMO_READY`: at least one frozen candidate passes all V44 robustness
+  gates.
+- `HOLD`: none pass; do not weaken the gate after seeing results.
 
-## Historical runner defects not to reintroduce
+Even `PAPER_DEMO_READY` does not authorize live capital.
 
-- Do not rebuild V42 parent through V30 -> V34 -> V38; use accepted V38 ZIP as immutable parent.
-- Explicit UTF-8 only; Windows CP1252 caused a prior test-harness failure.
-- No runtime shell patcher/self-modifying runner.
-- No `set +e` under a global `ERR` trap; capture Windows rc in conditional context.
-- Compile acceptance is source hash + final 0/0 log + EX5, not MetaEditor launcher rc.
-- MT5 completion is a new `LATEST` run plus complete manifested outputs, not terminal rc alone.
+## Output
 
-## Required QA invariants
+Upload one ZIP only:
 
-Preserve:
+`runtime/v44_baseline_validation/OUTPUT_V44/v44_baseline_robustness_validation.zip`
 
-- exact V38 control reproduction;
-- accepted V38 ZIP SHA/CRC/source extraction;
-- no-order/tester safety lint;
-- pinned Python/dependencies;
-- explicit UTF-8;
-- no `git clean`;
-- one bundle with canonical internal SHA256 manifest and ZIP CRC verification;
-- risk <=1.00%/trade;
-- no live authorization.
-
-## Next research direction
-
-V42 switching hysteresis is rejected as a return upgrade. Keep `adaptive_ewma_hl8_thr0` as return control.
-
-The next baseline cycle should investigate why thresholded EWMA variants (`hl8_thr0p05`, `hl10_thr0p05`) show modest exact return improvements while switch hysteresis improves trade quality/DD but sacrifices too much participation. Any new mechanism must be preregistered and exact-MT5 adjudicated; do not sweep V42 delay values on the same sample.
+On receipt verify outer SHA, ZIP CRC, canonical internal manifest, evidence,
+all 19 window manifests, annual control reproduction and aggregate readiness
+metrics before making any deployment recommendation.

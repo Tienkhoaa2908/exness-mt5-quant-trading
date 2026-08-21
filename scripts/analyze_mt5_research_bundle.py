@@ -35,9 +35,9 @@ def analyze(zip_path:Path):
    got=sha256_bytes(z.read(name))
    if got!=expected:raise RuntimeError(f"manifest mismatch {name}: expected={expected} actual={got}")
   result["manifest_pass"]=True;result["manifest_files"]=len(rows)
-  for ev in ("V42_EVIDENCE.txt","V41_EVIDENCE.txt","V40_EVIDENCE.txt","V39_EVIDENCE.txt"):
+  for ev in ("V44_EVIDENCE.txt","V42_EVIDENCE.txt","V41_EVIDENCE.txt","V40_EVIDENCE.txt","V39_EVIDENCE.txt"):
    if ev in names:result["evidence"]=parse_evidence(z.read(ev).decode("utf-8-sig"));break
-  for kind,name in (("v42","v42_baseline_router_analysis.json"),("v41","v41_baseline_stack_action_value_summary.json"),("v40","v40_upgrade_campaign_summary.json"),("v39","v39_selective_harvest_summary.json")):
+  for kind,name in (("v44","v44_baseline_validation_analysis.json"),("v42","v42_baseline_router_analysis.json"),("v41","v41_baseline_stack_action_value_summary.json"),("v40","v40_upgrade_campaign_summary.json"),("v39","v39_selective_harvest_summary.json")):
    if name in names:result["summary_kind"]=kind;result["summary"]=json.loads(z.read(name));break
  return result
 def main():
