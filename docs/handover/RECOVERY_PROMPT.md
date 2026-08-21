@@ -1,24 +1,24 @@
 # RECOVERY PROMPT — Exness / MT5 Quant Trading System
 
-Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
+Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 
 ## Source of truth
 
 Do not reconstruct state from memory when GitHub/evidence disagree.
 
-Current branch:
+Current canonical branch:
+
 `agent/v40-upgrade-campaign`
 
-Base accepted V39 commit:
+Accepted V39 base:
+
 `a28146448c4cf8020e6fa1147e39d97506fa08e6`
 
-Windows recovery:
+Accepted V40 implementation head that generated evidence:
 
-`git fetch --no-tags origin "+refs/heads/agent/v40-upgrade-campaign:refs/remotes/origin/agent/v40-upgrade-campaign"`
+`f201a432e7839c6190382a0362fd44cb4be26976`
 
-`git checkout -B agent/v40-upgrade-campaign refs/remotes/origin/agent/v40-upgrade-campaign`
-
-Do not use `git clean`; accepted V36/V38 runtime outputs and Python environments may be untracked.
+Windows recovery must use explicit refspec and must not use `git clean`; accepted V36/V38 outputs and Python environments may be untracked.
 
 ## Safety invariants
 
@@ -26,113 +26,106 @@ Do not use `git clean`; accepted V36/V38 runtime outputs and Python environments
 - Research stop-risk <=1.00%/trade.
 - No Martingale, uncontrolled grid or doubling after loss.
 - Do not remove tester/live guards.
-- V40 Stage A is offline/read-only and launches no MT5/MetaEditor.
-- Do not tune risk merely to force 15% geometric/month.
+- Offline research launches no MT5/MetaEditor unless an explicit exact-MT5 gate is promoted.
+- Do not increase risk or tune thresholds merely to force 15% geometric/month.
 
 ## Canonical evidence
 
-- V30 source SHA:
-  `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
-- V31.1 ZIP:
-  `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
-- V32 ZIP:
-  `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
-- V34/V35 ZIP:
-  `ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`
-- V34 source:
-  `8bae2c56d43d11809ae96b5ee2f4bfe59007231ed5642bebe73dfbe2db7a7f10`
-- V36/V37 ZIP:
-  `7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`
-- V38 exact ZIP:
-  `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
-- V39 accepted HOLD ZIP:
-  `27de4ef769833df0433755dd0e80ec39a5d39f7e8c153837015edd69be475b1b`
+- V30 source: `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`.
+- V31.1 ZIP: `7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`.
+- V32 ZIP: `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`.
+- V34/V35 ZIP: `ccffc5b9684821602275e63c3548e95e250a18062a6daa40a46c77178b13c789`.
+- Accepted V34 source: `8bae2c56d43d11809ae96b5ee2f4bfe59007231ed5642bebe73dfbe2db7a7f10`.
+- V36/V37 ZIP: `7ff4b4b44af6e526f67392361ebcc1268e57352a20f32e3d132c0a9636b4133a`.
+- V38 exact ZIP: `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`.
+- V39 HOLD ZIP: `27de4ef769833df0433755dd0e80ec39a5d39f7e8c153837015edd69be475b1b`.
+- V40 HOLD ZIP: `e59cd92b4fc257406b6721336a79422778a108dd5bb92a5ea086cb54d4b449f2`.
 
-Exact baseline remains:
-$40 -> $107.43 over 12 months, 8.58% geometric/month, DD 9.90%, 563 trades, AvgR 0.215R, PF 1.501.
-
-15% geometric/month target would imply about $214.01 from $40 over 12 months. It is not achieved.
+Exact baseline truth remains $40 -> $107.43 over 12 months, 8.58% geometric/month, max DD 9.90%, 563 trades, AvgR 0.215R, PF 1.501. 15%/month would imply about $214.01 from $40 after 12 months and is not achieved.
 
 ## Frozen evidence
 
-V32 DeepMLP keep60 remains frozen risk-efficiency evidence:
-near-same Feb-Jul return with DD reduced from 10.82% to 7.36%, 153 vs 222 trades, AvgR 0.325 vs 0.240, PF 1.833 vs 1.558.
+V32 DeepMLP keep60 remains frozen risk-efficiency evidence: near-same Feb-Jul return with DD 10.82% ->7.36%, trades 222 ->153, AvgR 0.240 ->0.325, PF 1.558 ->1.833. Do not retune that accepted window.
 
-V36 Transformer remains reproducible sequence evidence:
-final-R Spearman 0.5148, Hold AUC 0.6757, Protect AUC 0.6771, both AUCs >0.5 in 6/6 months.
+V36 Transformer remains reproducible sequence/ranking evidence: final-R Spearman 0.5148, Hold AUC 0.6757, Protect AUC 0.6771, both >0.5 in 6/6 months. Accepted prediction SHA: `a82d07a81e6ddc9f82d95f37e9bbe4641d1683301b8a31ccbffa99d7b5baf335`.
 
-Do not retune either evidence lane on its accepted window.
+V40 calibration diagnostics show literal V36 probabilities are not well calibrated: approximate 10-bin ECE ~0.176 Hold, ~0.230 Protect. Use V36 as rank/state evidence unless probability calibration is added chronologically.
 
-## V39 decision
+## V39 accepted decision
 
-V39 fusion is HOLD:
-17 triggers, 3/6 positive months, 32% mean monthly false-big-winner. Do not promote to exact-MT5 and do not rescue it by sweeping quantiles, `p_hold`, source/direction filters or risk.
+V39 fusion is HOLD: 17 triggers, 3/6 positive months, 32% false-big-winner. Do not rescue via same-sample quantile, p_hold, source/direction or risk sweeps.
 
-Root problem is event ordering.
+## V40 accepted result
 
-## V40 research contract
+Bundle integrity PASS: outer SHA `e59cd92b4fc257406b6721336a79422778a108dd5bb92a5ea086cb54d4b449f2`, CRC PASS, 13/13 manifest entries PASS.
 
-Decision zone:
-`current_R >= +1R`.
+Inputs: 129,311 filtered M1 rows, 563 trades, M1 coverage 563/563, 29,514 +1R states across 283 trades.
 
-First-passage events:
+First-passage model/action gate:
 
-- down barrier = `current_R - 0.25R`;
-- up barrier = `max(current_R + 0.75R, +2R)`.
+- 7 folds PASS;
+- 65 triggers PASS;
+- 42.21% coverage FAIL (target 5%-35%);
+- mean AUC 0.5264 FAIL (>=0.60);
+- GIVEBACK_FIRST 63.08% PASS;
+- TAIL_FIRST 15.38% PASS;
+- positive static-shadow months 1 FAIL (>=4);
+- total static delta -14.01R FAIL;
+- final `STAGE_A_HOLD`.
 
-Primary model:
-HistGradientBoostingClassifier for GIVEBACK_FIRST vs TAIL_FIRST.
+Shadow economics are not exact-MT5 PnL:
 
-Fixed chronology:
-past fully-exited train -> trailing 2-month calibration -> one-month test.
-Threshold = 80th percentile calibration probability.
-No test-month tuning.
+- Immediate: $95.15 / 7.49% per month / -14.85R;
+- Static protect 0.25R: $95.76 / 7.55% / -14.01R;
+- Selective trail 0.25R: $94.48 / 7.43% / -15.69R;
+- calibrated shadow baseline: $107.43 / 8.5814%.
 
-Primary action:
-`STATIC_PROTECT_0.25R`.
+Root cause: V40 correctly improves event-order semantics but `GIVEBACK_FIRST` is still not equivalent to profitable protection. Among 41 GIVEBACK_FIRST triggers, static protection loses about -0.342R/trade because many trades cross the giveback boundary and later recover before baseline exit.
 
-Secondary:
-`SELECTIVE_TRAIL_0.25R`.
+Full result: `docs/research/v40_upgrade_campaign_stage_a_result.md`.
 
-Both add zero entries and do not change initial risk.
+## Next research contract — direct action value
 
-Stage-A PASS requires:
->=5 folds, >=30 triggers, 5%-35% coverage, mean AUC >=0.60, GIVEBACK_FIRST rate >=60%, TAIL_FIRST rate <=25%, positive static shadow delta in >=4 test months, and total static delta R >0.
+Do not promote V40 to exact-MT5.
 
-Shadow equity is not exact-MT5 PnL. A PASS only permits frozen Stage B exact-MT5.
+The next research milestone should directly estimate counterfactual action reward from each causal +1R state:
 
-## Runner hardening
+`reward(action) = shadow_action_R - baseline_R`.
 
-V40 Windows schema lesson that must not regress:
+Requirements:
 
-- canonical entry `scripts/v40_upgrade_campaign_stage_a.py` adapts schema and re-exports the frozen research core `scripts/v40_upgrade_campaign_stage_a_core.py`;
-- accepted V38 `trades.csv` can already carry `signal_sources`;
-- never blindly merge another same-named M15 column into it;
-- preserve the existing non-empty `signal_sources`, fill blanks from M15, and reject/avoid `_x/_y` suffix collisions;
-- dependency-free static suite includes a synthetic regression test for this exact case.
+- fixed candidate actions preregistered before evaluation;
+- first-passage state/features may be retained as inputs, not the sole target;
+- chronological train -> trailing calibration -> test month;
+- model expected action value and/or probability action value >0;
+- selection threshold calibrated on pre-test data only;
+- OOS monthly economic gate is primary;
+- zero extra entries and unchanged initial risk;
+- no barrier/source/risk sweep on V40 development months;
+- source/direction diagnostics cannot become production filters on the same sample;
+- only a preregistered positive economic Stage-A gate may advance to frozen exact-MT5 Stage B.
 
-Must preserve:
+V36 probability calibration can be a separate support lane; do not retrain accepted OOS predictions to improve headline numbers.
+
+## Runner hardening that must not regress
 
 - explicit branch refspec;
 - no `git clean`;
 - pytest optional/static fallback;
 - tracked-source secret scan;
 - V36 full dependency probe including sklearn/scipy;
+- V40 `signal_sources` schema adapter: preserve existing source, M15 fallback only, no `_x/_y` collision;
 - one run -> one ZIP;
 - internal manifest and CRC verification.
 
-## Output contract
+## Decision stack
 
-User runs one Git Bash bootstrap and uploads only:
-
-`runtime/v40_upgrade_campaign/OUTPUT_V40_STAGE_A/v40_upgrade_campaign_stage_a.zip`
-
-On receipt:
-1. verify outer SHA;
-2. CRC/testzip;
-3. verify every manifest hash;
-4. verify head/branch/input SHAs;
-5. report exact baseline vs shadow policy vs 15% target separately;
-6. evaluate gate without discretionary rescue tuning;
-7. if PASS, design frozen exact-MT5 Stage B;
-8. if HOLD, identify structural failure and preserve baseline.
+- Baseline KEEP/control.
+- DeepMLP keep60 KEEP frozen benchmark.
+- V36 KEEP sequence/rank evidence; calibrate probability before literal threshold use.
+- V35 generic router REJECT.
+- V37 generic SMC gate REJECT/redesign.
+- V38 universal fast exits REJECT.
+- V39 selective harvest HOLD/redesign.
+- V40 first-passage protection HOLD/redesign to direct action value.
+- 15% geometric/month aspirational and unmet.
