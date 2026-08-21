@@ -5,128 +5,124 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 ## Current source of truth
 
 Branch: `agent/v42-baseline-router-exact-mt5`.
-Base: V41 implementation `60cd93ad9eefd07447f65b2e6909a20edf60f3ae`. V41 is closed HOLD; user ZIP SHA `f7e508816f96cb033f327582013fc0cf3c8583693b820c445de9c7156f469f7f`.
-Use explicit Windows refspec and reset to remote. Never `git clean`; V30/V34/V36/V38 evidence, compiled EA artifacts, checkpoints, state and `.venv` may be untracked.
+Base: V41 implementation `60cd93ad9eefd07447f65b2e6909a20edf60f3ae`.
+Never `git clean`; accepted runtime evidence, compiled EA artifacts, checkpoints, state and `.venv` may be untracked.
 
 ## Safety
 
-REAL-MONEY LIVE TRADING forbidden. Research risk <=1.00%/trade. No Martingale/grid/doubling. V42 uses Strategy Tester config with `AllowLiveTrading=0`, `AllowDllImport=0`, Model=0 and shutdown-on-completion. No native/external broker orders.
+REAL-MONEY LIVE TRADING forbidden. Research risk <=1.00%/trade. No Martingale/grid/doubling. Strategy Tester only; `AllowLiveTrading=0`, `AllowDllImport=0`, Model=0. No native/external broker orders.
 
-## Baseline
+## Exact baseline / target
 
-Exact accepted `adaptive_ewma_hl8_thr0`: USD40 continuous, 2025-08-01 -> 2026-08-01, $40 -> $107.432645, about 8.58% geometric/month, DD about 9.90%, 563 trades. Target 15%/month remains unmet.
-Hard reproduction vectors in `scripts/analyze_v42_baseline_router_mt5.py` must not be weakened: all 12 monthly trade counts and 12 final balances from V38.
+Accepted exact control `adaptive_ewma_hl8_thr0`, USD40 continuous, 2025-08-01 -> 2026-08-01:
 
-## V42 design
+- $40 -> $107.432645;
+- total return +168.5816%;
+- geometric/month 8.58163%;
+- max DD 9.9038%;
+- 563 trades;
+- AvgR 0.214608R;
+- PF 1.500756.
 
-Do not add V41 overlays or retune old router half-lives/thresholds. Existing exact router variants are historical comparators.
-New candidates only: `v42_hl8_switch15m`, `v42_hl8_switch30m`, `v42_hl8_thr0p05_switch15m`, `v42_hl10_thr0p05_switch15m`, `v42_hl12_thr0p05_switch15m`, `v42_cp_fast5_slow20_switch15m`.
-Builder clones exact parent `SetupAdaptiveRouter` arguments and adds direction-switch hysteresis only. Expert signals, entry/exit geometry, USD40 accounting and risk remain frozen. V38 M1/M15 telemetry defaults are disabled for runtime efficiency.
+15%/month would imply about $214.01 after 12 months from $40. Exact gap remains 6.41837pp/month.
+Hard reproduction vectors in `scripts/analyze_v42_baseline_router_mt5.py` must not be weakened.
 
-## Immutable V38 parent rule
+## V42 exact result — CLOSED HOLD
 
-Do not reconstruct V42 parent source through V30 -> V34 -> V38. Historical builder byte identity drift was observed on 2026-08-21: current V34 reconstruction produced `228b3ec7...`, while a stale V42 runner expected `8bae2c56...`. The safe fix is not to bless the new hash.
+The exact Strategy Tester run completed successfully on 2026-08-21 from the verified compiled V42 EA. Control reproduction PASS.
 
-Use only accepted V38 exact-MT5 bundle:
+Best V42 challenger by ending equity:
 
-`runtime/v38_fast_harvest/OUTPUT_V38/v38_fast_harvest_exact_mt5.zip`
+`v42_cp_fast5_slow20_switch15m`
 
-Expected SHA256:
+- end $106.387574;
+- geometric/month 8.493214%;
+- DD 9.6614%;
+- 507 trades;
+- AvgR 0.243553R;
+- PF 1.534444;
+- turnover -3.01% vs control;
+- beats control 6/12 months;
+- end equity -$1.045071 vs control;
+- geo -0.08842pp/month vs control.
 
-`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
+`eligible_to_freeze_for_fresh_holdout=[]`.
 
-Runner must verify outer SHA, CRC-test ZIP, extract exactly one `V38FastHarvestLab.base.a.mq5`, validate V38 release/tester/router markers, then build V42 from those bytes. V34 specialist tape SHA and frozen state SHA remain mandatory runtime dependencies.
+Best V42 risk-efficiency arm was `v42_hl8_thr0p05_switch15m`: end $103.358584, 8.232381%/month, DD 7.9188%, 465 trades, AvgR 0.266639R, PF 1.538075, return/DD 20.0026. Keep as research insight only; it is not a return upgrade.
 
-## Historical runner defects already diagnosed
+Historical exact comparators remain hypotheses, not promoted policies:
 
-### Windows UTF-8
+- `adaptive_ewma_hl8_thr0p05`: $111.285257, 8.900900%/month, DD 10.4368%;
+- `adaptive_ewma_hl10_thr0p05`: $110.025682, 8.797648%/month, DD 9.8587%;
+- `adaptive_ewma_hl12_thr0p05`: $107.797276, 8.612293%/month;
+- `adaptive_cp_fast5_slow20_thr0p30`: $102.206843, 8.131360%/month.
 
-A retry stopped because Windows Python decoded UTF-8 shell source with CP1252. All V42 static-test text reads are explicit UTF-8. Bootstrap/direct/resume export `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`.
+Do not retune V42 switching delays on the same 12-month development window.
 
-### Bash ERR trap
+## Accepted V42 evidence identity
 
-A retry stopped because `set +e` does not suppress a global Bash `ERR` trap. Do not reintroduce `set +e` around MetaEditor or MT5. Capture Windows process rc only in `if command; then rc=0; else rc=$?; fi` conditional context.
+Successful run evidence says:
 
-### Runtime patcher architecture removed
+- head `9ddd9a99c708e66f62f0eae7bd85750ad32f2f13`;
+- branch `agent/v42-baseline-router-exact-mt5`;
+- V42 source SHA `142bb4fdb066de712395f32942e8ff24cbc3af0a4c9d82c88f96317d8acc248e`;
+- compiler `Result: 0 errors, 0 warnings`;
+- V38 parent ZIP SHA `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`;
+- V38 parent source SHA `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`;
+- V34 tape SHA `d70d92d0023c1862af6363d60a7d9e927f928e75ffcf1c0cedcb4f7798128863`;
+- frozen state SHA `5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0`.
 
-Do not recreate `scripts/patch_v42_metaeditor_runner.py`, generated shell runners, or self-modifying runtime shell. Successful V32/V34/V38 workflows use a direct tracked runner. V42 now follows that structure directly and static tests compare the V42 runner shape against those successful historical runners.
+User supplied a RAR containing the completed output after ZIP packaging failed. RAR outer SHA256:
 
-### MetaEditor compile artifact race — latest incident
+`3cd562b7b3f636b8ba88ce42765f1d38574f9d680c50b272e87d9e05f0697910`
 
-The 2026-08-21 20:12 retry passed all 15 static gates, accepted V38 parent checks, deterministic V42 source generation and generated-MQL lint. MetaEditor launch returned rc=1. The then-current runner waited for an adjacent compile log, decided it was missing, then diagnostic `ls` immediately showed:
+The bundle contains 18 manifest members and all 18 hashes verify.
 
-- `V42BaselineRouterLab.mq5` size 98214;
-- `V42BaselineRouterLab.log` size 3298;
-- `V42BaselineRouterLab.ex5` size 97958.
+## Packaging defect — diagnosed and fixed
 
-This proves compile artifacts were created and the failure was a fixed-deadline race in the runner, not a strategy failure. Strategy Tester had not launched, so there is still no V42 PnL.
+MT5 and analysis completed. Final ZIP creation failed only because Git Bash/MSYS `sha256sum` generated manifest rows as:
 
-## Canonical full-run architecture
+`<64hex> *filename`
 
-`runtime/v42_baseline_router_exact_mt5/BOOTSTRAP_V42_BASELINE_ROUTER_ONE_SHOT_GIT_BASH.sh`
+while the inline Python packager incorrectly assumed:
 
-Bootstrap now syntax-checks and executes the tracked direct runner. No runtime patch generation.
+`<64hex><two spaces>filename`
 
-`runtime/v42_baseline_router_exact_mt5/RUN_V42_BASELINE_ROUTER_EXACT_MT5_GIT_BASH.sh`
+and executed `line.split('  ',1)`.
 
-Compile behavior:
+This is packaging-only evidence; do not rerun MT5 to repair it.
 
-- preserve installed V42 `.mq5` when its SHA already equals newly generated V42 source SHA;
-- before deleting anything, attempt `compile_checkpoint_valid` using source SHA + compiler final `Result: 0 errors, 0 warnings` + EX5;
-- accept a prior source-hash marker, or for one-time recovery require `.log` and `.ex5` timestamps not older than the exact source;
-- on fresh compile, poll the combined log + final Result + EX5 postcondition rather than a single file-existence deadline;
-- never define compile success from MetaEditor launcher rc alone.
+Canonical fix:
 
-MT5 behavior:
+- `scripts/package_research_bundle_portable.py` computes SHA256 in Python and writes a canonical platform-independent `<hash><two spaces>filename` manifest;
+- `runtime/v42_baseline_router_exact_mt5/PACKAGE_V42_EXISTING_OUTPUT_GIT_BASH.sh` packages already completed V42 output only and never launches MetaEditor or MT5;
+- bootstrap may call package-only recovery only when completed V42 evidence, analyzer JSON, monthly summary, trades and tester manifest already exist. It must not mask earlier runtime/research failures.
 
-- conditional rc capture, no `set +e`;
-- new `LATEST` run id/folder is the execution postcondition, not launcher rc alone;
-- output collection must wait for complete monthly summary, trades and manifest safety markers before analysis.
+## Historical runner defects not to reintroduce
 
-Static test suite runs `bash -n` on bootstrap, direct runner and resume runner before any MetaEditor/MT5 execution in a clean full run.
-
-## Immediate recovery: reuse the already compiled V42 EA
-
-For the current machine state, do **not** compile V42 again first.
-
-Use:
-
-`runtime/v42_baseline_router_exact_mt5/RESUME_V42_FROM_COMPILED_EA_GIT_BASH.sh`
-
-Resume contract:
-
-- does not reference or launch MetaEditor at all;
-- installed source must hash exactly to `142bb4fdb066de712395f32942e8ff24cbc3af0a4c9d82c88f96317d8acc248e`;
-- existing `V42BaselineRouterLab.log` must end with `Result: 0 errors, 0 warnings`;
-- existing `V42BaselineRouterLab.ex5` must be non-empty and not older than installed exact source;
-- accepted V38 ZIP, V34 tape and state are reverified;
-- exact MT5 Strategy Tester launches only after those checks;
-- run completion waits for new `LATEST` id/folder and complete `monthly_summary.csv`, `trades.csv`, `manifest.txt` with tester/no-order markers;
-- analyzer still hard-reproduces accepted V38 control before any challenger result is accepted;
-- final output remains one SHA-manifested, CRC-tested ZIP.
-
-If compile log is not 0/0, resume must print the real compiler evidence and stop. Do not automatically recompile inside resume.
+- Do not rebuild V42 parent through V30 -> V34 -> V38; use accepted V38 ZIP as immutable parent.
+- Explicit UTF-8 only; Windows CP1252 caused a prior test-harness failure.
+- No runtime shell patcher/self-modifying runner.
+- No `set +e` under a global `ERR` trap; capture Windows rc in conditional context.
+- Compile acceptance is source hash + final 0/0 log + EX5, not MetaEditor launcher rc.
+- MT5 completion is a new `LATEST` run plus complete manifested outputs, not terminal rc alone.
 
 ## Required QA invariants
 
 Preserve:
 
-- pinned V31 Python version/dependencies;
-- explicit UTF-8 text handling;
-- `bash -n` gate for all three V42 shell entrypoints;
+- exact V38 control reproduction;
 - accepted V38 ZIP SHA/CRC/source extraction;
-- V42 deterministic source SHA and no-order/tester MQL lint;
-- no runtime shell patcher;
-- no `set +e`;
-- direct compile artifact checkpoint for clean runs;
-- compiled-EA resume for the current recovery;
-- MT5 `LATEST` + complete manifested output as execution/collection postcondition;
+- no-order/tester safety lint;
+- pinned Python/dependencies;
+- explicit UTF-8;
 - no `git clean`;
-- one ZIP with internal SHA manifest and CRC verification.
+- one bundle with canonical internal SHA256 manifest and ZIP CRC verification;
+- risk <=1.00%/trade;
+- no live authorization.
 
-## Output
+## Next research direction
 
-For current recovery run `runtime/v42_baseline_router_exact_mt5/RESUME_V42_FROM_COMPILED_EA_GIT_BASH.sh` after closing MT5. MetaEditor need not be opened and resume never launches it.
+V42 switching hysteresis is rejected as a return upgrade. Keep `adaptive_ewma_hl8_thr0` as return control.
 
-Upload only `runtime/v42_baseline_router_exact_mt5/OUTPUT_V42/v42_baseline_router_exact_mt5.zip`.
-After upload verify integrity and exact control reproduction first. Report exact metrics for control, historical adaptive variants and all V42 challengers. A development PASS only permits freezing one challenger for genuinely fresh chronological confirmation; never call same-window V42 production-ready or live-authorized.
+The next baseline cycle should investigate why thresholded EWMA variants (`hl8_thr0p05`, `hl10_thr0p05`) show modest exact return improvements while switch hysteresis improves trade quality/DD but sacrifices too much participation. Any new mechanism must be preregistered and exact-MT5 adjudicated; do not sweep V42 delay values on the same sample.
