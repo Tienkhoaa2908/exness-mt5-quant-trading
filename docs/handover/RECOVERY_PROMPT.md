@@ -2,44 +2,54 @@
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
 
-## Branch / source of truth
+## Source of truth
 
-`main` đang stale so với chuỗi nghiên cứu mới. Recovery source-of-truth trước V39 implementation là commit:
+`main` is stale. Continue from branch:
+
+`agent/v39-selective-harvest`
+
+V39 implementation parent:
 
 `97223ae7459ee401651b8e36d53f725854c79d3e`
 
-Current milestone phải tiếp tục từ branch `agent/v39-selective-harvest`. Không phát triển V39 trên `main` cũ.
+Accepted V39 evidence was generated from implementation head:
 
-Một số Windows clone có remote fetch config chỉ materialize default branch. Vì vậy **không** dùng `git fetch origin agent/v39-selective-harvest` rồi giả định `origin/agent/v39-selective-harvest` đã tồn tại. Recovery chuẩn dùng explicit refspec:
+`399a8dede123da525fec6d5242ca78e6f33cf085`
+
+Do not reconstruct state from memory when GitHub/docs/evidence disagree.
+
+Windows recovery must use explicit refspec:
 
 `git fetch --no-tags origin "+refs/heads/agent/v39-selective-harvest:refs/remotes/origin/agent/v39-selective-harvest"`
 
-sau đó:
+then:
 
 `git checkout -B agent/v39-selective-harvest refs/remotes/origin/agent/v39-selective-harvest`
 
-Không dùng `git clean`; accepted V36/V38 runtime evidence có thể là untracked local data.
+Do not use `git clean`; accepted runtime evidence and `.venv` may be untracked.
 
-V39 static gate không được phụ thuộc bắt buộc vào `pytest`: nếu selected Python có pytest thì dùng pytest; nếu không có, runner chạy trực tiếp `tests/test_v39_selective_harvest_static.py` bằng dependency-free fallback đã tích hợp. Không cài package chỉ để vượt gate và không được silently skip tests.
+Runner fixes that must not regress:
 
-Secret scan phải tập trung vào repository source, không quét dependency/runtime artifacts như `.venv/site-packages`. Trong Git checkout, `scripts/secret_scan.py` dùng `git ls-files -z` để scan tracked working-tree files; local edits trên tracked files vẫn bị kiểm tra. Untracked V36/V38 evidence, `.venv`, package caches và generated outputs không được tạo false positive. Khi chạy ngoài Git checkout, fallback scanner phải skip `.venv`, `site-packages`, `node_modules`, caches và `OUTPUT_*`.
-
-Nếu V36 predictions thiếu, V39 gọi lại V36 offline runner. V36 runner phải probe trọn dependency set `numpy,pandas,torch,sklearn,scipy` trước khi train. `scikit-learn==1.8.0` phải được khai báo explicit vì `scripts/v36_sequence_exit_models.py` import `sklearn.metrics.roc_auc_score`; SciPy cũng phải import được cho Spearman path. Environment repair phải reuse `.venv` hiện có và package đã cài; không xóa environment hoặc bắt tải lại torch nếu đã thỏa dependency. Sau repair runner phải in versions và fail-fast trước training nếu import vẫn lỗi.
+- pytest optional with dependency-free static fallback;
+- secret scan scans tracked working-tree source/config via `git ls-files -z`, not `.venv/site-packages` or generated outputs;
+- V36 offline runner probes `numpy,pandas,torch,sklearn,scipy`, explicit `scikit-learn==1.8.0`, reuses existing `.venv`, and fail-fast checks imports before training.
 
 ## Safety invariants
 
 - REAL-MONEY LIVE TRADING = FORBIDDEN.
-- Không tháo tester/live guards.
-- Không Martingale, uncontrolled grid hoặc doubling after loss.
-- Stop-risk research ceiling <=1.00%/trade.
-- V39 Stage A không launch MT5/MetaEditor và không có native/external order path.
-- PAPER/DEMO chỉ sau gates; LIVE vẫn cấm.
-- Không tăng risk hoặc sweep threshold chỉ để ép 15% geometric/tháng.
+- Never remove tester/live guards.
+- No Martingale, uncontrolled grid, or doubling after loss.
+- Research stop-risk ceiling <=1.00%/trade.
+- Do not raise risk or tune thresholds just to force 15% geometric/month.
+- Exact-MT5/PAPER/DEMO promotion requires explicit gates; LIVE remains forbidden.
 
-## Canonical evidence cần giữ
+## Canonical evidence to preserve
 
-V30 accepted source SHA:
+V30 source SHA:
 `4222120de5ded19ab7da172ad4c1e65d2a54b8bac7491fcd7927685b17b09a05`
+
+V31.1 ZIP SHA:
+`7459ba6b5508f42fb555c9bf8ade50a97bab7abccffc7067e095d593b256911b`
 
 V32 ZIP SHA:
 `3b077c3b7fffb4f44393edee8d0364feb2c8a37cab7993b68b0a5d467d8ce4a8`
@@ -56,70 +66,99 @@ V36/V37 ZIP SHA:
 V38 exact-MT5 ZIP SHA:
 `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
 
-## Accepted V38 result
+V39 Stage-A ZIP SHA:
+`27de4ef769833df0433755dd0e80ec39a5d39f7e8c153837015edd69be475b1b`
 
-V38 PASS evidence:
+## Accepted baseline / V38
 
-- MetaEditor 0 errors / 0 warnings;
-- V34 control reproduction PASS;
-- 1,104 monthly rows = 12×23×4;
-- 56,321 trades;
-- summary↔ledger trade mismatch 0;
-- 260,471 M1 telemetry rows;
-- baseline USD40 M1 coverage 563/563.
+12-month baseline `adaptive_ewma_hl8_thr0`, continuous USD40:
 
-12-month baseline: USD107.43 end, 8.58% geometric/tháng, DD 9.90%, 563 trades, AvgR 0.215R, PF 1.501.
+- end $107.43;
+- 8.58% geometric/month;
+- max DD 9.90%;
+- 563 trades;
+- AvgR 0.215R;
+- PF 1.501.
 
-Unconditional fast exits are rejected. TP1R is close to baseline but cuts right-tail trends. +1R is retained only as selective decision zone.
+V38 exact evidence: MetaEditor 0 errors/0 warnings, V34 control reproduction PASS, 1,104 monthly rows, 56,321 trades, summary↔ledger mismatch 0, 260,471 M1 telemetry rows, baseline M1 coverage 563/563.
 
-## Accepted V36 clue
+Universal fast exits remain rejected. TP1R is close to baseline but cuts right-tail winners; +1R remains a decision zone only.
 
-Transformer48x2 chronological Feb-Jul means:
+## V36 reproducibility
 
-- Hold AUC 0.6757;
-- Protect AUC 0.6771;
-- both >0.5 in 6/6 months.
+Accepted/recomputed Transformer48x2 Feb-Jul means:
 
-Preserve V36 as sequence/tail-state evidence; do not relabel/retrain its accepted OOS predictions to improve V39 headline metrics.
+- future-delta Spearman 0.040294;
+- final-R Spearman 0.514812;
+- Hold AUC 0.675683;
+- Protect AUC 0.677066;
+- both AUCs >0.5 in 6/6 months.
 
-## Current gate — V39 Selective Harvest Stage A
+Accepted V39-run V36 predictions SHA:
 
-Research question: after a control trade is already around +1R, can a causal controller identify giveback-prone winners while preserving large trend winners?
+`a82d07a81e6ddc9f82d95f37e9bbe4641d1683301b8a31ccbffa99d7b5baf335`
 
-Implemented Stage A contract:
+Preserve V36 as sequence/tail-state evidence; it is not PnL evidence.
 
-- read-only/offline;
-- accepted V38 control M1 telemetry only;
-- decision zone current R >= +1.0R;
-- M1 model predicts giveback risk and tail continuation;
-- threshold from trailing 2-month calibration 85th percentile;
-- no test-month threshold tuning;
-- V36 Transformer used as external tail veto: `p_hold <=0.15`, age <=75m;
-- first trigger per trade;
-- false-big-winner rate is a hard promotion metric.
+## Accepted V39 Stage A result — HOLD
 
-Stage-A pass requires at least 4 chronological folds, >=30 triggers, 3%-35% coverage, positive avoided giveback in >=75% folds, positive mean avoided giveback and false-big-winner rate <=20%.
+Bundle integrity: CRC PASS and 9/9 `bundle_manifest_sha256.txt` entries PASS.
 
-`STAGE_A_PASS` is diagnostic only. It does not claim PnL/profitability and only permits design of a frozen Stage B exact-MT5 test.
+Inputs: 129,311 filtered control M1 rows, 563 control trades, 563/563 M1 coverage, 29,514 +1R-zone rows, 283 +1R-zone trades.
 
-## Current files
+Primary `fusion_v36_m1` lane:
 
-- `scripts/v39_selective_harvest_stage_a.py`
-- `tests/test_v39_selective_harvest_static.py`
-- `runtime/v39_selective_harvest/RUN_V39_SELECTIVE_HARVEST_STAGE_A_GIT_BASH.sh`
-- `runtime/v39_selective_harvest/BOOTSTRAP_V39_SELECTIVE_HARVEST_ONE_SHOT_GIT_BASH.sh`
-- `scripts/package_mt5_research.py`
-- `scripts/package_mt5_research.cmd`
-- `scripts/analyze_mt5_research_bundle.py`
-- `docs/research/v39_selective_harvest_plan.md`
-- `docs/adr/ADR-039-selective-harvest-stage-a-before-exact-mt5.md`
+- 6 folds;
+- 17 first triggers;
+- 14.655% coverage;
+- 3/6 positive avoided-giveback months;
+- mean monthly avoided giveback +0.120864R;
+- mean monthly false-big-winner rate 32.0%;
+- mean giveback AUC 0.5834;
+- mean tail AUC 0.6117;
+- final status: **STAGE_A_HOLD**.
+
+Gate failures: trigger count <30, positive months <75% (needed 5/6), false-big-winner >20%.
+
+Additional warning: pooled 17-trigger mean avoided giveback is -0.04524R and pooled false-big-winner rate 41.18%. Do not replace preregistered gate with this statistic; use it only as diagnosis.
+
+`m1_only` also HOLD: 59 triggers, 38.31% coverage, mean monthly avoided -0.14491R, 2 positive months, false-big-winner 39.72%.
+
+Full result document:
+
+`docs/research/v39_selective_harvest_stage_a_result.md`
+
+## Root-cause and next research contract
+
+Do not promote V39 to exact-MT5 Stage B.
+
+Do not sweep V39 score quantile, `p_hold`, source/direction filters, or risk on Jan-Jul 2026 to force PASS.
+
+Observed failure pattern indicates target/action mismatch: V39 labels eventual giveback and future maximum separately, but an immediate exit decision needs first-passage event order from the current mark. Several false-big-winner triggers were eventually giveback-prone yet first extended strongly into the right tail.
+
+Next research should be preregistered as a structural target redesign:
+
+- decision zone stays current R >= +1R;
+- model whether a protective giveback boundary is hit before a tail-extension boundary from each current state;
+- use first-passage / competing-risk event ordering, not another threshold sweep on V39 labels;
+- keep first-trigger-per-trade and explicit false-tail protection;
+- distinguish retrospective feasibility on V39 development months from genuinely fresh prospective evidence;
+- no risk increase.
+
+Do not source-gate or direction-gate from the 17 V39 fusion triggers: SLOW_MOM/EMA and SHORT concentration is diagnostic only and sample is too small for production filtering.
+
+## Decision stack
+
+- Baseline: KEEP/control.
+- DeepMLP keep60: KEEP frozen risk-efficiency evidence.
+- V36 Transformer: KEEP.
+- SMC: research-only specialist.
+- V35 generic router: REJECT.
+- V37 generic SMC gate: REJECT/redesign.
+- V38 universal fast exits: REJECT.
+- V39 selective harvest: HOLD/redesign target.
+- 15% geometric/month: aspirational, not an acceptance override.
 
 ## One run -> one ZIP
 
-V39 runner phải tự verify inputs/safety, chạy Stage A, tạo `V39_EVIDENCE.txt`, `bundle_manifest_sha256.txt` và duy nhất `v39_selective_harvest_stage_a.zip`.
-
-Sau upload, verify bundle bằng `scripts/analyze_mt5_research_bundle.py` hoặc phân tích tương đương. Nếu evidence trong ZIP đủ thì không yêu cầu screenshot riêng.
-
-## Historical runner lessons
-
-Không reintroduce stale hardcoded generated-source hashes, Python→MQL escaping bugs, UTF-16 MetaEditor log decode failures, MSYS path conversion errors, implicit single-branch fetch assumptions, mandatory pytest-only gates trên Windows environment tối giản, recursive secret scans qua `.venv/site-packages`, incomplete V36 dependency probes hoặc rerun tester sau checkpoint completion.
+Every important run must output one ZIP with `bundle_manifest_sha256.txt`. Verify outer SHA, CRC, internal manifest, evidence head/branch, and summary before accepting. Do not ask for screenshots when the bundle is sufficient.
