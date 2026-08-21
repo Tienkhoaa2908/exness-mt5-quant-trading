@@ -24,6 +24,10 @@ def test_v39_stage_a_has_no_mt5_or_native_order_execution_path():
     script = read("scripts/v39_selective_harvest_stage_a.py")
     runner = read("runtime/v39_selective_harvest/RUN_V39_SELECTIVE_HARVEST_STAGE_A_GIT_BASH.sh")
     combined = script + "\n" + runner
+    # The runner deliberately contains a grep safety pattern naming forbidden APIs.
+    # Remove that one preflight statement before checking for actual execution paths.
+    cleaned_lines = [line for line in combined.splitlines() if "grep -Eiq" not in line]
+    cleaned = "\n".join(cleaned_lines)
     forbidden = [
         r"terminal64\.exe",
         r"metaeditor64\.exe",
@@ -34,7 +38,6 @@ def test_v39_stage_a_has_no_mt5_or_native_order_execution_path():
         r"trade\.Sell\s*\(",
     ]
     for pattern in forbidden:
-        cleaned = re.sub(r"if grep -Eiq '.*?' \"\$SCRIPT\" \"\$0\"; then", "", combined, flags=re.S)
         assert re.search(pattern, cleaned, flags=re.I) is None, pattern
     assert "mt5_launched=0" in runner
     assert "metaeditor_launched=0" in runner
