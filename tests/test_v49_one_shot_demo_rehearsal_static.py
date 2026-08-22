@@ -25,12 +25,18 @@ def test_native_execution_is_demo_only_and_real_money_remains_forbidden():
     assert '#include <Trade/Trade.mqh>' in t
     assert 'CTrade g_v49_trade' in t
     assert 'ACCOUNT_TRADE_MODE_DEMO' in t
+    assert 'if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO) return false;' in t
     assert 'V49InitExecution' in t
     assert 'real_money_authorized=0' in t
     assert 'g_v49_trade.Buy' in t
     assert 'g_v49_trade.Sell' in t
     assert 'PositionClose' in t
-    assert 'real_money_authorized=1' not in t
+    # The positive authorization token is intentionally present in the Python
+    # builder's forbidden-token list. What matters is that generated MQL `text`
+    # is rejected if that token (or any REAL account-mode token) appears.
+    assert "forbidden = ('ACCOUNT_TRADE_MODE_REAL', 'real_money_authorized=1', 'Martingale', 'martingale')" in t
+    assert 'if token in text:' in t
+    assert 'raise RuntimeError(f"V49 forbidden token present: {token}")' in t
 
 
 def test_execution_reconciliation_uses_trade_transactions_and_magic_ownership():
@@ -41,6 +47,10 @@ def test_execution_reconciliation_uses_trade_transactions_and_magic_ownership():
     assert 'duplicate_owned_positions' in t
     assert 'virtual_broker_direction_mismatch' in t
     assert 'V49OwnedPositionCount' in t
+    assert 'g_v49_open_pending' in t
+    assert 'g_v49_close_pending' in t
+    assert 'open_confirmation_timeout' in t
+    assert 'close_confirmation_timeout' in t
 
 
 def test_notifications_cover_start_open_close_halt_final_without_repo_secret():
@@ -69,6 +79,8 @@ def test_runner_requires_flat_transition_and_launches_detached_supervisor():
     assert 'AllowDllImport=0' in t
     assert 'V49_DEMO_REHEARSAL_READY=1' in t
     assert 'start_supervisor()' in t
+    assert 'V49_PRETRANSITION_BUILD_COMPILE_PASS=1' in t
+    assert 'graceful_close_mt5_if_flat(common)' in t
     assert 'REAL_MONEY_AUTHORIZED=0' in t
 
 
