@@ -1,13 +1,21 @@
 # V31.1 handover — ready for exact MT5 USD40 tournament
 
 Date: 2026-08-20
-Branch: `agent/v30-ml-dl-feature-lake`
+Historical branch: `agent/v30-ml-dl-feature-lake`
 
-## Current gate
+## Policy note
 
-V31.1 is ready for a Windows MT5 Strategy Tester run. It is not a promotion and has no live-order path.
+V31.1 was a tester-only research milestone. Current project-wide policy is defined by ADR-049:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`.
 
-Safety invariants remain unchanged: REAL-MONEY LIVE TRADING FORBIDDEN; no `OrderSend`/`CTrade`; no Martingale/grid/doubling; research risk ceiling 1.00%/trade.
+The absence of `OrderSend`/`CTrade` in V31.1 and the 1.00% research-risk ceiling were V31.1 phase constraints. They are not a permanent prohibition on researching or preparing later production/live trading with real capital.
+
+## Current gate at that time
+
+V31.1 was ready for a Windows MT5 Strategy Tester run. It was not itself a deployment promotion and had no broker-order path.
+
+No Martingale/grid/doubling; research risk ceiling 1.00%/trade.
 
 ## Why V31.1 exists
 
@@ -31,7 +39,7 @@ All model modes restore the exact same adaptive-state checkpoint before launch.
 
 ## Causal tape
 
-The tape is rebuilt from the accepted V30 MT5 feature/trade folders. Training entries use latest `feature_available_time <= entry_time`. Gate inference is keyed to actual current M15 bar starts and uses latest `feature_available_time <= current_bar_start`, which avoids the prior session/weekend-gap bug.
+The tape is rebuilt from the accepted V30 MT5 feature/trade folders. Training entries use latest `feature_available_time <= entry_time`. Gate inference is keyed to actual current M15 bar starts and uses latest `feature_available_time <= current_bar_start`, avoiding the prior session/weekend-gap bug.
 
 Pinned Linux reference tape SHA-256:
 `0df85b572f8273f6fef8624bbc12cbded1f77bded046c938eaa9ff5e2e7a3f7f`
@@ -42,7 +50,7 @@ Expected V31.1 source SHA-256:
 Starting adaptive state SHA-256:
 `39df0a74f8536235176362bccffc458e4b623190427536e8462bdae0f6000b76`
 
-## Run entrypoint
+## Historical run entrypoint
 
 `runtime/v31_mt5_model_gate/BOOTSTRAP_V31_ONE_SHOT_GIT_BASH.sh`
 
@@ -53,3 +61,5 @@ Primary decision comparison is always the same candidate: `adaptive_ewma_hl8_thr
 ## Exact evidence required
 
 The analyzer reports starting/ending capital, compounded and monthly returns, count of >=15% months, worst month, full-period max MTM DD, trades, AvgR, PF, rejects and turnover. 15%/month is an aspirational gate, not a guarantee; risk must not be raised to manufacture the target.
+
+Current production/live research and deployment target is governed by ADR-049 and the later V49 readiness process, not this historical V31.1 handover.
