@@ -4,7 +4,18 @@ Updated: 2026-08-22
 
 Environment: Exness Technologies Ltd.; Exness DEMO account; observed server `Exness-MT5Trial6`; symbol `XAUUSDm`; timeframe M15.
 
-Long-term project objective is production/live readiness. V49 itself is **native broker DEMO execution only** and hard-refuses REAL/non-DEMO accounts before broker requests.
+## Project target
+
+The project explicitly targets production/live trading with real capital on Exness.
+
+Authoritative project-wide flags:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`.
+
+The current V49 runtime remains the broker-DEMO rehearsal build. Its DEMO-only account guard is phase-specific and must not be interpreted as a permanent prohibition on live-account research or later real-capital deployment engineering.
+
+Current evidence label:
+`LIVE_READINESS=PENDING_V49_FINAL`.
 
 ## Frozen strategy
 
@@ -13,60 +24,51 @@ Frozen V48 parent SHA256: `ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6
 
 Do not retune breadth/HL/threshold during V49. V49 adds an execution adapter around the frozen virtual intent.
 
-## Current V48 to V49 transition
+## Accepted V49 startup
 
-An accepted V48 observer may still be running. Transition only when V48 primary virtual position is `FLAT`.
+The one-shot V49 startup on 2026-08-22 already passed:
+- static tests 9/9;
+- secret scan;
+- deterministic V46 -> V47 -> V48 parent chain;
+- V49 source generation SHA256 `b3b012e856d814d36414e26d120674af864fea2c24db0b53f096fe7ba0a8f599`;
+- MetaEditor `0 errors, 0 warnings`;
+- EX5 SHA256 `72c339b37e39efd54e664ce2fb1d9d7736d94d46615849d8887f88347d674175`;
+- state transition;
+- startup config verification;
+- `V49_DEMO_REHEARSAL_READY=1`;
+- detached supervisor start.
 
-Before the single V49 start:
-1. Verify V48 is FLAT using its read-only status command.
-2. Deliberately close MT5 once, which stops the V48 observer.
-3. Keep the terminal account as Exness DEMO.
-4. Close MetaEditor if open.
-5. Optional phone push: configure MetaQuotes ID under MT5 Notifications and test it in the terminal UI.
+Accepted run id:
+`v49_one_shot_demo_rehearsal_v1__XAUUSDm__PERIOD_M15__2026-08-22_12-33-42__536750`.
 
-Do not transition while a V48 virtual position is open.
+Initial counters were `MARKET_DAYS=0` and `ROUND_TRIPS=0` because XAUUSD was closed at startup.
 
-## V49 branch / one command
+Do not run the V49 START command again while this accepted session is active.
+
+## V49 branch / canonical command
 
 Branch:
 `agent/v49-one-shot-demo-rehearsal`
 
-Canonical entrypoint:
+Canonical entrypoint used for startup:
 `runtime/v49_demo_rehearsal/START_V49_ONE_SHOT_GIT_BASH.sh`
 
-The starter performs:
-- Python/static tests;
-- secret scan;
-- exact V46 -> V47 -> frozen V48 parent rebuild;
-- V49 execution-adapter generation;
-- MetaEditor compilation and mandatory `0 errors, 0 warnings`;
-- current V48 adaptive-state transition copy;
-- V49 startup INI creation;
-- MT5 launch;
-- DEMO READY verification;
-- detached supervisor launch.
+The starter performs Python/static tests, secret scan, exact parent rebuild, V49 generation, MetaEditor compilation, state transition, startup config creation, MT5 launch, DEMO READY verification and detached supervisor launch.
 
 After `V49_ONE_SHOT_STARTED=1`, Git Bash may be closed. Keep the PC, Internet and MT5 running.
 
-## V49 native broker DEMO contract
+Do not fetch/reset the active Windows checkout merely to obtain docs-only commits while the current V49 runtime is active.
 
-Startup config enables AutoTrading because V49 must submit DEMO broker requests:
+## V49 native broker execution contract
+
+Startup config enables MT5 automated trading for the V49 broker-DEMO rehearsal:
 - `AllowLiveTrading=1`;
 - `Enabled=1`;
 - `AllowDllImport=0`.
 
-The MQL EA independently hard-checks before execution:
-- account trade mode is DEMO;
-- `_Symbol == XAUUSDm`;
-- `_Period == PERIOD_M15`;
-- terminal/MQL trading permission is ON;
-- DLL permission is OFF;
-- no ambiguous foreign XAUUSDm position exists at startup;
-- no duplicate owned V49 position exists.
+The V49 MQL build independently checks the account/symbol/timeframe/permission contract before execution and owns only positions carrying its dedicated magic `490049`.
 
-Dedicated magic: `490049`.
-
-V49 manages only positions carrying its own magic. It never closes or modifies manual/foreign positions.
+These account-mode checks describe V49 v1 only. ADR-049 explicitly allows follow-on research and engineering for the production/live real-capital deployment milestone after V49 final readiness evidence.
 
 ## Automatic entry / exit
 
@@ -79,7 +81,7 @@ Reconciliation loop:
 - virtual FLAT + owned broker OPEN -> close owned broker position;
 - duplicate owned positions or direction mismatch -> HALT new entries and notify.
 
-SL/TP from the frozen virtual intent is supplied on native DEMO entry when the broker/symbol accepts it.
+SL/TP from the frozen virtual intent is supplied on native entry when the broker/symbol accepts it.
 
 A `CTrade` method returning `true` is not accepted as proof of fill. V49 records server `ResultRetcode()` and uses `OnTradeTransaction` deal events for confirmation/reconciliation.
 
@@ -116,8 +118,18 @@ Supervisor:
 It waits for EA FINAL or timeout and produces one ZIP under:
 `runtime/v49_demo_rehearsal/OUTPUT_V49/`
 
-The ZIP includes the V49 status/final/event/transaction evidence, transitioned state/run outputs when available, and `bundle_manifest_sha256.txt`. ZIP CRC is checked before it is declared complete.
+The ZIP includes V49 status/final/event/transaction evidence, transitioned state/run outputs when available, and `bundle_manifest_sha256.txt`. ZIP CRC is checked before it is declared complete.
 
-## Important limitation
+## Production/live follow-on
 
-V49 v1 is designed as one continuous rehearsal. PC sleep/shutdown or Windows reboot stops MT5 and therefore stops native execution. Automatic reboot recovery is not part of this one-shot version; keep the machine awake for the campaign.
+If V49 final is `LIVE_CANDIDATE_READY`, proceed to production/live deployment engineering based on the final bundle. That milestone may cover:
+- live-account deployment architecture;
+- real-capital sizing and capital-at-risk policy;
+- production risk/kill-switch controls;
+- VPS/always-on operation;
+- monitoring/reconciliation/recovery;
+- staged rollout and operational checklist.
+
+## Runtime limitation
+
+V49 v1 is designed as one continuous rehearsal. PC sleep/shutdown or Windows reboot stops MT5 and therefore stops native execution. Automatic reboot recovery is not part of this V49 one-shot version; keep the machine awake for the campaign.
