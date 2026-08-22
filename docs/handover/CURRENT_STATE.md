@@ -29,52 +29,67 @@ Frozen primary: `v46_hl10_thr0p05_breadth4`.
 Formal V46 analyzer status remains `HOLD`; do not rewrite historical evidence as PASS.
 Do not reopen same-sample breadth/HL/threshold tuning. ADX/DI remain shadow diagnostics only.
 
-## V48 purpose
-
-V48 observes frozen breadth4 on the real-time Exness DEMO `XAUUSDm` M15 feed using the existing internal virtual-book engine.
-
-It does not submit broker demo orders. It does not submit real-money orders.
-
 Frozen V48 generated MQL SHA remains:
 `ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`.
 
-Current hardening changes deployment/recovery/observability only; strategy decisions and risk geometry are unchanged.
+## ACTIVE V48 SESSION — ACCEPTED STARTUP
 
-## 2026-08-22 decisive startup evidence
+The first accepted V48 DEMO-paper session was established on 2026-08-22.
 
-Pre-MT5 gates were verified on Windows:
-- original V48 static tests PASS 10/10;
-- hardened v1 static tests PASS 6/6;
-- secret scan PASS;
-- V34 causal tape PASS;
-- exact V46/V47/V48 provenance PASS;
-- MetaEditor `0 errors, 0 warnings`;
-- accepted V46 state seed was initially available.
+Runtime code identity used to start the session:
+- branch: `agent/v48-demo-paper-forward`;
+- Windows runtime HEAD: `3e5f126772c9c2d378f9b3e09720cc9789d76330`;
+- frozen candidate: `v46_hl10_thr0p05_breadth4`;
+- paper book: `usd40_r1p0_cent_continuous`.
 
-Later journal evidence superseded the earlier pre-OnInit hypothesis:
-- startup config was consumed;
+Accepted run id:
+`v48_demo_paper_forward_v2__XAUUSDm__PERIOD_M15__2026-08-22_10-52-37__471937`
+
+MT5 session start:
+`2026.08.22 10:52:37`
+
+Observed READY/status evidence:
+- account mode `DEMO`;
+- `TERMINAL_TRADE_ALLOWED=0`;
+- `MQL_TRADE_ALLOWED=0`;
+- `TERMINAL_DLLS_ALLOWED=0`;
+- `MQL_DLLS_ALLOWED=0`;
+- balance `$40.000000`;
+- equity `$40.000000`;
+- healthy HL10 count `3/5`;
+- position `FLAT`;
+- paper closed trades `0`;
+- `STATUS_TIMER_REFRESH_PASS=1`;
+- `CHART_DASHBOARD=ENABLED`;
+- `BROKER_ORDERS=0`;
+- `REAL_MONEY_AUTHORIZED=0`.
+
+The user-supplied screenshot showed the dashboard on XAUUSDm M15 with `State: RUNNING`, `Breadth: 3/5`, balance/equity $40, FLAT position, heartbeat, `REAL MONEY AUTHORIZED: NO`, and terminal Algo Trading OFF.
+
+This startup occurred while XAU was closed, which is useful operational evidence: `OnInit`, dashboard and the 30-second timer/status loop are functioning without new market ticks.
+
+Do not restart this session merely because the market is closed. Do not start a second V48 session while this run id is active.
+
+See `docs/research/v48_startup_acceptance_2026-08-22.md`.
+
+## Previous startup incident and V2 recovery
+
+Earlier 2026-08-22 journal evidence showed:
+- startup config consumed;
 - `V48DemoPaperObserver (XAUUSDm,M15)` loaded successfully;
 - `OnInit` executed;
-- account mode was DEMO and server was `Exness-MT5Trial6`;
-- `TERMINAL_TRADE_ALLOWED=1` and `MQL_TRADE_ALLOWED=1` were observed;
-- V48 correctly refused initialization because terminal AutoTrading was ON;
-- MT5 reported initialization failure and called deinitialization with reason 8 (`REASON_INITFAILED`).
+- `TERMINAL_TRADE_ALLOWED=1` caused the V48 safety refusal;
+- MT5 deinitialized with reason 8 (`REASON_INITFAILED`).
 
-Therefore the current root cause is terminal trading permission, not Expert path resolution, market closure, compile failure, or alpha logic.
-
-## Failed-init state contamination
-
-The inherited V48 `OnDeinit` executes `SaveAdaptiveState()`, `WritePaperStatus()`, `WriteManifest()` and `WriteLatest()` even after `OnInit` returns `INIT_FAILED`.
-
-That failed-init deinit path rewrote the V48 paper state to:
+The inherited `OnDeinit` then rewrote state/status/latest despite failed initialization, producing paper-state SHA:
 `f415050bac4095021a7e1bed579cfffee034bfb288348b30cf3a8beca3524e30`
-while leaving `run_id` blank.
+with blank run id.
 
-No accepted V48 forward session was created. The `f415...` state is failed-init debris, not forward evidence.
+Hardened V2 correctly classified that exact reason-8 pattern, quarantined the failed-init debris, re-seeded the exact accepted V46 state, requested terminal AutoTrading OFF, and then established the accepted session above.
 
-ADR-046 defines the recovery contract.
+ADR-046 defines the failed-init recovery contract.
 
-## Hardened V2 launcher — authoritative workflow
+## Hardened V2 launcher — authoritative startup workflow
 
 Canonical Git Bash entrypoint:
 `runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`.
@@ -86,25 +101,20 @@ V2 behavior:
 - reuses existing static/secret/provenance/build/compile gates;
 - keeps root startup alias verification from hardened v1;
 - uses startup config with `AllowLiveTrading=0`, `AllowDllImport=0`, `Enabled=0`, `Expert=V48DemoPaperObserver`, `Symbol=XAUUSDm`, `Period=M15`;
-- MQL `OnInit` still independently requires `TERMINAL_TRADE_ALLOWED=0`, `TERMINAL_DLLS_ALLOWED=0`, and DEMO account;
+- MQL `OnInit` independently requires `TERMINAL_TRADE_ALLOWED=0`, `TERMINAL_DLLS_ALLOWED=0`, and DEMO account;
 - recognizes non-seed state as auto-recoverable only for exact `STOPPED / reason=8 / broker_orders=0 / live_authorized=0 / XAUUSDm M15 / blank run_id` evidence;
 - archives failed-init metadata/state before recovery;
 - re-seeds exact accepted V46 state SHA before a fresh session;
 - any other non-seed orphan state remains fail-closed;
 - if a new startup fails before a valid run id exists, archives the failed attempt and restores the accepted V46 seed automatically;
 - preserves launch-scoped diagnostics and suppresses unrelated historical MQL5.community/VPS noise;
-- requires READY status plus a subsequent timer-driven status mtime refresh within 50 seconds, so market-closed startup is still testable.
+- requires READY status plus a subsequent timer-driven status mtime refresh within 50 seconds.
 
-Expected success markers:
-- `V48_FRESH_SESSION_SEED_PASS=1`;
-- `V48_STARTUP_ALIAS_PASS=1`;
-- `V48_V2_CONFIG_SELF_CHECK_PASS=1`;
-- `V48_V2_TERMINAL_AUTOTRADING_REQUESTED_OFF=1`;
-- `V48_DEMO_PAPER_RUNNING=1`;
-- `STATUS_TIMER_REFRESH_PASS=1`;
-- `CHART_DASHBOARD=ENABLED`;
-- `BROKER_ORDERS=0`;
-- `REAL_MONEY_AUTHORIZED=0`.
+## Current observability notes
+
+`CURRENT_PRICE=0.000` while the primary virtual position is FLAT is not currently treated as a connection failure. In the frozen V48 source, `V48PaperEquity()` only populates the `px` field when the virtual position is open. Do not restart or change MQL during the active session only to make this cosmetic field nonzero.
+
+`STATUS_V48_DEMO_PAPER.py` currently computes `ELAPSED_WEEKDAYS_APPROX` and uses that approximation for `FINITE_GATE_READY`. That is NOT equivalent to the preregistered requirement of >=10 actual XAUUSD trading days. Therefore `FINITE_GATE_READY` is not authoritative for the trading-day criterion until this observability-only issue is corrected or actual trading days are counted from run evidence.
 
 ## Finite V48 stop rule
 
@@ -122,18 +132,27 @@ Operational HOLD if:
 
 A clean run may receive `PAPER_OPERATIONAL_PASS`. That still does not authorize real-money broker orders.
 
+## ACTIVE-SESSION OPERATING RULE
+
+While the accepted run id above is active:
+- keep MT5 open on the DEMO account;
+- keep Algo Trading OFF;
+- do not run the START script again;
+- do not fetch/reset/reseed solely for documentation changes;
+- do not manually edit/delete V48 paper state or metadata;
+- use `STATUS_V48_DEMO_PAPER_GIT_BASH.sh` for read-only monitoring;
+- package/analyze evidence at appropriate checkpoints or at finite-gate review;
+- LIVE remains forbidden.
+
 ## Runtime
 
 Workspace: `D:\v31_mt5_40usd`.
 MetaTester physical storage: `D:\MT5TesterCache\D0E8209F77C8CF37AD8BF550E51FF075`.
 
-Start:
-`runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`
-
-Status:
+Status only while active:
 `runtime/v48_demo_paper/STATUS_V48_DEMO_PAPER_GIT_BASH.sh`
 
-Failure evidence:
+Failure evidence for future startup incidents:
 `runtime/v48_demo_paper/OUTPUT_V48/v48_mt5_attach_diagnostics.txt`
 
 Common Files paper paths:
