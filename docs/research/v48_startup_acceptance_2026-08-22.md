@@ -1,10 +1,16 @@
 # V48 startup acceptance — 2026-08-22
 
+## Policy note
+
+This note records historical V48 startup evidence. Project-wide live policy is now governed by ADR-049:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`.
+
+V48 itself was DEMO/paper-only. That fact does not prohibit research or preparation for later production/live trading with real capital.
+
 ## Scope
 
-This note records the first verified successful startup of the frozen V48 DEMO-paper observer. It is startup/operational evidence only, not profitability evidence and not real-money authorization.
-
-REAL-MONEY LIVE TRADING remains forbidden.
+This note records the first verified successful startup of the frozen V48 DEMO-paper observer. It is startup/operational evidence only, not profitability evidence and not authorization for V48 to place real-money orders.
 
 ## Runtime code identity
 
@@ -54,36 +60,29 @@ READY evidence:
 - healthy HL10 count `3/5`;
 - position `FLAT`;
 - broker orders `0`;
-- real money authorized `0`.
+- V48 real-money authorization marker `0`.
 
 The hardened launcher also observed `STATUS_TIMER_REFRESH_PASS=1` and `CHART_DASHBOARD=ENABLED`, proving OnTimer/status/dashboard operation while XAU was closed.
 
-The user-provided screenshot visibly showed the V48 chart dashboard, `State: RUNNING`, `Breadth: 3/5`, `$40.00` balance/equity, `Position: FLAT`, a live heartbeat, and `REAL MONEY AUTHORIZED: NO`. The terminal Algo Trading button was OFF.
-
 ## Interpretation
 
-This is the first accepted V48 operational session. Do not restart it merely because the market is closed. Market closure means no new XAU tick/trade opportunity; it does not invalidate the observer, timer or dashboard.
+This was the first accepted V48 operational session. Market closure did not invalidate the observer, timer or dashboard.
 
-`HEALTHY_HL10_COUNT=3` is below the frozen breadth4 entry gate, so `Waiting for breadth4 opportunity` is expected and no new paper risk should be opened.
+`HEALTHY_HL10_COUNT=3` was below the frozen breadth4 entry gate, so `Waiting for breadth4 opportunity` was expected.
 
-`CURRENT_PRICE=0.000` while flat is an observability semantic of the current V48 source: `V48PaperEquity()` only populates `px` when the virtual position is open. It is not evidence of a broken market connection. Do not change MQL during the active session merely to make this cosmetic field nonzero.
+`CURRENT_PRICE=0.000` while flat was an observability semantic of the V48 source and not evidence of a broken market connection.
 
 ## Known finite-gate issue
 
-`STATUS_V48_DEMO_PAPER.py` currently reports `ELAPSED_WEEKDAYS_APPROX` and uses that weekday count in `FINITE_GATE_READY`. This is not the preregistered requirement of >=10 actual XAUUSD trading days.
+`STATUS_V48_DEMO_PAPER.py` reported `ELAPSED_WEEKDAYS_APPROX` rather than actual XAUUSD trading days. This was an observability limitation of V48 and is historical context only now that V49 has superseded V48 as the active execution rehearsal.
 
-Therefore during this session:
-- `FINITE_GATE_READY` must not be treated as authoritative for the 10-day criterion;
-- the final review must count actual observed XAUUSD trading days from run evidence;
-- a future observability-only milestone should replace the weekday approximation without restarting or changing the active strategy.
+## Historical V48 operating rule
 
-## Active-session operating rule
+While V48 was active:
+- MT5 stayed on DEMO;
+- Algo Trading stayed OFF;
+- a second V48 session was not started;
+- active paper state was not reset/reseeded;
+- status checks were read-only.
 
-While this run is active:
-- keep MT5 open on the DEMO account;
-- keep Algo Trading OFF;
-- do not start V48 a second time;
-- do not reset/reseed the active paper state;
-- use `STATUS_V48_DEMO_PAPER_GIT_BASH.sh` for read-only checks;
-- package/analyze the run at an appropriate evidence checkpoint or final finite-gate review;
-- LIVE remains forbidden.
+Those restrictions were specific to V48. They are not the project-wide live policy. Current project direction is defined by ADR-049 and the active V49/production-readiness workflow.
