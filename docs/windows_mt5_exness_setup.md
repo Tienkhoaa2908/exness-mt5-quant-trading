@@ -2,9 +2,9 @@
 
 Updated: 2026-08-22
 
-Broker environment: Exness Technologies Ltd.; DEMO account only; server observed `Exness-MT5Trial6`; symbol `XAUUSDm`; timeframe M15.
+Broker environment: Exness Technologies Ltd.; V48 uses DEMO account only; server observed `Exness-MT5Trial6`; symbol `XAUUSDm`; timeframe M15.
 
-REAL-MONEY LIVE TRADING is forbidden. V48 does not submit broker demo orders either; it uses a real-time DEMO feed plus an internal virtual USD40 paper book.
+Long-term project objective: hướng tới production/live trading bằng vốn thật sau khi vượt đủ promotion gates. **Current V48 session is not that phase**: V48 does not submit broker demo orders or real-money orders; it uses a real-time DEMO feed plus an internal virtual USD40 paper book.
 
 Canonical branch:
 `agent/v48-demo-paper-forward`
@@ -40,7 +40,9 @@ V48 READY requires all of the following:
 - `broker_orders=0`;
 - `live_authorized=0`.
 
-Never enable Algo Trading for V48. Never enable DLL imports.
+Never enable Algo Trading for V48. Never enable DLL imports for V48.
+
+These are V48 phase-specific guards. They do not define the permanent end-state of the project.
 
 ## 2026-08-22 root cause
 
@@ -131,4 +133,6 @@ Review only when both are true:
 
 Hard stop: 30 calendar days. Do not auto-extend.
 
-A clean result may be labeled `PAPER_OPERATIONAL_PASS`; this never authorizes real-money trading.
+A clean result may be labeled `PAPER_OPERATIONAL_PASS`. That is a promotion gate toward native Exness DEMO-order parity and later production-readiness assessment; it is not an automatic live switch.
+
+See ADR-047 for the long-term production/live target and promotion sequence.
