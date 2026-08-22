@@ -1,103 +1,126 @@
 # Windows / MT5 Runtime Failure Playbook
 
-Date: 2026-08-21
+Date: 2026-08-22
 
-This file is mandatory recovery context for future coordinators. Read it before changing any Windows runner.
+Mandatory recovery context. Read before changing any Windows runner.
 
 ## Core recovery ladder
 
-Always identify the last completed stage:
-
 `provenance -> source -> compile -> MT5 -> collection -> analysis -> packaging`
 
-Resume only the failed stage. **Do not rerun MT5** when Strategy Tester already completed and the remaining problem is collection, analysis or packaging.
+Resume only the failed stage. Do not rerun MT5 when Strategy Tester already completed and only collection, analysis or packaging failed.
 
 ## Incident 1 — historical source-builder drift
 
-V42 initially rebuilt V34 and obtained SHA `228b3ec7...` while an older accepted constant expected `8bae2c56...`. Do not bless a newly rebuilt historical hash just to pass a runner.
-
-Rule: use immutable accepted V38 ZIP SHA
-`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
-and accepted V38 source SHA
-`4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
+V42 rebuilt V34 to a different SHA than the historical accepted contract. Rule: never bless a newly rebuilt historical hash merely to pass a runner. Use immutable accepted V38 ZIP SHA `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b` and accepted V38 source SHA `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
 
 ## Incident 2 — Windows CP1252 vs UTF-8
 
-A static test used bare `Path.read_text()` and Windows default CP1252 failed on UTF-8 punctuation.
-
-Rules:
-
-- repository text reads/writes use explicit UTF-8;
-- runners export `PYTHONUTF8=1`;
-- runners export `PYTHONIOENCODING=utf-8`.
+Bare `Path.read_text()` used the Windows default codec and failed on UTF-8 punctuation. Repository text I/O must be explicit UTF-8. Runners export `PYTHONUTF8=1` and `PYTHONIOENCODING=utf-8`.
 
 ## Incident 3 — global ERR trap with `set +e`
 
-`set +e` does not disable a global Bash `ERR` trap. A Windows process returning non-zero killed a runner before `$?` could be captured.
-
-Rule: never use `set +e` around MetaEditor/MT5. Use:
-
-`if command; then rc=0; else rc=$?; fi`
+`set +e` does not disable a global Bash `ERR` trap. Never use that pattern around MetaEditor/MT5. Prefer tracked Python orchestration for long campaigns.
 
 ## Incident 4 — runtime shell patcher complexity
 
-V42 temporarily used a Python script to patch/generate the actual shell runner at runtime. This multiplied encoding/control-flow failure surfaces.
-
-Rule: no generated/self-modifying shell runner. Use tracked direct runners.
+Runtime-generated/self-modifying shell runners created avoidable failure surfaces. Prohibited. Use tracked direct runners/orchestrators.
 
 ## Incident 5 — MetaEditor artifact race / rc semantics
 
-MetaEditor returned rc=1 while `.mq5`, `.log` and `.ex5` appeared successfully. A fixed wait incorrectly declared failure.
-
-Compile success is not launcher rc. Accept only when all are true:
-
-1. installed source SHA is the intended frozen SHA;
-2. final compiler summary is `Result: 0 errors, 0 warnings`;
-3. non-empty EX5 exists;
-4. compile artifacts are current for that source.
-
-Check valid compile artifacts before deleting or recompiling.
+MetaEditor can return rc=1 while valid `.log` and `.ex5` appear. Compile success is: exact source SHA + final `Result: 0 errors, 0 warnings` + non-empty current EX5. Launcher rc alone is not acceptance evidence.
 
 ## Incident 6 — MT5 completion semantics
 
-Terminal process rc alone is not completion evidence.
-
-Require:
-
-- a new `LATEST` run id;
-- a new run folder;
-- non-empty `monthly_summary.csv`, `trades.csv`, `manifest.txt`;
-- `tester_only=1`;
-- `native_broker_orders=0`;
-- `external_broker_orders=0`;
-- experiment-specific manifest markers.
-
-Checkpoint the run folder immediately. If MT5 finished but copy/collection failed, use collection-only recovery.
+Terminal rc alone is not completion evidence. Require a new `LATEST`, a new run folder, non-empty `monthly_summary.csv`, `trades.csv`, `manifest.txt`, and tester/no-order experiment markers. Checkpoint the run folder immediately.
 
 ## Incident 7 — MSYS sha256sum manifest format
 
-Git Bash/MSYS emitted `<hash> *filename`, while an inline Python parser assumed `<hash><two spaces>filename` and crashed after a successful MT5 run.
-
-Rule: never parse platform-specific `sha256sum` rendering for internal bundle manifests. Use `scripts/package_research_bundle_portable.py`, which computes hashes in Python and writes canonical `<hash><two spaces>filename`.
+Git Bash/MSYS can emit `<hash> *filename`. Never parse platform-specific `sha256sum` rendering for internal bundle manifests. Use `scripts/package_research_bundle_portable.py`.
 
 ## Incident 8 — packaging-only failure
 
-The V42 exact run completed and analysis completed, but ZIP creation failed. The correct response was package-only recovery from completed evidence, not another backtest.
+V42 completed MT5 and analysis but failed ZIP creation. Correct response: package completed evidence only. Every expensive campaign must provide package-only recovery.
 
-Every expensive exact campaign must provide a package-only entrypoint.
+## Incident 9 — historical state look-ahead
+
+The accepted restart state is from 2025-08. Injecting it into a 2022 test leaks future realized-R router information. V45 must back up Common Files state, delete it before tester launch, cold-start from reset adaptive scores, use six warm-up months, save post-run state only as evidence, and restore the pre-V45 state afterward. Accepted V38 `LoadAdaptiveState()` resets scores before attempting file load and permits missing-state initialization.
+
+## Incident 10 — V45 rc=100018 confirmed disk exhaustion
+
+First V45 attempt on 2026-08-22 compiled cleanly and initialized the EA successfully but produced no accepted tester evidence. Diagnostic ZIP SHA256:
+
+`3af2ab70f02920ad6fbd0eb5b3fd67ef66a550bf2db08bd523ee4b63372e8b1f`
+
+Confirmed terminal/tester sequence:
+
+- MT5 startup reported only `3 / 136 Gb disk` free;
+- XAUUSDm synchronized through the requested historical range; M15/H1 history began in 2021;
+- `V45_MULTIYEAR_VALIDATION START` printed at 2022-01-01;
+- tester then logged `XAUUSDm: cannot generate history data, check disk space`;
+- `0 ticks, 0 bars generated`;
+- last test result `no disk space in ticks generating function`;
+- terminal exited with process rc `100018`.
+
+Therefore this incident is not a strategy/config/state/history-start failure. The 2022 range was available and EA initialization succeeded. Do not shorten the range because of this failure.
+
+Detailed incident record: `docs/research/v45_mt5_disk_failure_diagnosis.md`.
+
+## Incident 11 — move MetaTester storage to D via junction
+
+The heavy per-agent tick/history copies live under:
+
+`%APPDATA%\MetaQuotes\Tester\<terminal-id>\Agent-127.0.0.1-<port>\bases`
+
+For the current terminal id:
+
+`D0E8209F77C8CF37AD8BF550E51FF075`
+
+V45 now runs `runtime/v45_multiyear_validation/MOVE_V45_TESTER_STORAGE_TO_D.py` before disk preflight.
+
+Default physical target:
+
+`D:\MT5TesterCache\<terminal-id>`
+
+The original C path remains visible to MetaTrader as an NTFS directory junction. Migration contract:
+
+1. MT5, MetaEditor and MetaTester must all be closed;
+2. Robocopy current MetaTester storage from C to the dedicated D target;
+3. verify source/target file count and total bytes;
+4. rename the original C directory to a temporary same-volume backup;
+5. create `mklink /J` from the original C path to the D target;
+6. verify the junction resolves to the exact target;
+7. only after verification delete the C backup;
+8. if junction creation or verification fails, remove the partial junction and restore the original C directory.
+
+The migration must not move/delete terminal broker history under `%APPDATA%\MetaQuotes\Terminal\<terminal-id>\bases`, Common Files state/tapes, project evidence, repo files, or compiled EAs.
+
+Migration is idempotent. If the exact junction already exists, it reports `V45_TESTER_STORAGE_ON_D=1 already_migrated=1` and changes nothing.
+
+After migration the disk gate is volume-aware:
+
+- terminal volume (normally C:) needs >=2 GiB for terminal config/log/temp activity;
+- physical MetaTester storage volume (normally D:) needs >=12 GiB for the 2022-2026 tick run.
+
+Do not reintroduce a blanket 12-GiB requirement on C after the heavy tester storage is redirected to D.
 
 ## V44 checkpoint policy
 
-V44 has 19 exact windows.
+V44 has 19 exact windows. Valid compile checkpoint means MetaEditor must not rerun. `checkpoint/<tag>/MT5_DONE.txt` permits collection-only. `checkpoint/<tag>/DONE.txt` means that window must not rerun MT5. Annual control reproduction precedes the other 18 windows. Packaging failure after completed evidence is package-only.
 
-- compile checkpoint valid -> MetaEditor must not rerun;
-- `checkpoint/<tag>/MT5_DONE.txt` + source run folder -> collect only;
-- `checkpoint/<tag>/DONE.txt` -> that window must not rerun MT5;
-- annual control reproduction happens before the remaining 18 windows;
-- when all 19 `DONE.txt` files and aggregate analysis exist, a bootstrap failure may only invoke package-only recovery.
+## V45 checkpoint policy
 
-Never use `git clean` in Windows recovery because accepted evidence, `.venv`, compiled EA files, state and checkpoints may be untracked.
+V45 has exactly one expensive 2022-01-01 -> 2026-08-01 tester invocation.
+
+- D-drive MetaTester migration/junction must verify first;
+- junction-aware disk preflight PASS is required before tester launch;
+- valid compile checkpoint -> MetaEditor must not rerun;
+- `OUTPUT_V45/checkpoint/MT5_DONE.json` -> collection-only, MT5 MUST NOT RERUN;
+- `OUTPUT_V45/checkpoint/DONE.txt` -> analysis/package only, MT5 MUST NOT RERUN;
+- completed bundle + packaging failure -> `PACKAGE_V45_EXISTING_OUTPUT_GIT_BASH.sh` only.
+
+Never use `git clean`; accepted ZIPs, `.venv`, state backups, compiled artifacts and checkpoints may be untracked recovery assets.
 
 ## Safety
 
-REAL-MONEY LIVE TRADING is forbidden in this research repository workflow. Risk ceiling remains <=1.00%/trade. No Martingale, uncontrolled grid or doubling. A V44 readiness PASS means paper/demo only.
+REAL-MONEY LIVE TRADING is forbidden in this research workflow. Risk ceiling remains <=1.00%/trade. No Martingale, uncontrolled grid or doubling. V44/V45 readiness PASS means paper/demo deployment validation only; `LIVE_AUTHORIZED=0`.

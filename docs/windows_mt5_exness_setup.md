@@ -1,74 +1,102 @@
-# Windows MT5 / Exness — V44 baseline robustness workflow
+# Windows MT5 / Exness — V45 multi-year single-run workflow
 
-Broker research environment: Exness Technologies Ltd.; symbol `XAUUSDm`; timeframe M15. REAL-MONEY LIVE TRADING is forbidden.
+Broker research environment: Exness Technologies Ltd.; symbol `XAUUSDm`; timeframe M15. REAL-MONEY LIVE TRADING is forbidden and `LIVE_AUTHORIZED=0`.
 
-Canonical branch: `agent/v44-baseline-robustness-validation`.
-One-shot bootstrap: `runtime/v44_baseline_validation/BOOTSTRAP_V44_BASELINE_VALIDATION_ONE_SHOT_GIT_BASH.sh`.
-Package-only recovery: `runtime/v44_baseline_validation/PACKAGE_V44_EXISTING_OUTPUT_GIT_BASH.sh`.
+Canonical branch: `agent/v45-multiyear-single-run-validation`.
+One-shot Git Bash bootstrap: `runtime/v45_multiyear_validation/BOOTSTRAP_V45_MULTIYEAR_ONE_SHOT_GIT_BASH.sh`.
+Tracked Windows orchestrator: `runtime/v45_multiyear_validation/RUN_V45_MULTIYEAR_ONE_SHOT.py`.
+Package-only recovery: `runtime/v45_multiyear_validation/PACKAGE_V45_EXISTING_OUTPUT_GIT_BASH.sh`.
 
-## V44 purpose
+## Purpose
 
-V44 does not add a new alpha layer and does not retune parameters. It broadly validates the frozen baseline family before deployment escalation:
+V44 passed broad 2025-08 -> 2026-08 restart validation. V45 does not add alpha or retune parameters. It tests older regimes in one continuous exact Strategy Tester run while retaining monthly output for later analysis.
 
-- `adaptive_ewma_hl8_thr0`;
-- `adaptive_ewma_hl8_thr0p05`;
-- `adaptive_ewma_hl10_thr0p05`.
+Frozen candidates:
 
-The campaign runs 19 exact Strategy Tester windows: 12 independent months, 4 quarter blocks, 2 half-years and 1 annual window. Each window restarts from the accepted 2025-08 state. The annual window runs first and must exactly reproduce the accepted control before the other 18 windows are allowed to execute.
+- primary `adaptive_ewma_hl10_thr0p05`;
+- return shadow `adaptive_ewma_hl8_thr0p05`;
+- control `adaptive_ewma_hl8_thr0`.
 
-## Exact annual reproduction gate
+## Tester protocol
 
-The annual 2025-08-01 -> 2026-08-01 run must reproduce:
+One Strategy Tester invocation only:
 
-- end `$107.432645`;
-- 563 control trades;
-- the accepted 12-month trade-count vector;
-- the accepted 12-month final-balance vector.
+- XAUUSDm;
+- M15;
+- Model=0;
+- FromDate=2022.01.01;
+- ToDate=2026.08.01;
+- Deposit=40 USD;
+- leverage 1:200;
+- non-visual;
+- `AllowLiveTrading=0`;
+- `AllowDllImport=0`;
+- terminal shutdown after completion.
 
-V44 uses XAUUSDm / M15 / Model=0 / Deposit=$40 / leverage 1:200 / non-visual Strategy Tester.
+The EA writes one continuous `monthly_summary.csv`, `trades.csv`, and `manifest.txt`. The analyzer later produces monthly, calendar-year, rolling 3/6/12-month, drawdown, PF and execution-friction reports. First six observed months are warm-up.
 
-## Source and compile rules
+## Historical state / anti-look-ahead
 
-V44 is built only from accepted V38 exact bundle SHA256 `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b` and accepted V38 parent source SHA256 `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
+Do not copy the accepted 2025-08 adaptive state into this 2022 run.
 
-Frozen generated V44 source SHA256:
+The tracked V45 orchestrator:
 
-`cfde6716916cd6adcf89cec2c7c2795ff762ea845795a9108e0247ee84e311d3`
+1. backs up the existing Common Files `v30_ml_dl_feature_lake_state.csv` if present;
+2. deletes that state before tester launch;
+3. starts from reset/cold adaptive scores;
+4. preserves the post-run state as evidence;
+5. restores the original pre-V45 state in a `finally` path.
 
-V44 changes output/release markers and disables expensive telemetry only. Strategy catalog, entry/exit logic, sizing and risk are unchanged.
+Accepted V38 source was inspected: `LoadAdaptiveState()` calls `ResetAdaptiveScores()` before opening the state file; missing state returns false and initialization continues. Thus state-file absence is valid cold-start behavior.
 
-Compile success is determined by exact source SHA + final `Result: 0 errors, 0 warnings` + non-empty EX5. MetaEditor process return code alone is not acceptance evidence.
+## Source provenance
 
-## Windows recovery rules
+Accepted V38 ZIP SHA256:
+`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
 
-Before a new clean execution, close manually opened MT5 and MetaEditor.
+Accepted V38 source SHA256:
+`4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`
 
-Do not use `git clean`.
+Frozen generated V45 source SHA256:
+`36335a92bfb2b9f6448a177cf80481c357f1cf13b8793d7302e153d13901c2b2`
 
-Use the recovery ladder in `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`:
+V45 changes validation/output markers and expensive telemetry defaults only. Candidate catalog, entry/exit geometry, sizing and risk remain unchanged.
 
+## Compile contract
+
+MetaEditor return code is diagnostic only. Compile acceptance requires:
+
+- installed source SHA = frozen V45 source SHA;
+- final compiler summary `Result: 0 errors, 0 warnings`;
+- non-empty EX5;
+- compile-source hash marker or compile artifacts no older than installed source.
+
+Valid compile artifacts are reused before any recompile.
+
+## Recovery contract
+
+Before a fresh run, close manually opened MetaTrader 5 and MetaEditor. Never use `git clean`.
+
+Recovery ladder:
 `provenance -> source -> compile -> MT5 -> collection -> analysis -> packaging`
 
-Important invariants:
+V45 has one expensive tester invocation:
 
-- explicit UTF-8 (`PYTHONUTF8=1`, `PYTHONIOENCODING=utf-8`);
-- no runtime-generated/self-modifying shell runner;
-- no `set +e` under the global `ERR` trap;
-- Windows process rc is captured with `if command; then rc=0; else rc=$?; fi`;
-- MT5 completion requires a new `LATEST` run plus complete manifested outputs;
-- `MT5_DONE.txt` permits collection-only recovery;
-- `DONE.txt` means that window must not rerun MT5;
-- packaging uses `scripts/package_research_bundle_portable.py`, not platform-specific `sha256sum` manifest parsing;
-- if all exact evidence already exists and packaging alone fails, use package-only recovery. MT5 must not rerun.
+- `OUTPUT_V45/checkpoint/MT5_DONE.json` => tester already finished; collection-only, MT5 must not rerun;
+- `OUTPUT_V45/checkpoint/DONE.txt` => tester outputs already collected; analysis/package only, MT5 must not rerun;
+- completed bundle + ZIP failure => run package-only recovery.
 
-## Readiness interpretation
+MT5 completion requires a new `LATEST` run id plus complete `monthly_summary.csv`, `trades.csv`, `manifest.txt` and V45/tester/no-order safety markers. Terminal process return code alone is not completion evidence.
 
-V44 analyzer can return `PAPER_DEMO_READY` or `HOLD`.
+Packaging uses `scripts/package_research_bundle_portable.py`; never parse Git Bash/MSYS `sha256sum` manifest rendering.
 
-A `PAPER_DEMO_READY` result permits the next paper/demo deployment-validation stage only. It does not authorize live capital. `LIVE_AUTHORIZED=0` remains mandatory and research risk remains <=1.00%/trade.
+## Interpretation
 
-Expected output:
+V45 analyzer can return `MULTIYEAR_ROBUSTNESS_PASS` or `HOLD` for the primary HL10 threshold0.05 candidate.
 
-`runtime/v44_baseline_validation/OUTPUT_V44/v44_baseline_robustness_validation.zip`
+A V45 PASS advances paper/demo deployment validation and tester-vs-demo reconciliation. It does not authorize real-money live capital.
+
+Expected ZIP:
+`runtime/v45_multiyear_validation/OUTPUT_V45/v45_multiyear_single_run_validation.zip`
 
 Upload only that ZIP for acceptance analysis.

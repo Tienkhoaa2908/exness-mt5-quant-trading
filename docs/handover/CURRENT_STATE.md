@@ -1,184 +1,207 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-08-21
+Updated: 2026-08-22
 
 ## Safety invariants
 
 - REAL-MONEY LIVE TRADING = FORBIDDEN.
 - Research stop-risk ceiling <=1.00%/trade.
 - No Martingale, uncontrolled grid, or doubling after loss.
-- Do not remove tester/live guards or add native/external broker-order paths.
-- V44 PASS can authorize PAPER/DEMO research only.
+- Tester/live guards and no-order constraints must not be weakened.
+- V44/V45 may advance PAPER/DEMO deployment validation only.
+- `LIVE_AUTHORIZED=0` remains mandatory.
 
 ## Source of truth
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
-
-Current campaign branch:
-
-`agent/v44-baseline-robustness-validation`
-
-V43 confidence-aware router research remains on its separate branch and is
-paused while V44 validates the existing baseline family. V44 branches from
-accepted V42 HOLD/runtime-packaging fix commit
-`e96262f4600e57cd956a9a78f3e717dca8b24ccb`.
-
-Do not use `git clean`. Accepted ZIPs, `.venv`, state, compiled artifacts,
-checkpoints and completed MT5 outputs may be untracked recovery assets.
+Current campaign branch: `agent/v45-multiyear-single-run-validation`.
+Never use `git clean`; accepted ZIPs, `.venv`, state backups, compiled EAs, checkpoints and completed tester outputs can be untracked recovery assets.
 
 Read together:
 
 - `docs/handover/RECOVERY_PROMPT.md`
 - `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`
-- `docs/research/v44_baseline_robustness_validation_plan.md`
-- `docs/adr/ADR-044-baseline-robustness-before-deployment.md`
+- `docs/research/v44_baseline_robustness_validation_results.md`
+- `docs/research/v45_multiyear_single_run_validation_plan.md`
+- `docs/research/v45_mt5_disk_failure_diagnosis.md`
+- `docs/adr/ADR-045-multiyear-single-run-before-live-escalation.md`
 
-## Accepted exact baseline
+## Accepted baseline economics
 
-Return control:
+Accepted control `adaptive_ewma_hl8_thr0`, exact 2025-08-01 -> 2026-08-01:
 
-`adaptive_ewma_hl8_thr0` / `usd40_r1p0_cent_continuous`
-
-Accepted exact 2025-08-01 -> 2026-08-01:
-
-- start $40.00;
-- end $107.432645;
-- total return +168.5816%;
-- geometric/month 8.58163%;
-- max DD 9.9038%;
+- $40 -> $107.432645;
+- +168.5816% total;
+- 8.58163% geometric/month;
+- DD 9.9038%;
 - 563 trades;
 - AvgR 0.214608R;
-- PF 1.500756;
-- 11/12 positive months.
+- PF 1.500756.
 
-This is strong research evidence but not proof of future return or live
-readiness.
+Threshold comparators:
 
-Historical exact threshold comparators:
+- `adaptive_ewma_hl8_thr0p05`: $111.285257 / 8.900900% month / DD 10.4368% / PF 1.521009.
+- `adaptive_ewma_hl10_thr0p05`: $110.025682 / 8.797648% month / DD 9.8587% / PF 1.530107.
 
-- `adaptive_ewma_hl8_thr0p05`: $111.285257, 8.900900%/month, DD 10.4368%,
-  531 trades, PF 1.521009.
-- `adaptive_ewma_hl10_thr0p05`: $110.025682, 8.797648%/month, DD 9.8587%,
-  537 trades, PF 1.530107.
+## V44 accepted result — PAPER_DEMO_READY
 
-These are hypotheses, not promoted policies.
+Canonical V44 commit: `7da3735e899d0aea13aa2ff513b77fd1feb1fef4`.
+Accepted V44 ZIP SHA256: `550396cc2806538ae1f38ba596e3af705a08bcb2305335a14d0cfa39aabc8fa4`.
+Integrity PASS: CRC, internal manifest 130/130, all 19 exact windows, exact annual control reproduction.
 
-## Recent research decisions
+V44 restart robustness:
 
-- V39 = HOLD.
-- V40 = HOLD.
-- V41 = HOLD.
-- V42 exact = HOLD. Best V42 challenger ended $106.387574 / 8.493214% month,
-  below the control. Global direction-switch hysteresis improved quality/DD
-  but cut participation/right-tail compounding.
-- V43 confidence-aware routing is paused, not rejected. V44 takes priority
-  because broad baseline validation is now more valuable than another
-  development-window optimization cycle.
+- control: monthly +9/12, quarter +3/4, half-year +2/2, sign agreement 10/12;
+- HL8p05: monthly +8/12, quarter +3/4, half-year +2/2, sign agreement 10/12;
+- HL10p05: monthly +9/12, quarter +3/4, half-year +2/2, sign agreement 11/12.
 
-Accepted V42 completed-output RAR SHA:
-`3cd562b7b3f636b8ba88ce42765f1d38574f9d680c50b272e87d9e05f0697910`.
+V45 freezes:
 
-Recovered canonical V42 ZIP SHA:
-`3176850e89e1c36ac87be7ff827d34209646da10aaeacfe0d0a013ebeeaa6066`.
+1. primary `adaptive_ewma_hl10_thr0p05`;
+2. return shadow `adaptive_ewma_hl8_thr0p05`;
+3. control `adaptive_ewma_hl8_thr0`.
 
-## V44 campaign
+## V45 protocol
 
-Goal: validate the frozen baseline family broadly and harden the deployment
-pipeline before any escalation.
+One exact Strategy Tester invocation only:
 
-Frozen candidates:
+- XAUUSDm / M15 / Model=0;
+- Deposit=$40 USD / leverage 1:200;
+- 2022-01-01 -> 2026-08-01;
+- monthly summary and full trade ledger retained;
+- first six observed months are warm-up;
+- analyzer emits monthly, yearly, rolling 3/6/12m and friction-stress evidence.
 
-1. `adaptive_ewma_hl8_thr0`
-2. `adaptive_ewma_hl8_thr0p05`
-3. `adaptive_ewma_hl10_thr0p05`
+### Anti-look-ahead state rule
 
-No V44 window may be used to retune these parameters.
+The accepted restart state is from 2025-08 and must never be injected into the 2022 run. V45 backs up `v30_ml_dl_feature_lake_state.csv`, removes it before tester launch, cold-starts from reset adaptive scores, captures post-run state as evidence, then restores the pre-V45 state. Accepted V38 source semantics were inspected and support missing-state cold start.
 
-Exact protocol:
+## V45 first-run failure — root cause CONFIRMED
 
-- 12 monthly restart windows;
-- 4 sequential 3-month quarter blocks;
-- 2 half-year restart windows;
-- 1 annual window;
-- total 19 exact MT5 windows.
+First attempted V45 tester run used HEAD `86a384cb90f1823bd9ec0c26231c7c32033fb118`.
 
-All use XAUUSDm / M15 / Model=0 / Deposit=$40 / leverage 1:200 / Strategy
-Tester only.
+Before MT5:
 
-Every independent window starts from accepted state SHA
-`5110519f2fe9722b4c13eb1e5ceec42f00bd04dd3b4f071af28349068b6097b0`.
-This deliberately measures restart/deployment-date robustness. The annual run
-also provides the continuous monthly path for restart-vs-continuous comparison.
+- static gates PASS 15/15;
+- secret scan PASS;
+- V34 causal tape PASS;
+- accepted V38 parent PASS;
+- deterministic source SHA PASS `36335a92bfb2b9f6448a177cf80481c357f1cf13b8793d7302e153d13901c2b2`;
+- compiler `Result: 0 errors, 0 warnings` PASS.
 
-## V44 source/provenance
+Diagnostic ZIP SHA256:
+`3af2ab70f02920ad6fbd0eb5b3fd67ef66a550bf2db08bd523ee4b63372e8b1f`.
 
-Immutable V38 ZIP SHA:
-`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`.
+Confirmed log evidence:
 
-Immutable V38 parent source SHA:
-`4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
+- terminal started with only `3 / 136 Gb disk` free;
+- XAUUSDm synchronized from 2021-01-03 through 2026-08-14;
+- EA initialized successfully and printed `V45_MULTIYEAR_VALIDATION START` at 2022-01-01;
+- tester logged `XAUUSDm: cannot generate history data, check disk space`;
+- `0 ticks, 0 bars generated`;
+- final tester result `no disk space in ticks generating function`;
+- terminal exited with process rc `100018`.
 
-V44 changes release/output markers and disables expensive telemetry only.
-Candidate catalog/strategy logic/risk remain unchanged.
+Therefore there is still **no accepted V45 multi-year result**. The failure is disk exhaustion during tick generation, not compile, config, state, strategy, or missing 2022 history. Do not shorten the historical range because of this incident.
 
-Frozen generated V44 source SHA:
-`cfde6716916cd6adcf89cec2c7c2795ff762ea845795a9108e0247ee84e311d3`.
+## MetaTester storage moved to D
 
-The annual exact window runs first and must reproduce the accepted control:
-$107.432645, 563 trades, exact monthly trade-count vector and exact monthly
-final-balance vector. Only then may the remaining 18 windows run.
+The heavy tester-agent copies live under:
 
-## V44 readiness gate
+`%APPDATA%\MetaQuotes\Tester\D0E8209F77C8CF37AD8BF550E51FF075`
 
-`PAPER_DEMO_READY` requires all:
+V45 now migrates that directory to:
 
-- annual total return >=100%;
-- annual DD <=12.5%;
-- annual PF >=1.30;
-- positive monthly restart windows >=8/12;
-- positive quarter blocks >=3/4;
-- both half-year windows positive;
-- worst restart month >=-10%;
-- restart-vs-continuous monthly sign agreement >=9/12;
-- annual turnover <=110% control;
-- annual trade breadth >=85% control.
+`D:\MT5TesterCache\D0E8209F77C8CF37AD8BF550E51FF075`
 
-Additional friction diagnostics subtract 0.02R and 0.05R per annual trade.
+using:
 
-`LIVE_AUTHORIZED=0` regardless of V44 result.
+`runtime/v45_multiyear_validation/MOVE_V45_TESTER_STORAGE_TO_D.py`
 
-## Windows runtime recovery invariants
+The original C path becomes an NTFS directory junction to D, so MetaTrader continues using the same logical path while physical tick/history copies are stored on D.
 
-Mandatory details are in `WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`.
+Migration safety contract:
 
-Key rules:
+- MT5/MetaEditor/MetaTester closed;
+- Robocopy source to dedicated D target;
+- verify file count + byte count;
+- rename C source to a temporary backup;
+- create `mklink /J` from the original C path to D;
+- verify exact junction target;
+- only then delete the C backup;
+- rollback the backup if junction creation/verification fails;
+- idempotent if the exact junction already exists.
 
-- immutable V38 parent; never bless historical builder drift;
-- explicit UTF-8 / avoid CP1252;
-- no `set +e` under global ERR trap;
-- no runtime shell patcher/generated runner;
-- compile success = frozen source SHA + 0 errors/0 warnings + EX5;
-- MT5 completion = new LATEST + complete manifested artifacts;
-- portable Python bundle manifest; never parse MSYS `sha256sum` text markers;
-- package-only recovery after completed exact evidence;
-- **do not rerun MT5** when a later stage alone failed;
-- recovery ladder: provenance -> source -> compile -> MT5 -> collection ->
-  analysis -> packaging.
+Do not move/delete Terminal broker history under `%APPDATA%\MetaQuotes\Terminal\<id>\bases`, Common Files state/tapes, project evidence or compiled EAs.
 
-## V44 entrypoints
+## Disk-space recovery now mandatory
 
-One-shot:
+After D migration, `PREPARE_V45_DISK.py` is junction-aware:
 
-`runtime/v44_baseline_validation/BOOTSTRAP_V44_BASELINE_VALIDATION_ONE_SHOT_GIT_BASH.sh`
+- terminal volume (normally C:) requires >=2 GiB for config/log/temp activity;
+- physical MetaTester storage volume (normally D:) requires >=12 GiB for the 2022-2026 tick run;
+- only recomputable tester temp/cache may be removed automatically;
+- a blanket 12-GiB requirement on C is no longer valid after the junction exists.
 
-Direct runner:
+Detailed diagnosis: `docs/research/v45_mt5_disk_failure_diagnosis.md`.
 
-`runtime/v44_baseline_validation/RUN_V44_BASELINE_VALIDATION_EXACT_MT5_GIT_BASH.sh`
+## V45 readiness gate
 
-Package-only:
+Primary HL10p05 after warm-up must satisfy all:
 
-`runtime/v44_baseline_validation/PACKAGE_V44_EXISTING_OUTPUT_GIT_BASH.sh`
+- >=42 evaluation months;
+- >=60% positive months;
+- >=3 full calendar years;
+- >=75% full years positive;
+- worst full year >=-15%;
+- >=75% positive rolling-12m windows;
+- worst rolling-12m >=-15%;
+- max MTM DD <=20%;
+- PF >=1.20;
+- worst month >=-15%;
+- SumR positive after -0.05R/trade stress.
 
-Expected ZIP:
+No retuning on the same V45 sample after results are seen.
 
-`runtime/v44_baseline_validation/OUTPUT_V44/v44_baseline_robustness_validation.zip`
+## Provenance
+
+Accepted V38 ZIP SHA: `224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`.
+Accepted V38 parent source SHA: `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`.
+Verified V34 causal tape SHA: `d70d92d0023c1862af6363d60a7d9e927f928e75ffcf1c0cedcb4f7798128863`.
+Frozen V45 source SHA: `36335a92bfb2b9f6448a177cf80481c357f1cf13b8793d7302e153d13901c2b2`.
+
+## Recovery ladder
+
+`provenance -> source -> compile -> tester-storage migration -> disk preflight -> MT5 -> collection -> analysis -> packaging`
+
+- exact D junction migration must verify before tester launch;
+- valid compile checkpoint -> reuse compile;
+- disk preflight must PASS before tester launch;
+- `MT5_DONE.json` -> collection-only, MT5 MUST NOT RERUN;
+- `DONE.txt` -> analysis/package only, MT5 MUST NOT RERUN;
+- packaging-only failure -> package-only recovery;
+- explicit UTF-8, no runtime shell patcher, no `set +e`/ERR-trap launcher pattern;
+- MT5 completion = new `LATEST` + complete manifested output, not terminal rc alone.
+
+## V45 entrypoints
+
+Canonical Git Bash bootstrap:
+`runtime/v45_multiyear_validation/BOOTSTRAP_V45_MULTIYEAR_ONE_SHOT_GIT_BASH.sh`
+
+Tester-storage migration to D:
+`runtime/v45_multiyear_validation/MOVE_V45_TESTER_STORAGE_TO_D.py`
+
+Disk preflight:
+`runtime/v45_multiyear_validation/PREPARE_V45_DISK.py`
+
+Tracked orchestrator:
+`runtime/v45_multiyear_validation/RUN_V45_MULTIYEAR_ONE_SHOT.py`
+
+Diagnostic-only collector:
+`runtime/v45_multiyear_validation/DIAGNOSE_V45_MT5_FAILURE_GIT_BASH.sh`
+
+Package-only recovery:
+`runtime/v45_multiyear_validation/PACKAGE_V45_EXISTING_OUTPUT_GIT_BASH.sh`
+
+Expected successful ZIP:
+`runtime/v45_multiyear_validation/OUTPUT_V45/v45_multiyear_single_run_validation.zip`
