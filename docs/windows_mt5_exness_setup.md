@@ -1,102 +1,134 @@
-# Windows MT5 / Exness — V45 multi-year single-run workflow
+# Windows MT5 / Exness — V48 DEMO paper workflow
 
-Broker research environment: Exness Technologies Ltd.; symbol `XAUUSDm`; timeframe M15. REAL-MONEY LIVE TRADING is forbidden and `LIVE_AUTHORIZED=0`.
+Updated: 2026-08-22
 
-Canonical branch: `agent/v45-multiyear-single-run-validation`.
-One-shot Git Bash bootstrap: `runtime/v45_multiyear_validation/BOOTSTRAP_V45_MULTIYEAR_ONE_SHOT_GIT_BASH.sh`.
-Tracked Windows orchestrator: `runtime/v45_multiyear_validation/RUN_V45_MULTIYEAR_ONE_SHOT.py`.
-Package-only recovery: `runtime/v45_multiyear_validation/PACKAGE_V45_EXISTING_OUTPUT_GIT_BASH.sh`.
+Broker environment: Exness Technologies Ltd.; DEMO account only; server observed `Exness-MT5Trial6`; symbol `XAUUSDm`; timeframe M15.
 
-## Purpose
+REAL-MONEY LIVE TRADING is forbidden. V48 does not submit broker demo orders either; it uses a real-time DEMO feed plus an internal virtual USD40 paper book.
 
-V44 passed broad 2025-08 -> 2026-08 restart validation. V45 does not add alpha or retune parameters. It tests older regimes in one continuous exact Strategy Tester run while retaining monthly output for later analysis.
+Canonical branch:
+`agent/v48-demo-paper-forward`
 
-Frozen candidates:
+Canonical Git Bash entrypoint:
+`runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`
 
-- primary `adaptive_ewma_hl10_thr0p05`;
-- return shadow `adaptive_ewma_hl8_thr0p05`;
-- control `adaptive_ewma_hl8_thr0`.
+Canonical status entrypoint:
+`runtime/v48_demo_paper/STATUS_V48_DEMO_PAPER_GIT_BASH.sh`
 
-## Tester protocol
+## Frozen strategy
 
-One Strategy Tester invocation only:
+Primary:
+`v46_hl10_thr0p05_breadth4`
 
-- XAUUSDm;
-- M15;
-- Model=0;
-- FromDate=2022.01.01;
-- ToDate=2026.08.01;
-- Deposit=40 USD;
-- leverage 1:200;
-- non-visual;
+Do not retune breadth/HL/threshold on accepted historical evidence. ADX/DI remain shadow diagnostics only.
+
+Frozen V48 generated MQL SHA256:
+`ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`
+
+Accepted V46 adaptive-state SHA256:
+`36f68c8ce14ee657e1091d71e4c1702da907fcbd70c445b40f97852bf7288ee3`
+
+## Safety contract
+
+V48 READY requires all of the following:
+- DEMO account mode;
+- `TERMINAL_TRADE_ALLOWED=0`;
+- `TERMINAL_DLLS_ALLOWED=0`;
+- generated source contains no `OrderSend`, `OrderSendAsync`, `CTrade`, `trade.Buy`, `trade.Sell`, or `#import` path;
+- candidate is frozen breadth4;
+- virtual book is `usd40_r1p0_cent_continuous`;
+- `broker_orders=0`;
+- `live_authorized=0`.
+
+Never enable Algo Trading for V48. Never enable DLL imports.
+
+## 2026-08-22 root cause
+
+The important Windows journal evidence is:
+- startup config was consumed;
+- `V48DemoPaperObserver (XAUUSDm,M15)` loaded successfully;
+- MQL `OnInit` executed;
+- `TERMINAL_TRADE_ALLOWED=1` was observed;
+- V48 refused initialization as designed;
+- MT5 then deinitialized with reason 8 (`REASON_INITFAILED`).
+
+The previous startup config used `AllowLiveTrading=0` but also `Enabled=1`; on this installation that left terminal trading permission ON at `OnInit`.
+
+Hardened V2 therefore requests:
 - `AllowLiveTrading=0`;
-- `AllowDllImport=0`;
-- terminal shutdown after completion.
+- `Enabled=0`;
+- `AllowDllImport=0`.
 
-The EA writes one continuous `monthly_summary.csv`, `trades.csv`, and `manifest.txt`. The analyzer later produces monthly, calendar-year, rolling 3/6/12-month, drawdown, PF and execution-friction reports. First six observed months are warm-up.
+MetaTrader documentation states that when platform Auto Trading is disabled, Expert Advisors/scripts can continue to work but cannot execute trading operations. V48 uses that analytical-only mode.
 
-## Historical state / anti-look-ahead
+## Failed-init state recovery
 
-Do not copy the accepted 2025-08 adaptive state into this 2022 run.
+The inherited V48 `OnDeinit` writes adaptive state/status/latest after failed `OnInit`. A reason-8 failed startup produced blank-run-id state SHA:
+`f415050bac4095021a7e1bed579cfffee034bfb288348b30cf3a8beca3524e30`.
 
-The tracked V45 orchestrator:
+This is not accepted forward evidence.
 
-1. backs up the existing Common Files `v30_ml_dl_feature_lake_state.csv` if present;
-2. deletes that state before tester launch;
-3. starts from reset/cold adaptive scores;
-4. preserves the post-run state as evidence;
-5. restores the original pre-V45 state in a `finally` path.
+Hardened V2 automatically recovers only when the exact failure signature is present:
+- INIT `stage=STOPPED`;
+- `reason=8`;
+- `broker_orders=0`;
+- `live_authorized=0`;
+- XAUUSDm M15;
+- no non-empty run id in LATEST or STATUS.
 
-Accepted V38 source was inspected: `LoadAdaptiveState()` calls `ResetAdaptiveScores()` before opening the state file; missing state returns false and initialization continues. Thus state-file absence is valid cold-start behavior.
+Recovery is archive-first, never delete-first. Failed artifacts are moved to a timestamped forensic directory, then the exact accepted V46 state is reseeded.
 
-## Source provenance
+Any other non-seed orphan state fails closed.
 
-Accepted V38 ZIP SHA256:
-`224296ae1c02792493c690e3be563dd278b2eab5a13a6cfaefd6e5eae052cf5b`
+If a new startup fails before a valid run id exists, V2 archives that attempt and restores the accepted V46 seed automatically.
 
-Accepted V38 source SHA256:
-`4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`
+## Hardened V2 startup sequence
 
-Frozen generated V45 source SHA256:
-`36335a92bfb2b9f6448a177cf80481c357f1cf13b8793d7302e153d13901c2b2`
+1. Close manually opened MT5 and MetaEditor.
+2. Run the canonical Git Bash entrypoint.
+3. Static/secret/provenance gates run first.
+4. V48 source is deterministically regenerated and compile evidence is verified/reused.
+5. Failed-init debris is classified and, only if eligible, archived/recovered.
+6. Exact accepted V46 state is required before fresh launch.
+7. Canonical V48 source/EX5 is copied to a root startup alias and hashes are verified.
+8. UTF-16 startup INI is written and read back for exact safety keys.
+9. MT5 launches on XAUUSDm M15.
+10. MQL `OnInit` must prove DEMO + terminal trading OFF + DLL OFF.
+11. READY status must contain a non-empty run id and frozen candidate/book markers.
+12. Status file mtime must advance within 50 seconds, proving `OnTimer` is alive even while XAU is closed.
 
-V45 changes validation/output markers and expensive telemetry defaults only. Candidate catalog, entry/exit geometry, sizing and risk remain unchanged.
+Expected success markers include:
+- `V48_FRESH_SESSION_SEED_PASS=1`;
+- `V48_STARTUP_ALIAS_PASS=1`;
+- `V48_V2_CONFIG_SELF_CHECK_PASS=1`;
+- `V48_V2_TERMINAL_AUTOTRADING_REQUESTED_OFF=1`;
+- `V48_DEMO_PAPER_RUNNING=1`;
+- `TERMINAL_TRADE_ALLOWED=0`;
+- `TERMINAL_DLLS_ALLOWED=0`;
+- `STATUS_TIMER_REFRESH_PASS=1`;
+- `CHART_DASHBOARD=ENABLED`;
+- `BROKER_ORDERS=0`;
+- `REAL_MONEY_AUTHORIZED=0`.
 
-## Compile contract
+## Failure evidence
 
-MetaEditor return code is diagnostic only. Compile acceptance requires:
+Use:
+`runtime/v48_demo_paper/OUTPUT_V48/v48_mt5_attach_diagnostics.txt`
 
-- installed source SHA = frozen V45 source SHA;
-- final compiler summary `Result: 0 errors, 0 warnings`;
-- non-empty EX5;
-- compile-source hash marker or compile artifacts no older than installed source.
+The hardened diagnostic is launch-scoped. Historical MQL5.community authorization and Virtual Hosting 403 noise is not treated as current V48 failure evidence.
 
-Valid compile artifacts are reused before any recompile.
+## Market closed
 
-## Recovery contract
+Market closure is not a blocker for startup validation. `OnInit`, `OnTimer`, dashboard rendering and status writes must work without a new XAU tick.
 
-Before a fresh run, close manually opened MetaTrader 5 and MetaEditor. Never use `git clean`.
+No paper trade is expected while the market is closed, but V48 must still reach READY and refresh its status timer.
 
-Recovery ladder:
-`provenance -> source -> compile -> MT5 -> collection -> analysis -> packaging`
+## Finite campaign
 
-V45 has one expensive tester invocation:
+Review only when both are true:
+- >=10 actual XAUUSD trading days since accepted session start;
+- >=20 closed primary breadth4 paper trades.
 
-- `OUTPUT_V45/checkpoint/MT5_DONE.json` => tester already finished; collection-only, MT5 must not rerun;
-- `OUTPUT_V45/checkpoint/DONE.txt` => tester outputs already collected; analysis/package only, MT5 must not rerun;
-- completed bundle + ZIP failure => run package-only recovery.
+Hard stop: 30 calendar days. Do not auto-extend.
 
-MT5 completion requires a new `LATEST` run id plus complete `monthly_summary.csv`, `trades.csv`, `manifest.txt` and V45/tester/no-order safety markers. Terminal process return code alone is not completion evidence.
-
-Packaging uses `scripts/package_research_bundle_portable.py`; never parse Git Bash/MSYS `sha256sum` manifest rendering.
-
-## Interpretation
-
-V45 analyzer can return `MULTIYEAR_ROBUSTNESS_PASS` or `HOLD` for the primary HL10 threshold0.05 candidate.
-
-A V45 PASS advances paper/demo deployment validation and tester-vs-demo reconciliation. It does not authorize real-money live capital.
-
-Expected ZIP:
-`runtime/v45_multiyear_validation/OUTPUT_V45/v45_multiyear_single_run_validation.zip`
-
-Upload only that ZIP for acceptance analysis.
+A clean result may be labeled `PAPER_OPERATIONAL_PASS`; this never authorizes real-money trading.
