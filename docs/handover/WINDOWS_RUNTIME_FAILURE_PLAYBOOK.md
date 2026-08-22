@@ -4,6 +4,14 @@ Date: 2026-08-22
 
 Mandatory recovery context. Read before changing any Windows runner.
 
+## Current project policy
+
+Project-wide live-trading policy is defined by ADR-049:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`.
+
+Historical tester/paper milestones may have `LIVE_AUTHORIZED=0`, no-order source contracts or DEMO-only guards. Those are phase-specific runtime/evidence constraints, not a permanent prohibition on researching or preparing production/live trading with real capital.
+
 ## Core recovery ladder
 
 `provenance -> source -> compile -> MT5 -> collection -> analysis -> packaging`
@@ -32,11 +40,11 @@ MetaEditor can return rc=1 while valid `.log` and `.ex5` appear. Compile success
 
 ## Incident 6 — MT5 completion semantics
 
-Terminal rc alone is not completion evidence. Require a new `LATEST`, a new run folder, non-empty `monthly_summary.csv`, `trades.csv`, `manifest.txt`, and tester/no-order experiment markers. Checkpoint the run folder immediately.
+Terminal rc alone is not completion evidence. Require a new `LATEST`, a new run folder, non-empty expected ledgers/manifests, and milestone-appropriate experiment markers. Checkpoint the run folder immediately.
 
 ## Incident 7 — MSYS sha256sum manifest format
 
-Git Bash/MSYS can emit `<hash> *filename`. Never parse platform-specific `sha256sum` rendering for internal bundle manifests. Use `scripts/package_research_bundle_portable.py`.
+Git Bash/MSYS can emit `<hash> *filename`. Never parse platform-specific `sha256sum` rendering for internal bundle manifests. Use the portable Python manifest packager.
 
 ## Incident 8 — packaging-only failure
 
@@ -44,83 +52,72 @@ V42 completed MT5 and analysis but failed ZIP creation. Correct response: packag
 
 ## Incident 9 — historical state look-ahead
 
-The accepted restart state is from 2025-08. Injecting it into a 2022 test leaks future realized-R router information. V45 must back up Common Files state, delete it before tester launch, cold-start from reset adaptive scores, use six warm-up months, save post-run state only as evidence, and restore the pre-V45 state afterward. Accepted V38 `LoadAdaptiveState()` resets scores before attempting file load and permits missing-state initialization.
+The accepted restart state was from 2025-08. Injecting it into a 2022 test leaks future realized-R router information. V45 backs up Common Files state, deletes it before tester launch, cold-starts from reset adaptive scores, uses warm-up months, saves post-run state only as evidence, and restores pre-run state afterward.
 
 ## Incident 10 — V45 rc=100018 confirmed disk exhaustion
 
 First V45 attempt on 2026-08-22 compiled cleanly and initialized the EA successfully but produced no accepted tester evidence. Diagnostic ZIP SHA256:
-
-`3af2ab70f02920ad6fbd0eb5b3fd67ef66a550bf2db08bd523ee4b63372e8b1f`
+`3af2ab70f02920ad6fbd0eb5b3fd67ef66a550bf2db08bd523ee4b63372e8b1f`.
 
 Confirmed terminal/tester sequence:
-
 - MT5 startup reported only `3 / 136 Gb disk` free;
-- XAUUSDm synchronized through the requested historical range; M15/H1 history began in 2021;
+- XAUUSDm synchronized through the requested historical range;
 - `V45_MULTIYEAR_VALIDATION START` printed at 2022-01-01;
-- tester then logged `XAUUSDm: cannot generate history data, check disk space`;
+- tester then logged `cannot generate history data, check disk space`;
 - `0 ticks, 0 bars generated`;
-- last test result `no disk space in ticks generating function`;
-- terminal exited with process rc `100018`.
+- terminal exited with rc `100018`.
 
-Therefore this incident is not a strategy/config/state/history-start failure. The 2022 range was available and EA initialization succeeded. Do not shorten the range because of this failure.
+This was not strategy/config/state/history-start failure. Do not shorten the range because of this failure.
 
-Detailed incident record: `docs/research/v45_mt5_disk_failure_diagnosis.md`.
+Detailed incident: `docs/research/v45_mt5_disk_failure_diagnosis.md`.
 
 ## Incident 11 — move MetaTester storage to D via junction
 
-The heavy per-agent tick/history copies live under:
+Heavy per-agent tick/history copies live under:
+`%APPDATA%\MetaQuotes\Tester\<terminal-id>\Agent-127.0.0.1-<port>\bases`.
 
-`%APPDATA%\MetaQuotes\Tester\<terminal-id>\Agent-127.0.0.1-<port>\bases`
+For terminal id `D0E8209F77C8CF37AD8BF550E51FF075`, V45 moved heavy tester storage to a dedicated D-drive target via verified NTFS directory junction.
 
-For the current terminal id:
+Migration contract:
+1. MT5, MetaEditor and MetaTester closed;
+2. copy current storage to dedicated D target;
+3. verify source/target file count and bytes;
+4. rename original C directory to temporary same-volume backup;
+5. create `mklink /J` from original path to D target;
+6. verify junction target;
+7. delete backup only after verification;
+8. on failure, remove partial junction and restore original directory.
 
-`D0E8209F77C8CF37AD8BF550E51FF075`
-
-V45 now runs `runtime/v45_multiyear_validation/MOVE_V45_TESTER_STORAGE_TO_D.py` before disk preflight.
-
-Default physical target:
-
-`D:\MT5TesterCache\<terminal-id>`
-
-The original C path remains visible to MetaTrader as an NTFS directory junction. Migration contract:
-
-1. MT5, MetaEditor and MetaTester must all be closed;
-2. Robocopy current MetaTester storage from C to the dedicated D target;
-3. verify source/target file count and total bytes;
-4. rename the original C directory to a temporary same-volume backup;
-5. create `mklink /J` from the original C path to the D target;
-6. verify the junction resolves to the exact target;
-7. only after verification delete the C backup;
-8. if junction creation or verification fails, remove the partial junction and restore the original C directory.
-
-The migration must not move/delete terminal broker history under `%APPDATA%\MetaQuotes\Terminal\<terminal-id>\bases`, Common Files state/tapes, project evidence, repo files, or compiled EAs.
-
-Migration is idempotent. If the exact junction already exists, it reports `V45_TESTER_STORAGE_ON_D=1 already_migrated=1` and changes nothing.
-
-After migration the disk gate is volume-aware:
-
-- terminal volume (normally C:) needs >=2 GiB for terminal config/log/temp activity;
-- physical MetaTester storage volume (normally D:) needs >=12 GiB for the 2022-2026 tick run.
-
-Do not reintroduce a blanket 12-GiB requirement on C after the heavy tester storage is redirected to D.
+Do not move/delete terminal broker history, Common Files state/tapes, project evidence, repo files or compiled EAs.
 
 ## V44 checkpoint policy
 
-V44 has 19 exact windows. Valid compile checkpoint means MetaEditor must not rerun. `checkpoint/<tag>/MT5_DONE.txt` permits collection-only. `checkpoint/<tag>/DONE.txt` means that window must not rerun MT5. Annual control reproduction precedes the other 18 windows. Packaging failure after completed evidence is package-only.
+V44 had 19 exact windows. Valid compile checkpoint means MetaEditor must not rerun. `MT5_DONE.txt` permits collection-only. `DONE.txt` means that window must not rerun MT5. Packaging failure after completed evidence is package-only.
 
 ## V45 checkpoint policy
 
-V45 has exactly one expensive 2022-01-01 -> 2026-08-01 tester invocation.
+V45 had exactly one expensive 2022-01-01 -> 2026-08-01 tester invocation.
 
-- D-drive MetaTester migration/junction must verify first;
-- junction-aware disk preflight PASS is required before tester launch;
+- D-drive MetaTester migration/junction verifies first;
+- disk preflight PASS before tester launch;
 - valid compile checkpoint -> MetaEditor must not rerun;
-- `OUTPUT_V45/checkpoint/MT5_DONE.json` -> collection-only, MT5 MUST NOT RERUN;
-- `OUTPUT_V45/checkpoint/DONE.txt` -> analysis/package only, MT5 MUST NOT RERUN;
-- completed bundle + packaging failure -> `PACKAGE_V45_EXISTING_OUTPUT_GIT_BASH.sh` only.
+- `OUTPUT_V45/checkpoint/MT5_DONE.json` -> collection-only;
+- `OUTPUT_V45/checkpoint/DONE.txt` -> analysis/package only;
+- completed bundle + packaging failure -> package existing output only.
 
 Never use `git clean`; accepted ZIPs, `.venv`, state backups, compiled artifacts and checkpoints may be untracked recovery assets.
 
-## Safety
+## Current safety semantics
 
-REAL-MONEY LIVE TRADING is forbidden in this research workflow. Risk ceiling remains <=1.00%/trade. No Martingale, uncontrolled grid or doubling. V44/V45 readiness PASS means paper/demo deployment validation only; `LIVE_AUTHORIZED=0`.
+Permanent engineering invariants:
+- no Martingale;
+- no uncontrolled grid;
+- no doubling after loss;
+- no credentials/secrets in Git;
+- preserve strategy identity during a validation campaign;
+- use milestone-appropriate account/order ownership checks;
+- prevent duplicate execution;
+- reconcile broker/runtime state;
+- preserve evidence and resume only failed stages.
+
+Historical V44/V45 `LIVE_AUTHORIZED=0` markers remain historical evidence only. They do not override ADR-049, which explicitly allows live-trading research and targets production/live deployment after readiness evidence.
