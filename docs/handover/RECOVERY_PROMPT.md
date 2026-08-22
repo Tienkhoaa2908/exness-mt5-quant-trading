@@ -2,18 +2,26 @@
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
-## Safety
+## Long-term project objective
 
-REAL-MONEY LIVE TRADING is forbidden.
+Mục tiêu cuối của dự án là hướng tới production/live trading bằng vốn thật trên Exness sau khi hệ thống vượt đủ research, forward, native broker-DEMO execution, friction/stress, reconciliation và risk-control gates.
 
-V48 is DEMO-feed + internal virtual USD40 paper execution only:
+Paper/DEMO là validation stages, không phải đích cuối.
+
+Không được hiểu mục tiêu này thành quyền chuyển một campaign đang chạy trực tiếp từ paper/demo sang real mà bỏ qua promotion evidence. Trạng thái cuối của quá trình nghiên cứu phải là `LIVE_CANDIDATE_READY` hoặc `NOT_READY`.
+
+## Current safety / phase scope
+
+V48 hiện tại là DEMO-feed + internal virtual USD40 paper execution only:
 - DEMO account mandatory; real/non-demo account refused;
 - READY requires `TERMINAL_TRADE_ALLOWED=0`;
 - READY requires `TERMINAL_DLLS_ALLOWED=0`;
 - generated source forbids `OrderSend`, `OrderSendAsync`, `CTrade`, `trade.Buy`, `trade.Sell`, and `#import`;
-- no native/external broker-order path may be added;
-- `LIVE_AUTHORIZED=0`;
+- no native/external broker-order path is allowed in V48;
+- `LIVE_AUTHORIZED=0` in V48;
 - never `git clean`.
+
+Những guard này thuộc **active V48 campaign**, không phải tuyên bố rằng project sẽ mãi mãi chỉ dùng vốn giấy.
 
 ## Active campaign
 
@@ -78,12 +86,13 @@ Do NOT run the START script again while this run id is active. Do NOT fetch/rese
 ## Read first
 
 1. `docs/handover/CURRENT_STATE.md`
-2. `docs/research/v48_startup_acceptance_2026-08-22.md`
-3. `docs/adr/ADR-046-v48-failed-init-state-and-terminal-permission.md`
-4. `docs/research/v48_hardened_attach_launcher.md`
-5. `docs/research/v48_demo_paper_forward_plan.md`
-6. `docs/research/v46_expert_breadth_results.md`
-7. `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`
+2. `docs/adr/ADR-047-production-live-target-and-promotion-gates.md`
+3. `docs/research/v48_startup_acceptance_2026-08-22.md`
+4. `docs/adr/ADR-046-v48-failed-init-state-and-terminal-permission.md`
+5. `docs/research/v48_hardened_attach_launcher.md`
+6. `docs/research/v48_demo_paper_forward_plan.md`
+7. `docs/research/v46_expert_breadth_results.md`
+8. `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`
 
 ## Previous startup failure — resolved
 
@@ -100,7 +109,7 @@ Inherited `OnDeinit` saved state/status/latest after failed initialization, prod
 
 Hardened V2 recognized only that exact fully evidenced failed-init pattern, archived it, re-seeded the accepted V46 state and successfully started the current session with terminal AutoTrading OFF.
 
-## Authoritative startup workflow — for a future new session only
+## Authoritative startup workflow — for a future new V48 session only
 
 Canonical entrypoint:
 `runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`
@@ -150,7 +159,19 @@ Operational HOLD if:
 - safety guards fail;
 - continuity break, duplicate ledger, or state/evidence overwrite occurs.
 
-A clean run may receive `PAPER_OPERATIONAL_PASS`. It does not authorize real-money trading.
+A clean run may receive `PAPER_OPERATIONAL_PASS`. Đây là gate để xét promotion sang broker-DEMO native execution, không phải auto-live switch.
+
+## Promotion roadmap toward production/live
+
+Sau V48, sequence mục tiêu là:
+1. Native Exness DEMO broker-order parity với frozen decision logic.
+2. Virtual-vs-broker parity cho direction, entry/exit, size, SL/TP và order lifecycle.
+3. Measure spread/slippage/fill-delay/rejects và stress dưới friction cao hơn.
+4. Restart/reconnect/stale-feed/state reconciliation/fault tests.
+5. Independent risk limits, kill-switch và operational monitoring review.
+6. Final status `LIVE_CANDIDATE_READY` hoặc `NOT_READY`.
+
+Không dùng riêng một tuần có lợi nhuận làm promotion rule.
 
 ## Runtime while current session is active
 
@@ -160,3 +181,4 @@ Read-only status:
 `bash runtime/v48_demo_paper/STATUS_V48_DEMO_PAPER_GIT_BASH.sh`
 
 Do not invoke the START script until the current session has been deliberately stopped/reviewed under the finite-campaign protocol.
+Do not transform the current V48 session into a real-account/live-execution session.
