@@ -441,7 +441,9 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,const MqlTradeRequest &
         if token not in text:
             raise RuntimeError(f"V49 required token missing: {token}")
 
-    forbidden = ('ACCOUNT_TRADE_MODE_REAL)==', 'real_money_authorized=1', 'Martingale', 'martingale')
+    # These tokens are forbidden in the generated MQL output. Keeping the
+    # literals here is intentional: the guard scans `text`, not this Python file.
+    forbidden = ('ACCOUNT_TRADE_MODE_REAL', 'real_money_authorized=1', 'Martingale', 'martingale')
     for token in forbidden:
         if token in text:
             raise RuntimeError(f"V49 forbidden token present: {token}")
