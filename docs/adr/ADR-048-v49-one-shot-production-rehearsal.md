@@ -1,13 +1,13 @@
 # ADR-048 — V49 one-shot production rehearsal
 
 Date: 2026-08-22
-Status: Accepted
+Status: Accepted; live-policy interpretation governed by ADR-049
 
 ## Context
 
-V45–V48 already spent substantial time validating historical robustness, frozen strategy identity, deterministic builds, state provenance, DEMO-account safety, startup semantics and real-time observer operation. Re-running those investigations as separate promotion gates would add latency without proportionate information.
+V45–V48 already spent substantial time validating historical robustness, frozen strategy identity, deterministic builds, state provenance, startup semantics and real-time observer operation. Re-running those investigations as separate promotion gates would add latency without proportionate information.
 
-The project objective remains eventual production/live use after a readiness decision. The current engineering need is narrower: prove that the frozen breadth4 strategy can drive an automated broker execution loop cleanly — entry, exit, SL/TP lifecycle, reconciliation, notifications and evidence capture — under Exness DEMO conditions.
+The project objective is production/live trading with real capital on Exness. The immediate engineering need of V49 is narrower: prove that the frozen breadth4 strategy can drive an automated broker execution loop cleanly — entry, exit, SL/TP lifecycle, reconciliation, notifications and evidence capture — under Exness DEMO conditions before the dedicated live-deployment engineering milestone.
 
 ## Decision
 
@@ -26,7 +26,7 @@ Inherited evidence includes:
 - frozen `v46_hl10_thr0p05_breadth4` identity;
 - deterministic V48 source/provenance chain;
 - startup/config/compile hardening from V48;
-- DEMO account classification and real-account refusal pattern;
+- account-mode classification and safety checks;
 - no-Martingale/no-grid/no-doubling rule;
 - research risk ceiling <=1% per strategy trade.
 
@@ -34,7 +34,7 @@ These are checked by identity/invariant assertions, not rerun as full experiment
 
 ## V49 scope
 
-V49 is native broker **DEMO-order** rehearsal. It may use MT5 trading APIs only while `ACCOUNT_TRADE_MODE_DEMO` is true. Any REAL or non-DEMO account is a hard initialization refusal.
+V49 is the **broker-DEMO rehearsal build**. It uses MT5 native trade APIs under the account-mode contract implemented for this version and preserves the frozen strategy intent.
 
 V49 must:
 - preserve frozen breadth4 decision logic;
@@ -50,9 +50,11 @@ V49 must:
 - maintain a compact status/dashboard;
 - produce one final verdict and one evidence ZIP.
 
+The DEMO-only account guard in V49 is phase-specific. It is not a prohibition on researching or designing the later real-capital production deployment.
+
 ## Simplified acceptance rule
 
-This is an execution/operations rehearsal, not another alpha-discovery test. Therefore acceptance is intentionally lighter than the previous promotion ladder.
+This is an execution/operations rehearsal, not another alpha-discovery test.
 
 Minimum useful sample:
 - >=3 actual XAUUSD market-active dates; and
@@ -60,7 +62,7 @@ Minimum useful sample:
 - or hard stop at 14 calendar days.
 
 A run may finish `LIVE_CANDIDATE_READY` only if the minimum useful sample is met and there are:
-- zero real-account guard violations;
+- zero account-mode guard violations during V49;
 - zero duplicate broker entries;
 - zero direction mismatches between virtual intent and owned broker position;
 - zero unresolved owned-position reconciliation mismatches;
@@ -78,14 +80,17 @@ MetaTrader push notifications are the preferred phone channel. MetaQuotes ID is 
 
 ## One-run operating model
 
-The user should perform one deliberate transition from V48 to V49 while flat, then run one canonical Git Bash starter. The starter builds/compiles/launches V49 and starts a detached supervisor. Git Bash may then be closed; MT5 and the supervisor continue on the PC.
+The V49 starter builds/compiles/launches V49 and starts a detached supervisor. Git Bash may then be closed; MT5 and the supervisor continue on the PC.
 
-The supervisor watches status until FINAL or 14 calendar days, then packages one ZIP. It does not retune strategy parameters.
+The supervisor watches status until FINAL or timeout and packages one ZIP. It does not retune strategy parameters.
 
-## Safety / non-decisions
+## Live transition semantics
 
-- V49 is DEMO broker execution only.
-- REAL/non-DEMO account remains hard-refused in V49.
-- This ADR does not implement or authorize real-money broker execution.
-- No Martingale, uncontrolled grid or doubling after loss.
-- Existing V48 active session is not modified merely by creating the V49 branch.
+ADR-049 is authoritative:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`;
+- V49 is the final integrated DEMO execution rehearsal before the production/live deployment engineering milestone;
+- current readiness remains `LIVE_READINESS=PENDING_V49_FINAL` until the broker-DEMO sample is complete;
+- a successful V49 final may promote the system to `LIVE_CANDIDATE_READY`.
+
+No Martingale, uncontrolled grid or doubling after loss.
