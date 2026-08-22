@@ -2,7 +2,7 @@
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
-## Current state
+## Current campaign
 
 Accepted V46 evidence commit:
 `655bf2f77503d91d0749d2f5c99cc0ad8678c388`.
@@ -10,106 +10,122 @@ Accepted V46 evidence commit:
 Accepted V46 ZIP SHA256:
 `ef8b97a856a0ba300063c0138e4a3f49e049b916886714a1a9e95378e7ac6d5a`.
 
-Formal V46 result: `HOLD`.
+Formal V46 result remains `HOLD` because one preregistered annual-sign gate failed. The breadth4 mechanism is nevertheless frozen for forward paper because it passed 13/14 checks and materially repaired drawdown/regime behavior.
 
-Current follow-up branch:
-`agent/v47-forward-regime-shadow`.
+Active branch:
+`agent/v48-demo-paper-forward`.
 
 Read first:
 1. `docs/handover/CURRENT_STATE.md`
 2. `docs/research/v46_expert_breadth_results.md`
-3. `docs/research/v46_expert_breadth_walkforward_plan.md`
-4. `docs/research/v46_posthoc_regime_diagnostics.md`
+3. `docs/research/v48_demo_paper_forward_plan.md`
+4. `docs/research/v47_forward_regime_shadow_plan.md`
 5. `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`
 
 Never `git clean`.
 
 ## Safety
 
-REAL-MONEY LIVE TRADING remains forbidden. Research stop-risk <=1.00%/trade. No Martingale/grid/doubling. Native/external broker orders remain forbidden. Exact historical tests use `AllowLiveTrading=0`, `AllowDllImport=0`. `LIVE_AUTHORIZED=0`.
+REAL-MONEY LIVE TRADING is forbidden in this project.
 
-## V46 accepted evidence
+V48 is DEMO paper only:
+- DEMO account required; real accounts hard-refused;
+- terminal-level `AllowLiveTrading=0` / `TERMINAL_TRADE_ALLOWED=0` required;
+- terminal-level `AllowDllImport=0` / `TERMINAL_DLLS_ALLOWED=0` required;
+- generated source forbids `OrderSend`, `OrderSendAsync`, `CTrade`, `trade.Buy`, `trade.Sell`, and `#import`;
+- per-program `MQL_TRADE_ALLOWED` / `MQL_DLLS_ALLOWED` are diagnostic only, because terminal-level permissions are OFF and source has no execution path;
+- internal virtual USD40 book only;
+- `LIVE_AUTHORIZED=0`.
 
-One exact XAUUSDm M15 Strategy Tester run, 2021-01-03 -> 2026-08-01, $40 USD, 1:200, cold-start, first six months warm-up.
+`Enabled=1` in the MT5 startup config is intentional: it allows the EA to execute while `AllowLiveTrading=0` separately disables automated broker trading.
 
-Integrity/provenance PASS:
-- CRC PASS;
-- internal SHA manifest 24/24 PASS;
-- run HEAD `655bf2f77503d91d0749d2f5c99cc0ad8678c388`;
-- V38 parent SHA `4491d9d15233511d70735a5d8042eaaad1699df38fe2644d6419b08c7407ac12`;
-- V45 source SHA `36335a92bfb2b9f6448a177cf80481c357f1cf13b8793d7302e153d13901c2b2`;
-- V46 source SHA `6f09a8513f9446b415982fd3752c52d9bba7ff0bd1762135ef2e463f47daa1a3`;
-- compile 0/0;
-- MT5 rc=0;
-- tester-only/no-order/live guards PASS.
+## Frozen primary
 
-Preregistered primary `v46_hl10_thr0p05_breadth4`:
-- full cold-start $40 -> $106.947120 (+167.37%);
-- max MTM DD 16.5983%;
-- annualized 21.3449%;
-- PF 1.281739;
-- 825 evaluation trades;
-- AvgR 0.144313R;
-- SumR 119.05819R;
-- worst full year -0.8102%;
-- worst rolling-12m -1.9470%;
-- -0.05R/trade stress +77.80819R.
+`v46_hl10_thr0p05_breadth4`
 
-Years:
-- 2022 -0.7442%;
-- 2023 -0.8102%;
-- 2024 +5.1793%;
-- 2025 +42.7860%;
-- 2026 Jan-Jul +80.8297%.
-
-Formal HOLD is caused only by the preregistered `>=75% full years nonnegative` gate: 2/4 full years were nonnegative. The other 13 readiness checks passed. Do not rewrite the formal result after the fact.
-
-Engineering interpretation: breadth4 successfully converts weak regimes from large drawdowns into near-flat years while preserving substantial 2025-2026 edge. Another same-sample breadth/threshold sweep is not justified.
-
-## Important comparison
-
-Common 2022-07 -> 2026-07 window:
-- V45 HL10: +105.79%, DD 56.30%, PF 1.133, 1,556 trades;
-- V46 breadth4: about +169.37%, DD 16.60%, PF 1.282, 793 trades.
-
-Breadth4 is the frozen leading mechanism for future validation.
-
-## Market-regime interpretation
-
-Do not exclude crisis years and do not hard-code war/news dates.
-
-2022 can legitimately be a low-exposure crisis/transition year. 2024 cannot be excused as untradeable because gold was strongly directional; V46 repaired the 2024 loss while reducing exposure in weak periods.
-
-Post-hoc V45 ADX/DI findings are research-only. They may be logged in shadow form during V47 but must not control the primary breadth4 decision until fresh evidence exists.
-
-## Observability bug
-
-V46 MQL correctly defines 26 candidates, but inherited manifest metadata is stale:
-- `candidate_count=23`;
-- `source_file=V38FastHarvestLab.mq5`.
-
-Fix this before the next evidence-producing run. Do not rerun V46 merely to fix metadata.
-
-## V47 direction
-
-Use fresh forward/shadow evidence, not another optimization on 2021-2026.
-
-Freeze:
-- breadth4;
-- HL10;
-- selected score threshold 0.05;
+- HL10 realized-R EWMA;
+- selected expert threshold 0.05;
 - breadth health threshold 0.05;
-- entry/exit/risk geometry.
+- >=4/5 healthy shadow experts required;
+- entries/exits/stop/risk unchanged;
+- paper book `usd40_r1p0_cent_continuous`;
+- ADX/DI diagnostics are shadow-only.
 
-V47 should:
-- correct manifest identity/count;
-- log ensemble breadth and selected score at each opportunity;
-- shadow-log ADX<=30 and DI direction-alignment decisions without using them to gate primary trades;
-- keep paper/research only;
-- make no real broker orders;
-- preserve exact recovery/checkpoint discipline.
+V46 source SHA:
+`6f09a8513f9446b415982fd3752c52d9bba7ff0bd1762135ef2e463f47daa1a3`.
+
+Accepted V46 adaptive-state SHA:
+`36f68c8ce14ee657e1091d71e4c1702da907fcbd70c445b40f97852bf7288ee3`.
+
+V47 observability-only source SHA:
+`7685dd83f576841532970d43e21fda80c896c407f313edae1fb12b0b39387e44`.
+
+V48 v2 demo-paper source SHA:
+`ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`.
+
+## V48 v1 attach incident
+
+First V48 launch on 2026-08-22 passed:
+- static gates;
+- secret scan;
+- V34 tape;
+- exact V46/V47/V48 deterministic build;
+- MetaEditor `0 errors, 0 warnings`;
+- exact V46 state seed.
+
+Then it timed out waiting for V48 status. No accepted paper session was established.
+
+V48 v2 changes only operational/observability behavior, not strategy decisions:
+- removes the unnecessary requirement that per-program MQL trade/DLL flags themselves be zero;
+- keeps terminal global trade/DLL permissions hard-OFF;
+- adds `V48_DEMO_PAPER_INIT.txt` from the first line of `OnInit` with explicit refusal reason;
+- starter extracts recent terminal/Expert logs on attach failure into `runtime/v48_demo_paper/OUTPUT_V48/v48_mt5_attach_diagnostics.txt`;
+- chart dashboard displays breadth, balance, equity, DD, position, entry/current/SL/TP, open R/PnL and heartbeat;
+- status adds equity, unrealized PnL and current price.
+
+## V48 state protocol
+
+V48 paper state is isolated at:
+`mt5_quant\\paper\\v48_demo_paper_state.csv`.
+
+On first setup, copy the exact accepted V46 end-state into that paper path. Never modify accepted V46 evidence.
+
+Do NOT use the existing V46 source for an automatic partial-August tester catch-up. V46 `OnDeinit` performs an EOM-style forced close and can contaminate state when a test ends mid-month. The missing August observations are recorded as a known seed gap.
+
+Adaptive EWMA state is saved every 30 seconds.
+
+Open virtual position state is not yet fully restart-persistent. Unexpected restart while a primary paper position is open is a `CONTINUITY_BREAK`.
+
+## Finite stop rule
+
+V48 is not open-ended.
+
+Review at >=10 XAUUSD trading days AND >=20 closed breadth4 paper trades.
+
+Hard maximum: 30 calendar days. Stop and review even if trade count is below 20. Do not auto-extend.
+
+Operational HOLD if:
+- max paper DD >10%;
+- after >=20 trades, SumR < -5R or PF <0.80;
+- real-account/terminal-trade/terminal-DLL guard fails;
+- continuity break, duplicate ledger, or state/evidence overwrite occurs.
+
+A clean run may receive `PAPER_OPERATIONAL_PASS`. That still does not authorize real-money broker orders in this project.
 
 ## Runtime
 
 Workspace: `D:\v31_mt5_40usd`.
-MetaTester physical storage: `D:\MT5TesterCache\D0E8209F77C8CF37AD8BF550E51FF075`.
+
+Start:
+`runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`
+
+Status:
+`runtime/v48_demo_paper/STATUS_V48_DEMO_PAPER_GIT_BASH.sh`
+
+The starter requires MT5 and MetaEditor closed once. After it reports `V48_DEMO_PAPER_RUNNING=1`, keep MT5 open on the DEMO account and keep terminal AutoTrading OFF.
+
+Paper files under MT5 Common Files:
+- `mt5_quant\\paper\\V48_DEMO_PAPER_INIT.txt`;
+- `mt5_quant\\paper\\V48_DEMO_PAPER_STATUS.txt`;
+- `mt5_quant\\paper\\V48_DEMO_PAPER_LATEST.txt`;
+- `mt5_quant\\paper\\v48_demo_paper_state.csv`.
