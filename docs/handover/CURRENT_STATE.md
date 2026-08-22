@@ -35,8 +35,6 @@ V49 transition is allowed only while the V48 primary virtual position is FLAT. I
 Branch:
 `agent/v49-one-shot-demo-rehearsal`
 
-The branch is maintained as one clean commit ahead of the V48 documentation base.
-
 ADR:
 `docs/adr/ADR-048-v49-one-shot-production-rehearsal.md`
 
@@ -132,6 +130,15 @@ This ordering means a V49 build/compile failure does not stop the working V48 ob
 
 After `V49_ONE_SHOT_STARTED=1`, Git Bash may be closed. Keep the PC, Internet and MT5 running. The detached supervisor waits for FINAL/hard stop and creates one ZIP under `runtime/v49_demo_rehearsal/OUTPUT_V49/` with an internal SHA256 manifest.
 
+## 2026-08-22 first local preflight incident
+
+The first Windows V49 attempt stopped in the static suite before builder execution, MetaEditor, MT5 shutdown or any broker request. The failing assertion scanned the Python builder source for `real_money_authorized=1`, but that literal intentionally existed inside the builder's own forbidden-token list. This was a test false positive, not generated-MQL or broker-execution evidence.
+
+Correction:
+- the static test now verifies that generated MQL is hard-refused if `ACCOUNT_TRADE_MODE_REAL` or `real_money_authorized=1` appears;
+- the builder guard was strengthened from a narrow `ACCOUNT_TRADE_MODE_REAL)==` pattern to any `ACCOUNT_TRADE_MODE_REAL` token in generated MQL;
+- V48 was not transitioned by the failed attempt because failure occurred before the runner.
+
 ## Current acceptance status
 
 Prepared in Git:
@@ -142,4 +149,4 @@ Prepared in Git:
 - `tests/test_v49_one_shot_demo_rehearsal_static.py`;
 - ADR-048 and V49 plan.
 
-Python syntax for the revised builder/runner was checked during implementation, but there is no current-head GitHub CI status and no Windows MetaEditor evidence yet. V49 is therefore NOT yet claimed as Windows-accepted. First local one-shot must prove static tests + secret scan + MetaEditor `0 errors, 0 warnings` + clean DEMO READY. Native broker automation is not claimed successful until an actual DEMO round trip is observed.
+There is no current-head GitHub CI status and no Windows MetaEditor evidence yet. V49 is therefore NOT yet claimed as Windows-accepted. The next local one-shot must prove static tests + secret scan + MetaEditor `0 errors, 0 warnings` + clean DEMO READY. Native broker automation is not claimed successful until an actual DEMO round trip is observed.
