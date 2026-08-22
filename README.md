@@ -1,86 +1,77 @@
 # Exness / MetaTrader 5 Quant Trading System
 
-**MỤC TIÊU DÀI HẠN: HƯỚNG TỚI PRODUCTION/LIVE TRADING BẰNG VỐN THẬT SAU KHI VƯỢT ĐỦ CÁC GATE XÁC NHẬN.**
+**MỤC TIÊU DÀI HẠN: HƯỚNG TỚI PRODUCTION/LIVE TRADING BẰNG VỐN THẬT SAU KHI HỆ THỐNG ĐƯỢC ĐÁNH GIÁ ĐỦ READINESS.**
 
-Kho nghiên cứu quant cho MT5/Exness. Không Martingale, uncontrolled grid hoặc doubling after loss.
+Kho nghiên cứu/engineering quant cho MT5/Exness. Không Martingale, uncontrolled grid hoặc doubling after loss.
 
-## Project objective
+## Frozen strategy
 
-Dự án không dừng ở paper trading. Mục tiêu cuối là xây một hệ thống đủ correctness, safety, reproducibility, execution integrity, risk control và observability để có thể được đánh giá là `LIVE_CANDIDATE_READY` cho production trading trên tài khoản Exness real.
+Primary: `v46_hl10_thr0p05_breadth4`.
 
-Điều này không có nghĩa một campaign paper/demo đang chạy được phép tự động chuyển sang real. Mỗi bước promotion phải có evidence riêng, không được bỏ qua native broker-DEMO parity, execution-cost/slippage stress, restart/reconciliation và risk-control gates.
+Historical/alpha evidence từ V45/V46 và deterministic V48 parent được kế thừa; V49 không mở lại cùng sample để tối ưu breadth/HL/threshold.
 
-## Active milestone — V48 DEMO paper forward
+Frozen V48 parent SHA256:
+`ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`.
 
-Frozen primary:
-`v46_hl10_thr0p05_breadth4`
+## Current runtime
 
-Formal V46 historical result remains `HOLD`; không relabel thành PASS/profitable winner. V48 dùng cơ chế breadth4 đã freeze để chạy finite forward operational validation trên `XAUUSDm` M15 của Exness DEMO.
+Một V48 DEMO-paper observer đã startup thành công trên Windows và có thể vẫn đang chạy. Không chuyển campaign khi V48 primary virtual position đang OPEN.
 
-V48 là:
-- real-time DEMO feed;
-- internal virtual USD40 paper book;
-- không broker demo order;
-- không real-money order;
-- terminal trading permission phải OFF;
-- DLL permission phải OFF;
-- generated MQL không có broker-order API.
+## Active engineering milestone — V49 One-Shot DEMO Production Rehearsal
 
-Các hạn chế trên là **scope của V48 hiện tại**, không phải tuyên bố rằng toàn bộ dự án sẽ mãi mãi không hướng tới vốn thật.
+Branch:
+`agent/v49-one-shot-demo-rehearsal`
 
-Frozen V48 source SHA256:
-`ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`
+V49 gom các bước post-paper thành **một campaign duy nhất** thay vì nhiều gate/run tách rời:
 
-Accepted V46 adaptive-state SHA256:
-`36f68c8ce14ee657e1091d71e4c1702da907fcbd70c445b40f97852bf7288ee3`
+`frozen virtual intent -> native Exness DEMO entry/exit -> OnTradeTransaction reconciliation -> push notification -> execution logging -> finite final verdict -> one ZIP`
 
-## Promotion path toward production/live
+V49 tập trung vào hệ thống tự động vận hành trôi chảy, không phải thêm một vòng research alpha.
 
-Đường promotion mục tiêu:
+### V49 scope
 
-`V48 virtual paper -> native Exness DEMO-order parity -> execution/slippage/delay stress -> restart/reconciliation/fault tests -> independent risk/kill-switch review -> LIVE_CANDIDATE_READY / NOT_READY`
+- Exness DEMO native broker orders;
+- XAUUSDm M15;
+- dedicated magic `490049`;
+- tự mở và đóng broker DEMO theo primary virtual intent;
+- SL/TP request từ frozen strategy;
+- không quản lý manual/foreign positions;
+- log server retcode/order/deal và transaction events;
+- push START / OPEN / CLOSE / HALT / FINAL khi MetaQuotes notifications đã được cấu hình;
+- detached supervisor đóng gói một ZIP cuối.
 
-Không promote chỉ vì vài ngày hoặc một tuần có PnL dương. Calendar time, trade count, regime coverage, execution quality và operational integrity đều phải được xem xét.
+REAL/non-DEMO account bị hard-refuse trong V49 trước broker request. V49 không phải real-money execution build.
 
-## Current Windows startup workflow
+### Simplified acceptance
 
-Canonical branch:
-`agent/v48-demo-paper-forward`
+Minimum useful sample:
+- >=3 distinct market-active XAUUSD dates;
+- >=3 completed native broker-DEMO round trips.
 
-Canonical Git Bash start:
-`bash runtime/v48_demo_paper/START_V48_DEMO_PAPER_GIT_BASH.sh`
+Hard stop: 14 calendar days.
 
-The current launcher is hardened V2. It handles the verified 2026-08-22 failure mode where MT5 loaded the V48 Expert successfully but `TERMINAL_TRADE_ALLOWED=1` caused `OnInit` refusal, followed by `OnDeinit(REASON_INITFAILED=8)` rewriting paper state despite no accepted session.
+Một clean rehearsal có thể kết luận `LIVE_CANDIDATE_READY`; nếu không đủ sample ở hard stop thì `INSUFFICIENT_EXECUTION_SAMPLE`; execution/reconciliation critical failure thì `HOLD`.
 
-Hardened V2:
-- requests terminal AutoTrading OFF at startup;
-- requires MQL proof `TERMINAL_TRADE_ALLOWED=0` before READY;
-- auto-recovers only the exact reason-8 blank-run-id failed-init debris pattern;
-- archives evidence before reseeding accepted V46 state;
-- rolls state back automatically after another failed pre-session start;
-- uses launch-scoped diagnostics;
-- verifies the 30-second timer/status loop even while XAU is closed.
+Không chạy lại V45/V46 historical campaigns trong V49.
 
-## Finite V48 gate
+## One user action
 
-Review when both are true:
-- >=10 actual XAUUSD trading days;
-- >=20 closed breadth4 paper trades.
+Canonical V49 starter:
 
-Hard maximum: 30 calendar days. Không auto-extend.
+`bash runtime/v49_demo_rehearsal/START_V49_ONE_SHOT_GIT_BASH.sh`
 
-A clean result may be labeled `PAPER_OPERATIONAL_PASS`. Đây chỉ là gate để xét promotion sang native broker-DEMO execution, không phải auto-authorization cho tài khoản real.
+Sau START PASS, Git Bash có thể đóng. Giữ PC + Internet + MT5 chạy. Detached supervisor sẽ tạo một ZIP cuối tại:
 
-## One run -> one ZIP
+`runtime/v49_demo_rehearsal/OUTPUT_V49/`
 
-Sau run quan trọng dùng ZIP mà runner in ra hoặc `scripts/package_mt5_research.cmd`. Bundle chuẩn phải có `bundle_manifest_sha256.txt`; kiểm tra bằng `scripts/analyze_mt5_research_bundle.py`.
+Bundle có `bundle_manifest_sha256.txt`.
 
-## Recovery / authority
+## Authority
 
 Đọc theo thứ tự:
 1. `docs/handover/CURRENT_STATE.md`
 2. `docs/handover/RECOVERY_PROMPT.md`
-3. `docs/adr/ADR-047-production-live-target-and-promotion-gates.md`
-4. `docs/adr/ADR-046-v48-failed-init-state-and-terminal-permission.md`
-5. `docs/research/v48_hardened_attach_launcher.md`
+3. `docs/adr/ADR-048-v49-one-shot-production-rehearsal.md`
+4. `docs/research/v49_one_shot_demo_rehearsal_plan.md`
+5. `docs/adr/ADR-047-production-live-target-and-promotion-gates.md`
 6. `docs/windows_mt5_exness_setup.md`
