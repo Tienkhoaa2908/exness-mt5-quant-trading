@@ -8,6 +8,21 @@ Mọi hypothesis phải được chuyển thành rule cơ học, có thể backt
 
 Mọi broad search phải chịu kỷ luật multiple testing: catalog pre-register trước run; report toàn bộ candidates; không sửa parameter sau khi nhìn cùng output rồi gọi đó là xác nhận; winner phải qua forward/native/cost stress mới.
 
+## Mục tiêu production dài hạn
+
+Paper/DEMO không phải đích cuối của project. Mục tiêu dài hạn là xây hệ thống có đủ bằng chứng để được đánh giá `LIVE_CANDIDATE_READY` cho production/live trading bằng vốn thật trên Exness.
+
+Promotion discipline bắt buộc:
+- historical/backtest evidence;
+- forward paper evidence;
+- native broker-DEMO parity;
+- measured spread/slippage/delay/reject stress;
+- restart/reconnect/reconciliation/fault testing;
+- independent risk/kill-switch review;
+- final `LIVE_CANDIDATE_READY` hoặc `NOT_READY` decision.
+
+Không dùng riêng PnL vài ngày/một tuần làm lý do promotion sang real. Mỗi phase phải có evidence và gate riêng.
+
 ## Nguồn nghiên cứu chính
 
 ### Trend / momentum
@@ -52,7 +67,7 @@ ICT/SMC không được coi là edge đã chứng minh. Trong core chỉ tồn t
 
 ### MQL5 implementation
 
-Chỉ dùng API chuẩn MetaQuotes:
+Chỉ dùng API chuẩn MetaQuotes cho các research phases tương ứng:
 - `CopyRates`;
 - `iRSI`;
 - `iMACD`;
@@ -60,15 +75,18 @@ Chỉ dùng API chuẩn MetaQuotes:
 - `iBands`;
 - `OrderCalcProfit` cho tính risk virtual.
 
-Lab tester-only không gọi `OrderSend`/`CTrade`.
+Lab tester-only không gọi `OrderSend`/`CTrade`. V48 hiện tại cũng không có broker-order path. Native broker-order execution chỉ được nghiên cứu ở một milestone riêng sau khi frozen paper logic qua gate, trước hết trên Exness DEMO để đo parity và execution frictions.
 
-## Safety
+## Safety / promotion discipline
 
-- REAL-MONEY LIVE TRADING: FORBIDDEN.
+- Project goal: hướng tới production/live trading bằng vốn thật sau khi đạt `LIVE_CANDIDATE_READY`.
+- Current V48 phase: DEMO + virtual paper only; không được tự chuyển session hiện tại sang real.
 - Không Martingale, uncontrolled grid, doubling after loss.
 - Không password/token/secret trong repo.
 - Stop-risk research ceiling hiện tại: 1.00%.
 - Virtual screening không được deploy trực tiếp.
+- Broker-DEMO execution phải precede any live-readiness conclusion.
+- Risk, execution và reconciliation gates độc lập với alpha promotion.
 
 ## V24 — nguyên tắc ML/DL
 
