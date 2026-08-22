@@ -2,9 +2,23 @@
 
 Updated: 2026-08-22
 
-## Project objective
+## Project objective — authoritative
 
-Mục tiêu dài hạn là production/live trading bằng vốn thật trên Exness sau khi hệ thống được đánh giá đủ readiness. Paper/DEMO là tầng xác nhận, không phải đích cuối.
+The project is explicitly targeting production/live trading with real capital on Exness.
+
+Authoritative policy:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`;
+- research may cover live-account architecture, capital sizing, risk controls, deployment workflow, VPS/always-on operation, monitoring, reconciliation and recovery;
+- phase-specific DEMO guards are runtime-version constraints, not permanent project prohibitions.
+
+Current evidence classification:
+
+`LIVE_READINESS=PENDING_V49_FINAL`
+
+Do not write `LIVE_READY=1` yet because the accepted V49 session has not completed the required broker-DEMO round-trip sample.
+
+See `docs/adr/ADR-049-live-trading-research-and-readiness-semantics.md`.
 
 ## Frozen alpha / inherited evidence
 
@@ -19,63 +33,52 @@ Do not reopen same-sample breadth/HL/threshold tuning. No Martingale, uncontroll
 
 Historical/alpha validation is inherited for V49 and is not rerun as a separate campaign.
 
-## Active V48 runtime until V49 transition
+## Accepted V49 Windows startup — authoritative active runtime
 
-The accepted V48 DEMO-paper session was started from Windows runtime HEAD `3e5f126772c9c2d378f9b3e09720cc9789d76330`.
-
-Run id:
-`v48_demo_paper_forward_v2__XAUUSDm__PERIOD_M15__2026-08-22_10-52-37__471937`
-
-Accepted startup evidence included DEMO account, trade/DLL permissions OFF, timer/dashboard PASS, broker orders 0 and real-money authorization 0.
-
-V49 transition is allowed only while the V48 primary virtual position is FLAT. If it is OPEN, the V49 one-shot fails closed and leaves V48 running.
-
-## V49 — authoritative next milestone
-
-Branch:
+Branch used locally:
 `agent/v49-one-shot-demo-rehearsal`
 
-ADR:
-`docs/adr/ADR-048-v49-one-shot-production-rehearsal.md`
+Local startup HEAD:
+`2a12498d8b054127dcff766cd91e4a6b37aeef5a`
 
-Plan:
-`docs/research/v49_one_shot_demo_rehearsal_plan.md`
+Accepted startup evidence from 2026-08-22:
+- V49 static tests PASS count=9;
+- `SECRET_SCAN_PASS files=102 mode=git-tracked`;
+- V46 source PASS SHA256 `6f09a8513f9446b415982fd3752c52d9bba7ff0bd1762135ef2e463f47daa1a3`;
+- V47 source PASS SHA256 `7685dd83f576841532970d43e21fda80c896c407f313edae1fb12b0b39387e44`;
+- deterministic V48 source PASS SHA256 `ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa`;
+- V49 generated source SHA256 `b3b012e856d814d36414e26d120674af864fea2c24db0b53f096fe7ba0a8f599`;
+- MetaEditor compile PASS: `Result: 0 errors, 0 warnings`;
+- V49 EX5 SHA256 `72c339b37e39efd54e664ce2fb1d9d7736d94d46615849d8887f88347d674175`;
+- transitioned adaptive state SHA256 `36f68c8ce14ee657e1091d71e4c1702da907fcbd70c445b40f97852bf7288ee3`;
+- V49 startup config PASS SHA256 `a104bb2d22dac785cedb0f9753cc62976f887ffbede532cf8cff2d8a1467691b`;
+- `V49_DEMO_REHEARSAL_READY=1`;
+- `V49_ONE_SHOT_STARTED=1`;
+- `DEMO_BROKER_EXECUTION=1`;
+- startup output reported `REAL_MONEY_AUTHORIZED=0` because this specific V49 runtime remains the broker-DEMO rehearsal build.
 
-V49 collapses the previous post-paper gate ladder into one integrated finite production rehearsal.
+Accepted run id:
+`v49_one_shot_demo_rehearsal_v1__XAUUSDm__PERIOD_M15__2026-08-22_12-33-42__536750`
 
-Inherited instead of rerun:
-- V45/V46 historical robustness work;
-- frozen breadth4 identity;
-- deterministic V48 parent identity;
-- V48 startup/config/compile lessons;
-- no-Martingale/no-grid/no-doubling invariant.
+Detached supervisor PID reported at startup: `4452`.
 
-V49 one-shot performs in the same campaign:
+Initial campaign counters at startup:
+- `MARKET_DAYS=0`;
+- `ROUND_TRIPS=0`.
+
+The market was closed at startup, so zero market days/round trips is expected. Do not restart V49 merely because the market is closed.
+
+## V49 one-shot model
+
+V49 performs in one campaign:
 
 `frozen virtual intent -> native Exness DEMO order -> automatic close -> OnTradeTransaction reconciliation -> push notification -> fill/request logging -> finite verdict -> one ZIP`
 
-## V49 execution scope
+V49 uses a dedicated magic number `490049`, owns only its own XAUUSDm positions and uses pending-open/pending-close state plus confirmation timeouts to prevent repeated requests while broker state converges.
 
-V49 may use MT5 native trade APIs only on `ACCOUNT_TRADE_MODE_DEMO`.
+The V49 DEMO account guard is phase-specific. It exists to make the final broker-execution rehearsal clean; it is not a project-wide ban on real-capital research or later production deployment engineering.
 
-Hard V49 invariants:
-- REAL/non-DEMO account -> initialization refusal before a broker request;
-- XAUUSDm M15 only;
-- dedicated magic `490049`;
-- own only its own broker positions;
-- foreign/manual positions are never managed;
-- DLL imports remain OFF;
-- frozen primary virtual book remains signal owner;
-- execution adapter does not create a second alpha path;
-- real-money authorization remains 0 in V49.
-
-V49 uses `CTrade` for DEMO broker requests and `OnTradeTransaction` as the asynchronous broker-event reconciliation stream. API boolean success is not treated as fill proof; server retcodes and deal events are logged.
-
-Pending-open/pending-close flags, request cooldown and confirmation timeouts prevent repeated order requests while broker state is still converging. A broker-side SL/TP exit while virtual intent still appears OPEN enters a short reconciliation wait rather than immediately reopening another position.
-
-## Simplified one-shot acceptance
-
-This is an execution/operations rehearsal, not another historical-alpha gate.
+## Simplified V49 acceptance
 
 Minimum useful sample:
 - >=3 distinct market-active XAUUSD dates; and
@@ -83,70 +86,54 @@ Minimum useful sample:
 
 Hard stop: 14 calendar days.
 
-`LIVE_CANDIDATE_READY` classification requires minimum sample plus:
-- zero real-account guard violation;
-- zero duplicate owned entries/positions;
-- zero unresolved virtual-vs-broker direction mismatch;
-- zero unresolved owned-position reconciliation mismatch;
-- no catastrophic execution-loop failure;
-- broker request reject ratio <=20%;
-- frozen parent identity intact.
+A clean final may classify:
+`LIVE_CANDIDATE_READY`
 
-At hard stop without the minimum sample, use `INSUFFICIENT_EXECUTION_SAMPLE`.
+Critical execution/reconciliation failure:
+`HOLD`
 
-Spread/slippage/latency are measured and reported rather than creating another tuning loop.
+Hard stop before minimum sample:
+`INSUFFICIENT_EXECUTION_SAMPLE`
+
+Current status remains:
+`LIVE_READINESS=PENDING_V49_FINAL`
 
 ## Phone notifications
 
-V49 uses MetaTrader push notifications via `SendNotification()` when configured. MetaQuotes ID stays in terminal settings and is never stored in Git.
+V49 uses MetaTrader `SendNotification()` when terminal push notifications are configured.
 
-Notify:
+Expected events:
 - START;
-- broker DEMO OPEN confirmation;
-- broker DEMO CLOSE confirmation;
+- DEMO OPEN confirmed;
+- DEMO CLOSE confirmed;
 - HALT;
-- FINAL verdict.
+- FINAL.
 
-Notification failure is observability evidence only; it does not trigger a duplicate trade request.
+MetaQuotes ID remains terminal configuration and is not committed.
 
-## One user task — authoritative workflow
+## Active-session operating rule
 
-Canonical entrypoint:
-`runtime/v49_demo_rehearsal/START_V49_ONE_SHOT_GIT_BASH.sh`
+The accepted V49 session is already running. Do not run the V49 START command again while this session is active.
 
-The one task performs, in order:
-1. static/secret checks;
-2. rebuild frozen V48 parent and generate V49;
-3. MetaEditor compile and require `0 errors, 0 warnings` **while the accepted V48 observer is still untouched**;
-4. only after compile PASS, inspect the active V48 status;
-5. if V48 is OPEN, abort transition and leave V48 running;
-6. if V48 is FLAT, close MT5 gracefully with Windows `CloseMainWindow`;
-7. copy the final V48 adaptive state into V49 state;
-8. write V49 startup config with DEMO AutoTrading enabled and DLL disabled;
-9. launch MT5/V49 and require DEMO READY status;
-10. start detached supervisor.
+Keep:
+- PC awake;
+- Internet connected;
+- MT5 open;
+- the same Exness DEMO account/session active for this rehearsal.
 
-This ordering means a V49 build/compile failure does not stop the working V48 observer.
+Git Bash may be closed after startup. The detached supervisor waits for FINAL/timeout and creates one ZIP under:
+`runtime/v49_demo_rehearsal/OUTPUT_V49/`
 
-After `V49_ONE_SHOT_STARTED=1`, Git Bash may be closed. Keep the PC, Internet and MT5 running. The detached supervisor waits for FINAL/hard stop and creates one ZIP under `runtime/v49_demo_rehearsal/OUTPUT_V49/` with an internal SHA256 manifest.
+The ZIP contains `bundle_manifest_sha256.txt`.
 
-## 2026-08-22 first local preflight incident
+## Next milestone after successful V49 final
 
-The first Windows V49 attempt stopped in the static suite before builder execution, MetaEditor, MT5 shutdown or any broker request. The failing assertion scanned the Python builder source for `real_money_authorized=1`, but that literal intentionally existed inside the builder's own forbidden-token list. This was a test false positive, not generated-MQL or broker-execution evidence.
+If V49 finishes `LIVE_CANDIDATE_READY`, the next project milestone is dedicated **production/live deployment engineering**, not another historical-alpha campaign. That milestone may research and design:
+- live-account deployment architecture;
+- real-capital sizing and capital-at-risk policy;
+- production risk/kill-switch controls;
+- VPS/always-on operation;
+- monitoring, reconciliation and recovery;
+- production rollout/checklist and evidence.
 
-Correction:
-- the static test now verifies that generated MQL is hard-refused if `ACCOUNT_TRADE_MODE_REAL` or `real_money_authorized=1` appears;
-- the builder guard was strengthened from a narrow `ACCOUNT_TRADE_MODE_REAL)==` pattern to any `ACCOUNT_TRADE_MODE_REAL` token in generated MQL;
-- V48 was not transitioned by the failed attempt because failure occurred before the runner.
-
-## Current acceptance status
-
-Prepared in Git:
-- `scripts/build_v49_one_shot_demo_rehearsal_source.py`;
-- `runtime/v49_demo_rehearsal/RUN_V49_ONE_SHOT.py`;
-- `runtime/v49_demo_rehearsal/SUPERVISE_V49_ONE_SHOT.py`;
-- `runtime/v49_demo_rehearsal/START_V49_ONE_SHOT_GIT_BASH.sh`;
-- `tests/test_v49_one_shot_demo_rehearsal_static.py`;
-- ADR-048 and V49 plan.
-
-There is no current-head GitHub CI status and no Windows MetaEditor evidence yet. V49 is therefore NOT yet claimed as Windows-accepted. The next local one-shot must prove static tests + secret scan + MetaEditor `0 errors, 0 warnings` + clean DEMO READY. Native broker automation is not claimed successful until an actual DEMO round trip is observed.
+The exact production deployment implementation must be based on the final V49 evidence bundle rather than assumed before the campaign finishes.
