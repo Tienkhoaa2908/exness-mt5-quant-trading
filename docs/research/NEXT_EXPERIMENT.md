@@ -1,22 +1,31 @@
-# NEXT EXPERIMENT — V29.3 Compile + Stateful Replay Gate
+# NEXT EXPERIMENT — Active V49 One-Shot Production Rehearsal
 
-Không chạy/reuse folder V29.0/V29.1/V29.2 cũ.
+Updated: 2026-08-22
 
-## Gate 1 — Windows compile
+The old V29.3 instructions in this file are obsolete.
 
-1. Dùng fresh candidate ZIP SHA-256 `a415f79bd31df3f9928aaf25fc2992288fa1ca1ea4073aa90a375bb7e3597132`.
-2. Giải nén vào folder hoàn toàn mới.
-3. Double-click root `RUN_ADAPTIVE_EXPERT_LAB_V1.cmd`.
-4. Runner phải báo `SOURCE PREFLIGHT PASS` trước MetaEditor.
-5. MetaEditor phải **0 errors / 0 warnings**.
-6. Nếu compile fail, upload duy nhất diagnostic ZIP mới; không sửa tay source trên máy Windows.
+Authoritative project direction is defined by `docs/adr/ADR-049-live-trading-research-and-readiness-semantics.md`:
+- `LIVE_RESEARCH_ALLOWED=1`;
+- `LIVE_DEPLOYMENT_TARGET=1`;
+- historical DEMO-only restrictions are phase-specific, not permanent project policy.
 
-## Gate 2 — stateful replay
+Current active run:
+`v49_one_shot_demo_rehearsal_v1__XAUUSDm__PERIOD_M15__2026-08-22_12-33-42__536750`.
 
-Chỉ khi Gate 1 PASS mới chạy 3 × 6-month stateful replay, Feb-2025 → Jul-2026. Một run → một ZIP.
+Accepted startup evidence already includes static 9/9 PASS, secret scan PASS, deterministic parent rebuild, MetaEditor `0 errors, 0 warnings`, V49 DEMO READY and detached supervisor startup.
 
-Decision không dựa mean return đơn lẻ; cần positive-month breadth, worst month, MTM DD, AvgR, turnover, source mix và stress/parity gates.
+Initial `MARKET_DAYS=0` and `ROUND_TRIPS=0` were expected because XAUUSD was closed at startup.
 
-GitHub CI hiện vẫn fail-closed vì historical recovery payload không đủ integrity để làm canonical release source. Không diễn giải CI đỏ này thành strategy failure.
+Do not start a second V49 session while the accepted run is active. Keep PC + Internet + MT5 running and wait for the one-shot campaign to produce its final evidence ZIP.
 
-REAL-MONEY LIVE TRADING vẫn cấm.
+Current readiness:
+`LIVE_READINESS=PENDING_V49_FINAL`.
+
+V49 final rule:
+- >=3 distinct market-active XAUUSD dates;
+- >=3 completed native broker-DEMO round trips;
+- clean final -> `LIVE_CANDIDATE_READY`;
+- critical execution/reconciliation failure -> `HOLD`;
+- insufficient activity at hard stop -> `INSUFFICIENT_EXECUTION_SAMPLE`.
+
+After a clean V49 final, the next milestone is the project’s production/live engineering phase as defined by ADR-049.
