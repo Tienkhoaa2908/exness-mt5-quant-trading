@@ -2,19 +2,27 @@
 
 Updated: 2026-08-22
 
-## Safety — authoritative
+## Project objective — authoritative
 
-- REAL-MONEY LIVE TRADING = FORBIDDEN.
-- V48 is DEMO-feed + internal virtual USD40 paper execution only.
-- Native/external broker orders remain forbidden.
-- No Martingale, uncontrolled grid, or doubling after loss.
-- Research/paper stop-risk ceiling remains <=1.00%/trade.
-- V48 requires a DEMO account; real/non-demo accounts are refused in MQL `OnInit`.
-- Terminal automated-trading permission must be OFF at READY: `TERMINAL_TRADE_ALLOWED=0`.
-- Terminal DLL permission must be OFF: `TERMINAL_DLLS_ALLOWED=0`.
-- Generated V48 source forbids `OrderSend`, `OrderSendAsync`, `CTrade`, `trade.Buy`, `trade.Sell`, and `#import`.
-- `LIVE_AUTHORIZED=0`.
+- Mục tiêu dài hạn của dự án là hướng tới production/live trading bằng vốn thật trên Exness sau khi vượt đủ validation, execution, risk và operational gates.
+- Paper/DEMO không phải đích cuối; chúng là các tầng xác nhận bắt buộc trước khi một build được đánh giá `LIVE_CANDIDATE_READY`.
+- Không promote từ vài ngày PnL dương trực tiếp sang real. Native broker-DEMO parity, measured slippage/spread/delay stress, restart/reconciliation, fault handling và independent risk controls phải được đánh giá trước.
+- `LIVE_CANDIDATE_READY` là trạng thái readiness của hệ thống; không phải cơ chế tự động chuyển account hoặc tự động bật live execution.
+
+## Safety / current-phase scope
+
+- V48 hiện tại vẫn là DEMO-feed + internal virtual USD40 paper execution only.
+- Native/external broker orders vẫn bị cấm trong V48 hiện tại.
+- Không Martingale, uncontrolled grid, hoặc doubling after loss.
+- Research/paper stop-risk ceiling hiện tại <=1.00%/trade.
+- V48 yêu cầu DEMO account; real/non-demo accounts bị refuse trong MQL `OnInit`.
+- Terminal automated-trading permission phải OFF tại READY: `TERMINAL_TRADE_ALLOWED=0`.
+- Terminal DLL permission phải OFF: `TERMINAL_DLLS_ALLOWED=0`.
+- Generated V48 source cấm `OrderSend`, `OrderSendAsync`, `CTrade`, `trade.Buy`, `trade.Sell`, và `#import`.
+- `LIVE_AUTHORIZED=0` trong V48.
 - Never use `git clean`.
+
+Các guard trên là **scope của V48 active campaign**, không còn được diễn giải thành tuyên bố rằng toàn bộ project sẽ vĩnh viễn không hướng tới real-money production.
 
 ## Repository / active campaign
 
@@ -130,7 +138,23 @@ Operational HOLD if:
 - real-account/trade/DLL guard fails;
 - continuity break, duplicate ledger, or evidence/state overwrite occurs.
 
-A clean run may receive `PAPER_OPERATIONAL_PASS`. That still does not authorize real-money broker orders.
+A clean run may receive `PAPER_OPERATIONAL_PASS`. That status promotes the system only to the next validation layer, not directly to live execution.
+
+## Promotion path toward real-money production
+
+Target sequence:
+
+1. `V48 PAPER_OPERATIONAL_PASS` or equivalent evidence review.
+2. Native Exness DEMO broker-order parity using the same frozen strategy decisions.
+3. Measure virtual-vs-broker entry/exit parity, spread, slippage, fill delay, rejects and order lifecycle integrity.
+4. Stress measured friction, including elevated spread/slippage and execution delay.
+5. Restart/reconnect/state-reconciliation/fault tests.
+6. Independent risk and kill-switch review.
+7. Final readiness decision: `LIVE_CANDIDATE_READY` or `NOT_READY`.
+
+Do not use a positive week alone as a promotion rule.
+
+ADR-047 records this long-term production target and promotion discipline.
 
 ## ACTIVE-SESSION OPERATING RULE
 
@@ -142,7 +166,7 @@ While the accepted run id above is active:
 - do not manually edit/delete V48 paper state or metadata;
 - use `STATUS_V48_DEMO_PAPER_GIT_BASH.sh` for read-only monitoring;
 - package/analyze evidence at appropriate checkpoints or at finite-gate review;
-- LIVE remains forbidden.
+- do not alter the current session into a real-account/live-execution session.
 
 ## Runtime
 
