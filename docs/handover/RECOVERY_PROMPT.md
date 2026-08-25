@@ -4,16 +4,18 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Current milestone
 
-V51 accepted; next experiment is V52 source-aware higher-frequency challenger.
+V52 source-aware higher-frequency challenger tournament.
 
-Authoritative accepted V51 branch:
-`agent/v51-higher-frequency-challenger`
+Authoritative branch:
+`agent/v52-source-aware-challenger`
 
 Read first:
 1. `docs/handover/CURRENT_STATE.md`
 2. `docs/research/v50_execution_probe_results_2026-08-25.md`
 3. `docs/research/v51_higher_frequency_results_2026-08-26.md`
-4. `docs/adr/ADR-051-higher-frequency-hybrid-challenger.md`
+4. `docs/adr/ADR-052-source-aware-breadth3-opportunity-lane.md`
+5. `docs/research/v52_source_aware_plan.md`
+6. `runtime/v52_source_aware/START_V52_SOURCE_AWARE_GIT_BASH.sh`
 
 ## Accepted V50 evidence
 
@@ -30,36 +32,49 @@ Do not rerun V50 plumbing probes.
 ZIP SHA256:
 `8475b12077a28b18df722965895565772a6020a12ddebfd958aed67652808d98`
 
-Integrity:
-- ZIP CRC PASS;
-- manifest 17/17 PASS;
-- run HEAD `8c211b27e6676f3176e089a619679e6af263e3fd`;
-- MetaEditor 0 errors / 0 warnings.
-
 Formal result:
 `V51_KEEP_BREADTH4`
 
-The three average-health breadth3 challengers increased trades by ~27%-35%, but max MTM DD rose to ~25%-29% and worst rolling12 fell below -10%; none is promotable.
+V51 average-health challengers increased trade frequency materially but failed drawdown and rolling-12-month stability guardrails.
 
-## Diagnostic direction for V52
+## V52 design
 
-Do not perform another average-health threshold sweep.
+Accepted V51 source parent SHA256:
+`927611f7313793505d23c4c3d205a8ce0282869ad3ab8e4b49efe2ecc7ec79f6`
 
-Same-sample decomposition of V51 incremental breadth3 trades shows stable source separation across the three V51 thresholds:
-- positive: `TREND20_H1`, `BOS_FVG_H1`;
-- negative: `EMA_H1`, `MACD_H1`, `SLOW_MOM_16H24H`.
+Baseline:
+`v46_hl10_thr0p05_breadth4`
 
-This diagnostic is not itself promotable. Use it only to preregister one small source-aware tournament.
+Challengers:
+- `v52_b4_or_b3_trend`;
+- `v52_b4_or_b3_bos`;
+- `v52_b4_or_b3_trend_bos`.
 
-V52 design principle:
-- preserve breadth>=4 baseline behavior;
-- when healthy breadth ==3, allow only selected expert source masks corresponding to TREND20_H1 and/or BOS_FVG_H1;
-- no broad tuning;
-- no Martingale/grid;
-- no execution-plumbing rerun;
-- keep breadth4 if source-aware variants fail risk/stability guardrails.
+At breadth>=4 the inherited path is preserved. At exactly breadth3, V52 filters the selected expert by source mask. V52 does not add another average-health threshold.
+
+Guardrails:
+- >=5% trade-count increase;
+- max MTM DD <=20%;
+- DD increase <=3 points;
+- PF >=1.20 and >=95% baseline;
+- AvgR >=0.10R and >=75% baseline;
+- annualized >=10%;
+- friction-stressed SumR positive;
+- worst full year >=-10%;
+- worst rolling12 >=-10%.
+
+Possible result:
+- `V52_CHALLENGER_SELECTED`;
+- `V52_KEEP_BREADTH4`.
+
+## User workflow
+
+Close MT5 and MetaEditor before the tester run. Run the canonical V52 Git Bash block supplied by the coordinator.
+
+After completion upload one file only:
+`runtime/v52_source_aware/OUTPUT_V52/v52_source_aware_tournament.zip`
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
 `V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
-`V52_SOURCE_AWARE=NEXT`
+`V52_SOURCE_AWARE=IMPLEMENTED_PENDING_WINDOWS_RUN`
