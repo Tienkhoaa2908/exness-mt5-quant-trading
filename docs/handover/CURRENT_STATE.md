@@ -1,14 +1,14 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-08-25
+Updated: 2026-08-26
 
 ## Project objective
 
-The project targets production/live deployment after sufficient evidence. Current research bottleneck is signal frequency/opportunity selection, not broker plumbing.
+The project targets production/live deployment after sufficient evidence. Broker-DEMO execution plumbing is already qualified; the active research problem is increasing signal frequency without giving back the drawdown/stability benefit of breadth4.
 
-## Inherited historical baseline
+## Inherited baseline
 
-Frozen reference candidate:
+Current reference candidate:
 `v46_hl10_thr0p05_breadth4`
 
 Accepted V46 evidence remains historical `STATUS=HOLD` because one preregistered full-year sign gate failed, but breadth4 materially improved drawdown/PF versus the previous router and remains the baseline for challenger research.
@@ -18,74 +18,80 @@ Accepted V46 evidence remains historical `STATUS=HOLD` because one preregistered
 Accepted recovered ZIP SHA256:
 `587cc102e85f6565b9ad880a757a9bd1ffc901c90d7f9d86c7cdadd0841b7e72`
 
-Integrity:
-- ZIP CRC PASS;
-- manifest 9/9 PASS.
-
 Authoritative raw EA FINAL:
 - `verdict=EXECUTION_PIPELINE_PASS`;
 - `probe_round_trips=3`;
 - `probe_requests=6`;
 - `probe_rejects=0`;
-- final probe positions/pending/halt all zero;
-- run id `v50_execution_probe_v1__XAUUSDm__PERIOD_M15__2026-08-25_15-02-29__666031`.
+- final flat / no halt.
 
 Conclusion:
-`EXECUTION_PIPELINE_PASS=1`
+`V50_EXECUTION_PIPELINE=PASS`
 
-Do not repeat V50 plumbing probes. Their total approximately -1.91 USD PnL was probe cost, not alpha evidence.
+Do not repeat V50 plumbing probes.
 
-See `docs/research/v50_execution_probe_results_2026-08-25.md`.
+## V51 higher-frequency tournament — ACCEPTED
 
-## Current milestone — V51 higher-frequency challenger
+Accepted ZIP SHA256:
+`8475b12077a28b18df722965895565772a6020a12ddebfd958aed67652808d98`
 
-Branch:
-`agent/v51-higher-frequency-challenger`
+Integrity:
+- ZIP CRC PASS;
+- manifest 17/17 PASS;
+- run HEAD `8c211b27e6676f3176e089a619679e6af263e3fd`;
+- source SHA256 `927611f7313793505d23c4c3d205a8ce0282869ad3ab8e4b49efe2ecc7ec79f6`;
+- MetaEditor `0 errors, 0 warnings`;
+- run id `v51_higher_frequency_challenger_v1__XAUUSDm__PERIOD_M15__2021-01-03_00-00-00__812031`.
 
-ADR:
-`docs/adr/ADR-051-higher-frequency-hybrid-challenger.md`
+Formal result:
+`V51_KEEP_BREADTH4`
 
-Plan:
-`docs/research/v51_higher_frequency_plan.md`
+Baseline breadth4:
+- 825 eval trades;
+- AvgR +0.1443R;
+- PF 1.2817;
+- annualized +21.34%;
+- max MTM DD 16.60%;
+- worst rolling12 -1.95%.
 
-V51 runs one exact historical MT5 tournament. It does not replace breadth4 blindly with breadth3.
+V51 challengers raised trade count by roughly 27%–35%, but all failed drawdown/stability guardrails:
+- avg0.075: 1110 trades, DD 28.62%, worst rolling12 -13.39%;
+- avg0.10: 1101 trades, DD 25.04%, worst rolling12 -11.09%;
+- avg0.15: 1050 trades, DD 28.56%, worst rolling12 -14.39%.
 
-Baseline:
-- `v46_hl10_thr0p05_breadth4`.
+No V51 average-health challenger is promotable.
 
-Preregistered challengers:
-- `v51_b4_or_b3_avg0p075`;
-- `v51_b4_or_b3_avg0p10`;
-- `v51_b4_or_b3_avg0p15`.
+See `docs/research/v51_higher_frequency_results_2026-08-26.md`.
 
-Hybrid semantics:
-- if healthy breadth >=4: preserve the breadth4 path;
-- if healthy breadth ==3: allow the extra lane only when average expert-health score clears the fixed candidate quality floor.
+## V51 diagnostic implication
 
-No native broker execution is introduced in V51 historical source. No Martingale/grid and no risk increase.
+Same-sample diagnostic decomposition of the incremental breadth3 lane shows a stable source split across all three V51 thresholds:
+- `TREND20_H1`: positive incremental edge;
+- `BOS_FVG_H1`: positive incremental edge;
+- `EMA_H1`: negative incremental edge;
+- `MACD_H1`: negative incremental edge;
+- `SLOW_MOM_16H24H`: negative incremental edge.
 
-## V51 selection guardrails
+For the avg0.10 challenger specifically, incremental trades were approximately:
+- TREND20_H1: 76 trades, AvgR +0.149R, SumR +11.36R;
+- BOS_FVG_H1: 16 trades, AvgR +0.331R, SumR +5.30R;
+- EMA_H1: 114 trades, AvgR -0.085R;
+- MACD_H1: 25 trades, AvgR -0.194R;
+- SLOW_MOM_16H24H: 72 trades, AvgR -0.073R.
 
-A challenger is eligible only if:
-- trade count >=1.20x breadth4 baseline;
-- max MTM DD <=20%;
-- DD increase <=3 percentage points versus baseline;
-- PF >=1.15 and >=90% of baseline PF;
-- AvgR >=0.08R and >=65% of baseline AvgR;
-- annualized return >=8%;
-- `SumR - 0.05R * trades > 0`;
-- worst full year >=-10%;
-- worst rolling12 >=-10%.
+This is diagnostic/same-sample evidence, not a promotion result. It motivates one small preregistered source-aware challenger rather than another average-score threshold sweep.
 
-If multiple pass, select highest friction-stressed SumR per unit DD. If none pass, `V51_KEEP_BREADTH4` is a valid result.
+## Next milestone — V52 source-aware opportunity lane
 
-## Current action
-
-Run one V51 Windows historical tournament, then upload exactly:
-`runtime/v51_higher_frequency/OUTPUT_V51/v51_higher_frequency_tournament.zip`
-
-Do not run another V50 execution probe.
+Design principle:
+- preserve breadth>=4 behavior;
+- when healthy breadth ==3, admit only selected expert sources that showed positive incremental edge in V51 (`TREND20_H1` and/or `BOS_FVG_H1`);
+- no broad parameter sweep;
+- no Martingale/grid;
+- no execution-plumbing rerun;
+- accept `KEEP_BREADTH4` if source-aware variants still fail risk/stability controls.
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
-`V51_HIGHER_FREQUENCY=IMPLEMENTED_PENDING_WINDOWS_RUN`
+`V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
+`V52_SOURCE_AWARE=NEXT`
