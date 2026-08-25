@@ -1,3 +1,0 @@
-v52_b4_or_b3_trend
-v52_b4_or_b3_bos
-v52_b4_or_b3_trend_bos
