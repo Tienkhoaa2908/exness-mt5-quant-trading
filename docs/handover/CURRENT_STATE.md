@@ -4,71 +4,88 @@ Updated: 2026-08-25
 
 ## Project objective
 
-The project targets production/live deployment after sufficient evidence. Current implementation work remains on broker DEMO execution qualification.
+The project targets production/live deployment after sufficient evidence. Current research bottleneck is signal frequency/opportunity selection, not broker plumbing.
 
-Frozen alpha remains `v46_hl10_thr0p05_breadth4`; historical V46/V45 evidence is inherited and is not re-optimized merely to accelerate an execution test.
+## Inherited historical baseline
 
-## V50 Windows execution evidence — authoritative
+Frozen reference candidate:
+`v46_hl10_thr0p05_breadth4`
 
-Branch/runtime used on Windows:
-`agent/v50-execution-probe`
+Accepted V46 evidence remains historical `STATUS=HOLD` because one preregistered full-year sign gate failed, but breadth4 materially improved drawdown/PF versus the previous router and remains the baseline for challenger research.
 
-Executed runtime HEAD:
-`761a65f573b110fcbad8b86608e39c76edd9d73c`
+## V50 execution qualification — ACCEPTED
 
-Accepted pre-transition evidence from the user run:
-- V50 static tests PASS count=8;
-- `SECRET_SCAN_PASS files=107 mode=git-tracked`;
-- frozen V46 -> V47 -> V48 -> V49 source chain rebuilt successfully;
-- V50 generated source SHA256 `1db600a934c7ddd2797b40045280f1948ae0e7dddce80bc244bc599e10c6a040`;
-- MetaEditor compile PASS `Result: 0 errors, 0 warnings`;
-- V50 EX5 SHA256 `e81dfa0559d2f5e2422ac03551fc88908c32d755ca927b3c04e4a827964c2268`;
-- V49 was already closed/flat before transition;
-- V50 state seed SHA256 `36f68c8ce14ee657e1091d71e4c1702da907fcbd70c445b40f97852bf7288ee3`;
-- V50 config SHA256 `b7c95b43a6f957a1ec47782cbdfde04e944117face7b7d75dbb5b9682921e290`;
-- MT5 launched V50 with terminal PID 14328.
+Accepted recovered ZIP SHA256:
+`587cc102e85f6565b9ad880a757a9bd1ffc901c90d7f9d86c7cdadd0841b7e72`
 
-After launch, the Python runner hit a transient Windows sharing race while reading `V50_EXECUTION_PROBE_STATUS.txt` and exited with `PermissionError`. This was an orchestration/read-side failure, not an EA execution failure. The EA continued running in MT5.
+Integrity:
+- ZIP CRC PASS;
+- manifest 9/9 PASS.
 
-User screenshots of MT5 History show three new XAUUSDm probe round trips (0.01 lot each) completed around 2026-08-25 15:02-15:06. The three realized PnLs visible in History are approximately `-0.84`, `-0.46`, and `-0.61` USD, totaling `-1.91` USD. The Trade tab is flat afterward and the account balance shown is `38.09 USD` from the 40 USD rehearsal balance.
+Authoritative raw EA FINAL:
+- `verdict=EXECUTION_PIPELINE_PASS`;
+- `probe_round_trips=3`;
+- `probe_requests=6`;
+- `probe_rejects=0`;
+- final probe positions/pending/halt all zero;
+- run id `v50_execution_probe_v1__XAUUSDm__PERIOD_M15__2026-08-25_15-02-29__666031`.
 
-This is sufficient evidence that native DEMO order open/close plumbing executed; do not run additional probes merely to reproduce the same plumbing evidence. Final qualification still requires recovery of the EA FINAL/status/transaction files and packaging into the canonical ZIP.
+Conclusion:
+`EXECUTION_PIPELINE_PASS=1`
 
-## Share-lock incident and fix
+Do not repeat V50 plumbing probes. Their total approximately -1.91 USD PnL was probe cost, not alpha evidence.
 
-Source inspection confirms the MQL creates the correct directory `mt5_quant\\v50` and writes the status as a file. The Python `PermissionError` can occur when it attempts to read during the short MT5 write handle window.
+See `docs/research/v50_execution_probe_results_2026-08-25.md`.
 
-The branch now includes:
-- retry-safe `kv()` in `RUN_V50_EXECUTION_PROBE.py`;
-- retry-safe `kv()` in `SUPERVISE_V50_EXECUTION_PROBE.py`;
-- `RECOVER_V50_EXECUTION_PROBE.py`, which performs read-only evidence recovery/package without starting MT5 or sending any new broker request;
-- static coverage requiring share-lock tolerance and ensuring recovery cannot start/trade.
+## Current milestone — V51 higher-frequency challenger
 
-Operational rule: **recover/package the already executed run; do not restart V50 and do not create probe #4.**
+Branch:
+`agent/v51-higher-frequency-challenger`
 
-## V50 decision
+ADR:
+`docs/adr/ADR-051-higher-frequency-hybrid-challenger.md`
 
-ADR-050 decouples alpha frequency from execution qualification.
+Plan:
+`docs/research/v51_higher_frequency_plan.md`
 
-V50 does **not** lower breadth4 and does **not** retune alpha. The execution probe uses separate magic `500050`, broker minimum volume, margin precheck, protective SL/TP, automatic close, transaction confirmation, and no overlap with breadth4 positions.
+V51 runs one exact historical MT5 tournament. It does not replace breadth4 blindly with breadth3.
 
-The observed cost of the three DEMO probes (`-1.91 USD` on a nominal 40 USD rehearsal balance) is materially too large for a plumbing-only test. Do not rerun this probe design for convenience. If a future execution probe is ever necessary, use a lower-cost dedicated design rather than repeating the 45-second three-trade sequence.
+Baseline:
+- `v46_hl10_thr0p05_breadth4`.
 
-## Evidence workflow
+Preregistered challengers:
+- `v51_b4_or_b3_avg0p075`;
+- `v51_b4_or_b3_avg0p10`;
+- `v51_b4_or_b3_avg0p15`.
 
-Current task is recovery only.
+Hybrid semantics:
+- if healthy breadth >=4: preserve the breadth4 path;
+- if healthy breadth ==3: allow the extra lane only when average expert-health score clears the fixed candidate quality floor.
 
-Expected output:
-`runtime/v50_execution_probe/OUTPUT_V50/V50_EXECUTION_PROBE_RECOVERED_*.zip`
+No native broker execution is introduced in V51 historical source. No Martingale/grid and no risk increase.
 
-The ZIP must include `bundle_manifest_sha256.txt` plus available V50 status/final/events/transactions and relevant run evidence.
+## V51 selection guardrails
 
-If EA FINAL exists, preserve its verdict. If EA FINAL is absent, package as recovery evidence without fabricating `EXECUTION_PIPELINE_PASS`.
+A challenger is eligible only if:
+- trade count >=1.20x breadth4 baseline;
+- max MTM DD <=20%;
+- DD increase <=3 percentage points versus baseline;
+- PF >=1.15 and >=90% of baseline PF;
+- AvgR >=0.08R and >=65% of baseline AvgR;
+- annualized return >=8%;
+- `SumR - 0.05R * trades > 0`;
+- worst full year >=-10%;
+- worst rolling12 >=-10%.
 
-## Current readiness
+If multiple pass, select highest friction-stressed SumR per unit DD. If none pass, `V51_KEEP_BREADTH4` is a valid result.
 
-`EXECUTION_PLUMBING=OBSERVED_3_DEMO_ROUND_TRIPS`
+## Current action
 
-`V50_FINAL_EVIDENCE=PENDING_RECOVERY_ZIP`
+Run one V51 Windows historical tournament, then upload exactly:
+`runtime/v51_higher_frequency/OUTPUT_V51/v51_higher_frequency_tournament.zip`
 
-Do not infer strategy failure solely from quiet breadth4 days, and do not infer alpha quality from the probe PnL. Probe trades exist only to qualify execution plumbing.
+Do not run another V50 execution probe.
+
+Current classification:
+`V50_EXECUTION_PIPELINE=PASS`
+`V51_HIGHER_FREQUENCY=IMPLEMENTED_PENDING_WINDOWS_RUN`
