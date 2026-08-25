@@ -12,12 +12,18 @@ def sha256(path):
     with path.open("rb") as fh:
         for chunk in iter(lambda:fh.read(1024*1024),b""):h.update(chunk)
     return h.hexdigest()
-def kv(path):
-    out={}
-    if not path.is_file():return out
-    for line in path.read_text(encoding="utf-8-sig",errors="replace").splitlines():
-        if "=" in line:k,v=line.split("=",1);out[k.strip()]=v.strip()
-    return out
+def kv(path,attempts=40,delay=0.05):
+    for i in range(attempts):
+        try:
+            if not path.is_file():return {}
+            text=path.read_text(encoding="utf-8-sig",errors="replace");out={}
+            for line in text.splitlines():
+                if "=" in line:k,v=line.split("=",1);out[k.strip()]=v.strip()
+            return out
+        except (PermissionError,OSError):
+            if i+1>=attempts:raise
+            time.sleep(delay)
+    return {}
 def add_tree(files,root,prefix):
     if root.exists():
         for p in root.rglob("*"):
@@ -43,7 +49,8 @@ def main():
         if final.is_file() and final.stat().st_size>0:
             verdict=kv(final).get("verdict","FINAL");z=package(common,f"EA_FINAL_{verdict}");log.open("a",encoding="utf-8").write(f"{datetime.now().isoformat()} FINAL={verdict} ZIP={z} SHA={sha256(z)}\n");return 0
         if status.is_file():
-            mt=status.stat().st_mtime
+            try:mt=status.stat().st_mtime
+            except OSError:mt=last
             if mt>last:last=mt;stale=None
             elif stale is None:stale=time.time()
             elif time.time()-stale>300:log.open("a",encoding="utf-8").write(f"{datetime.now().isoformat()} WARNING=status_stale_gt_300s\n");stale=time.time()

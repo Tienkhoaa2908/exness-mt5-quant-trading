@@ -33,13 +33,21 @@ def run(cmd,*,cwd=None)->None:
     print("+"," ".join(str(x) for x in cmd)); subprocess.run([str(x) for x in cmd],cwd=cwd,check=True)
 
 
-def kv(path:Path)->dict[str,str]:
-    out={}
-    if not path.is_file(): return out
-    for line in path.read_text(encoding="utf-8-sig",errors="replace").splitlines():
-        if "=" in line:
-            k,v=line.split("=",1); out[k.strip()]=v.strip()
-    return out
+def kv(path:Path,attempts:int=40,delay:float=0.05)->dict[str,str]:
+    """Read a small MT5 status file despite transient Windows share locks."""
+    for i in range(attempts):
+        try:
+            if not path.is_file(): return {}
+            text=path.read_text(encoding="utf-8-sig",errors="replace")
+            out={}
+            for line in text.splitlines():
+                if "=" in line:
+                    k,v=line.split("=",1); out[k.strip()]=v.strip()
+            return out
+        except (PermissionError,OSError):
+            if i+1>=attempts: raise
+            time.sleep(delay)
+    return {}
 
 
 def close_v49_if_flat(common:Path)->None:
