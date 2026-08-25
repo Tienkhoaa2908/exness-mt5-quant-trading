@@ -4,17 +4,16 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Current milestone
 
-V51 higher-frequency challenger tournament.
+V51 accepted; next experiment is V52 source-aware higher-frequency challenger.
 
-Authoritative branch:
+Authoritative accepted V51 branch:
 `agent/v51-higher-frequency-challenger`
 
 Read first:
 1. `docs/handover/CURRENT_STATE.md`
 2. `docs/research/v50_execution_probe_results_2026-08-25.md`
-3. `docs/adr/ADR-051-higher-frequency-hybrid-challenger.md`
-4. `docs/research/v51_higher_frequency_plan.md`
-5. `runtime/v51_higher_frequency/START_V51_HIGHER_FREQUENCY_GIT_BASH.sh`
+3. `docs/research/v51_higher_frequency_results_2026-08-26.md`
+4. `docs/adr/ADR-051-higher-frequency-hybrid-challenger.md`
 
 ## Accepted V50 evidence
 
@@ -24,47 +23,43 @@ Recovered ZIP SHA256:
 Raw EA FINAL:
 `EXECUTION_PIPELINE_PASS`
 
-Evidence contains three completed 0.01-lot XAUUSDm DEMO round trips, six requests, zero rejects, final flat state and no halt. Do not rerun V50 plumbing probes.
+Do not rerun V50 plumbing probes.
 
-## V51 purpose
+## Accepted V51 evidence
 
-The execution pipeline is no longer the bottleneck. V51 tests whether the strategy can trade materially more often without undoing breadth4 robustness.
+ZIP SHA256:
+`8475b12077a28b18df722965895565772a6020a12ddebfd958aed67652808d98`
 
-Baseline:
-`v46_hl10_thr0p05_breadth4`
+Integrity:
+- ZIP CRC PASS;
+- manifest 17/17 PASS;
+- run HEAD `8c211b27e6676f3176e089a619679e6af263e3fd`;
+- MetaEditor 0 errors / 0 warnings.
 
-Preregistered challengers:
-- `v51_b4_or_b3_avg0p075`;
-- `v51_b4_or_b3_avg0p10`;
-- `v51_b4_or_b3_avg0p15`.
+Formal result:
+`V51_KEEP_BREADTH4`
 
-The breadth4 path is preserved. The challengers add only an exactly-three-healthy-expert opportunity lane with a fixed average health-quality threshold.
+The three average-health breadth3 challengers increased trades by ~27%-35%, but max MTM DD rose to ~25%-29% and worst rolling12 fell below -10%; none is promotable.
 
-## Run semantics
+## Diagnostic direction for V52
 
-One exact historical MT5 run:
-- XAUUSDm M15;
-- 2021-01-03 -> 2026-08-01;
-- cold start;
-- first 6 months warm-up;
-- $40, leverage 1:200;
-- no broker orders;
-- no risk increase;
-- no threshold changes after seeing the run.
+Do not perform another average-health threshold sweep.
 
-Possible outcome:
-- `V51_CHALLENGER_SELECTED`;
-- `V51_KEEP_BREADTH4`.
+Same-sample decomposition of V51 incremental breadth3 trades shows stable source separation across the three V51 thresholds:
+- positive: `TREND20_H1`, `BOS_FVG_H1`;
+- negative: `EMA_H1`, `MACD_H1`, `SLOW_MOM_16H24H`.
 
-If selected, only a short broker-DEMO confirmation is needed next because V50 already qualified native order plumbing.
+This diagnostic is not itself promotable. Use it only to preregister one small source-aware tournament.
 
-## User workflow
-
-Close MetaEditor and MT5 before the historical tester run, then run the canonical V51 Git Bash bootstrap supplied by the coordinator.
-
-After completion upload one file only:
-`runtime/v51_higher_frequency/OUTPUT_V51/v51_higher_frequency_tournament.zip`
+V52 design principle:
+- preserve breadth>=4 baseline behavior;
+- when healthy breadth ==3, allow only selected expert source masks corresponding to TREND20_H1 and/or BOS_FVG_H1;
+- no broad tuning;
+- no Martingale/grid;
+- no execution-plumbing rerun;
+- keep breadth4 if source-aware variants fail risk/stability guardrails.
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
-`V51_HIGHER_FREQUENCY=IMPLEMENTED_PENDING_WINDOWS_RUN`
+`V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
+`V52_SOURCE_AWARE=NEXT`
