@@ -79,19 +79,59 @@ For the avg0.10 challenger specifically, incremental trades were approximately:
 - MACD_H1: 25 trades, AvgR -0.194R;
 - SLOW_MOM_16H24H: 72 trades, AvgR -0.073R.
 
-This is diagnostic/same-sample evidence, not a promotion result. It motivates one small preregistered source-aware challenger rather than another average-score threshold sweep.
+This is diagnostic/same-sample evidence, not a promotion result.
 
-## Next milestone — V52 source-aware opportunity lane
+## Current milestone — V52 source-aware opportunity lane
 
-Design principle:
-- preserve breadth>=4 behavior;
-- when healthy breadth ==3, admit only selected expert sources that showed positive incremental edge in V51 (`TREND20_H1` and/or `BOS_FVG_H1`);
-- no broad parameter sweep;
-- no Martingale/grid;
-- no execution-plumbing rerun;
-- accept `KEEP_BREADTH4` if source-aware variants still fail risk/stability controls.
+Branch:
+`agent/v52-source-aware-challenger`
+
+ADR:
+`docs/adr/ADR-052-source-aware-breadth3-opportunity-lane.md`
+
+Plan:
+`docs/research/v52_source_aware_plan.md`
+
+V52 derives deterministically from the accepted V51 generated source SHA:
+`927611f7313793505d23c4c3d205a8ce0282869ad3ab8e4b49efe2ecc7ec79f6`
+
+Baseline:
+`v46_hl10_thr0p05_breadth4`
+
+Preregistered challengers:
+- `v52_b4_or_b3_trend`;
+- `v52_b4_or_b3_bos`;
+- `v52_b4_or_b3_trend_bos`.
+
+Semantics:
+- breadth >=4: preserve the inherited path;
+- breadth ==3: apply a selected-expert source mask only;
+- no new average-health threshold;
+- no risk increase;
+- no native broker orders in the historical source.
+
+Selection guardrails:
+- trade count >=1.05x baseline;
+- max MTM DD <=20%;
+- DD increase <=3 percentage points;
+- PF >=1.20 and >=95% baseline;
+- AvgR >=0.10R and >=75% baseline;
+- annualized >=10%;
+- friction-stressed SumR remains positive;
+- worst full year >=-10%;
+- worst rolling12 >=-10%.
+
+If none passes, `V52_KEEP_BREADTH4` is the correct result.
+
+Implementation status:
+- V52 builder implemented;
+- V52 analyzer implemented;
+- V52 one-shot runner implemented;
+- V52 static contract test implemented;
+- V52 Git Bash entrypoint implemented;
+- Windows MetaEditor compile / exact MT5 run still pending.
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
 `V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
-`V52_SOURCE_AWARE=NEXT`
+`V52_SOURCE_AWARE=IMPLEMENTED_PENDING_WINDOWS_RUN`
