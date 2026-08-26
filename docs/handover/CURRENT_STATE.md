@@ -40,8 +40,7 @@ Integrity:
 - manifest 17/17 PASS;
 - run HEAD `8c211b27e6676f3176e089a619679e6af263e3fd`;
 - source SHA256 `927611f7313793505d23c4c3d205a8ce0282869ad3ab8e4b49efe2ecc7ec79f6`;
-- MetaEditor `0 errors, 0 warnings`;
-- run id `v51_higher_frequency_challenger_v1__XAUUSDm__PERIOD_M15__2021-01-03_00-00-00__812031`.
+- MetaEditor `0 errors, 0 warnings`.
 
 Formal result:
 `V51_KEEP_BREADTH4`
@@ -54,84 +53,70 @@ Baseline breadth4:
 - max MTM DD 16.60%;
 - worst rolling12 -1.95%.
 
-V51 challengers raised trade count by roughly 27%–35%, but all failed drawdown/stability guardrails:
-- avg0.075: 1110 trades, DD 28.62%, worst rolling12 -13.39%;
-- avg0.10: 1101 trades, DD 25.04%, worst rolling12 -11.09%;
-- avg0.15: 1050 trades, DD 28.56%, worst rolling12 -14.39%.
-
-No V51 average-health challenger is promotable.
+V51 average-health challengers increased trade count materially but failed DD/rolling-stability guardrails. Diagnostic decomposition found the incremental breadth3 lane positive for `TREND20_H1` and `BOS_FVG_H1`, negative for EMA/MACD/SLOW_MOM. This same-sample diagnostic motivated V52.
 
 See `docs/research/v51_higher_frequency_results_2026-08-26.md`.
 
-## V51 diagnostic implication
+## V52 generated-tick run — INVALID DATA
 
-Same-sample diagnostic decomposition of the incremental breadth3 lane shows a stable source split across all three V51 thresholds:
-- `TREND20_H1`: positive incremental edge;
-- `BOS_FVG_H1`: positive incremental edge;
-- `EMA_H1`: negative incremental edge;
-- `MACD_H1`: negative incremental edge;
-- `SLOW_MOM_16H24H`: negative incremental edge.
+Uploaded V52 ZIP SHA256:
+`01f63cdcbff48ea0bb7d5d7ebf405e9612a7783e6ecc35b7c9afe6ef81abbed8`
 
-For the avg0.10 challenger specifically, incremental trades were approximately:
-- TREND20_H1: 76 trades, AvgR +0.149R, SumR +11.36R;
-- BOS_FVG_H1: 16 trades, AvgR +0.331R, SumR +5.30R;
-- EMA_H1: 114 trades, AvgR -0.085R;
-- MACD_H1: 25 trades, AvgR -0.194R;
-- SLOW_MOM_16H24H: 72 trades, AvgR -0.073R.
+Archive integrity itself:
+- ZIP CRC PASS;
+- manifest 18/18 PASS;
+- run HEAD `1ee7bd4de885335f3728b1e60b0c19929fbc04cb`;
+- exact generated V52 source SHA256 `676823fd380ee3d1654f17b348b04a42cd4ad8afe5fdbecb4247dfe552f8df09`;
+- MetaEditor compile `0 errors, 0 warnings`.
 
-This is diagnostic/same-sample evidence, not a promotion result.
+The raw analyzer printed:
+`V52_CHALLENGER_SELECTED / v52_b4_or_b3_trend_bos`
 
-## Current milestone — V52 source-aware opportunity lane
+This selection is **rejected** because `trades.csv` contains pathological XAUUSDm prices around 30,000 while surrounding entries are around 1,900:
+- 2023-01-13 exit `30363.760` — 12 anomalous rows;
+- 2023-09-29 exit `29846.016` — 53 anomalous rows;
+- 2023-10-18 exit `30836.912` — 9 anomalous rows.
+
+Maximum absolute trade result exceeds 13,000R. Accepted V51 had zero >2x entry/exit price-ratio anomalies and max absolute R below 5R.
+
+The September bad tick catastrophically affects EMA/MACD/SLOW control experts and therefore contaminates adaptive health. Evidence of downstream contamination: the supposedly unchanged breadth4 baseline falls from 825 eval trades in V51 to 795 in V52, with 30 previously present breadth4 trades missing.
+
+Formal classification:
+`V52_RESULT=INVALID_DATA_CONTAMINATION`
+
+Do not promote any V52 candidate from that ZIP.
+
+See `docs/research/v52_source_aware_results_2026-08-26.md`.
+
+## Current milestone — V52R real-tick reproducibility
 
 Branch:
-`agent/v52-source-aware-challenger`
+`agent/v52r-real-tick-repro`
 
-ADR:
-`docs/adr/ADR-052-source-aware-breadth3-opportunity-lane.md`
+V52R is **not a new alpha search**. It reuses the exact V52 source SHA:
+`676823fd380ee3d1654f17b348b04a42cd4ad8afe5fdbecb4247dfe552f8df09`
 
-Plan:
-`docs/research/v52_source_aware_plan.md`
+Only the tester data model changes:
+- prior V52: `Model=0` simulated Every Tick;
+- V52R: `Model=4` Every tick based on real ticks.
 
-V52 derives deterministically from the accepted V51 generated source SHA:
-`927611f7313793505d23c4c3d205a8ce0282869ad3ab8e4b49efe2ecc7ec79f6`
+The source-aware candidate catalog and ADR-052 guardrails remain frozen.
 
-Baseline:
-`v46_hl10_thr0p05_breadth4`
+V52R adds a fail-closed data-integrity gate before any selection:
+- finite positive entry/exit;
+- max entry/exit price ratio <=1.25;
+- max absolute trade result <=10R;
+- zero violating rows.
 
-Preregistered challengers:
-- `v52_b4_or_b3_trend`;
-- `v52_b4_or_b3_bos`;
-- `v52_b4_or_b3_trend_bos`.
+Possible statuses:
+- `V52R_CHALLENGER_SELECTED`;
+- `V52R_KEEP_BREADTH4`;
+- `V52R_DATA_INTEGRITY_FAIL`.
 
-Semantics:
-- breadth >=4: preserve the inherited path;
-- breadth ==3: apply a selected-expert source mask only;
-- no new average-health threshold;
-- no risk increase;
-- no native broker orders in the historical source.
-
-Selection guardrails:
-- trade count >=1.05x baseline;
-- max MTM DD <=20%;
-- DD increase <=3 percentage points;
-- PF >=1.20 and >=95% baseline;
-- AvgR >=0.10R and >=75% baseline;
-- annualized >=10%;
-- friction-stressed SumR remains positive;
-- worst full year >=-10%;
-- worst rolling12 >=-10%.
-
-If none passes, `V52_KEEP_BREADTH4` is the correct result.
-
-Implementation status:
-- V52 builder implemented;
-- V52 analyzer implemented;
-- V52 one-shot runner implemented;
-- V52 static contract test implemented;
-- V52 Git Bash entrypoint implemented;
-- Windows MetaEditor compile / exact MT5 run still pending.
+A data-integrity failure is not an alpha failure and must not trigger threshold tuning.
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
 `V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
-`V52_SOURCE_AWARE=IMPLEMENTED_PENDING_WINDOWS_RUN`
+`V52_SOURCE_AWARE=INVALID_DATA_CONTAMINATION`
+`V52R_REAL_TICK_REPRO=IMPLEMENTED_PENDING_WINDOWS_RUN`
