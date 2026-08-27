@@ -1,6 +1,7 @@
 # ADR-054 — V53 selected-candidate broker-DEMO confirmation
 
 Date: 2026-08-26
+Updated: 2026-08-27
 
 ## Context
 
@@ -27,10 +28,37 @@ Confirmation gate:
 - final flat state;
 - hard calendar stop 7 days if the natural sample does not arrive.
 
-Possible final outcomes:
+Possible EA final outcomes remain:
 - `DEMO_CONFIRMATION_PASS`;
 - `HOLD`;
 - `INSUFFICIENT_EXECUTION_SAMPLE`.
+
+## Operator timebox waiver — 2026-08-27
+
+The natural-signal gate is not allowed to block the project indefinitely when the selected candidate simply has not generated an entry.
+
+If by the end of 2026-08-28 (user-local date) V53 still has **zero natural round trips**, the coordinator may close this milestone without extending the wait, provided the observed runtime remains healthy and flat:
+- heartbeat/status continues updating;
+- `halted=0`;
+- no duplicate-owned-position event;
+- no direction mismatch;
+- no unresolved open/close pending state;
+- no owned broker position;
+- no broker reject attributable to a natural strategy request.
+
+This closure must be recorded as:
+`V53_NO_SIGNAL_TIMEBOX_WAIVER`
+
+It must **not** be relabeled `DEMO_CONFIRMATION_PASS`, because no natural candidate-to-broker open/close mapping was observed.
+
+Under this waiver:
+- V52R remains the authoritative alpha-selection evidence;
+- V50 remains the authoritative generic broker-DEMO execution-plumbing evidence;
+- the selected research candidate remains `v52_b4_or_b3_trend_bos`;
+- the missing evidence is explicitly limited to a natural V53 round trip;
+- further DEMO research/monitoring may proceed without rerunning V50 probes or retuning alpha.
+
+If a natural V53 round trip arrives before the timebox closes and all reconciliation checks pass, the normal `DEMO_CONFIRMATION_PASS` path remains valid.
 
 ## Safety
 
@@ -40,4 +68,6 @@ No execution-probe trades are permitted. No threshold retuning, Martingale, grid
 
 ## Consequence
 
-A clean V53 pass confirms the selected strategy's natural virtual intent can map through the already-qualified broker-DEMO adapter. It does not itself authorize real-money execution.
+A clean V53 pass confirms the selected strategy's natural virtual intent can map through the already-qualified broker-DEMO adapter.
+
+A `V53_NO_SIGNAL_TIMEBOX_WAIVER` closes the waiting gate without making that confirmation claim. It preserves the distinction between evidence already established by V50/V52R and evidence that was not observed in V53.
