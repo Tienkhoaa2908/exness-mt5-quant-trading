@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-08-26
+Updated: 2026-08-27
 
 ## Project objective
 
@@ -80,7 +80,7 @@ ADR:
 
 V53 ports only the selected `v52_b4_or_b3_trend_bos` rule into the accepted V48 forward observer lineage and inherits the V49/V50 broker-DEMO adapter semantics.
 
-V53 confirmation contract:
+Normal V53 confirmation contract:
 - selected candidate only; no new alpha tuning;
 - natural virtual intent only; no execution-probe trades;
 - magic `530053`;
@@ -90,17 +90,27 @@ V53 confirmation contract:
 - at least 1 broker-confirmed natural round trip;
 - final flat state;
 - inherited reject/duplicate/direction-mismatch checks;
-- hard calendar stop 7 days;
-- possible verdicts `DEMO_CONFIRMATION_PASS`, `HOLD`, `INSUFFICIENT_EXECUTION_SAMPLE`;
+- EA hard calendar stop 7 days;
+- normal verdicts `DEMO_CONFIRMATION_PASS`, `HOLD`, `INSUFFICIENT_EXECUTION_SAMPLE`;
 - detached supervisor packages one final ZIP.
 
-Implementation status:
-- V53 selected forward/broker builder implemented;
-- V53 runner implemented;
-- retry-safe detached supervisor implemented;
-- static contract test implemented;
-- Git Bash one-shot entrypoint implemented;
-- Windows MetaEditor compile/start evidence pending.
+## V53 no-signal timebox decision — 2026-08-27
+
+The natural-signal confirmation is now timeboxed through the end of 2026-08-28 user-local date.
+
+If by then there is still no natural round trip, the milestone may be closed without extending the wait **only if** runtime evidence remains healthy/flat: heartbeat updating, `halted=0`, no duplicate/direction mismatch, no unresolved pending state, no owned broker position, and no natural-request reject.
+
+The closure label is:
+`V53_NO_SIGNAL_TIMEBOX_WAIVER`
+
+This is **not** `DEMO_CONFIRMATION_PASS`. It means:
+- V52R alpha-selection evidence remains accepted;
+- V50 generic broker-DEMO execution plumbing remains accepted;
+- `v52_b4_or_b3_trend_bos` remains the selected research candidate;
+- the only missing V53 evidence is a natural candidate-to-broker round trip;
+- the project will not keep waiting solely to force that sparse event.
+
+Do not restart V53 or add synthetic probe trades to manufacture the missing natural sample.
 
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
@@ -108,4 +118,5 @@ Current classification:
 `V52_SOURCE_AWARE=INVALID_DATA_CONTAMINATION`
 `V52R_REAL_TICK_REPRO=PASS`
 `RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
-`V53_DEMO_CONFIRMATION=IMPLEMENTED_PENDING_WINDOWS_START`
+`V53_DEMO_CONFIRMATION=RUNNING_OR_TIMEBOX_PENDING`
+`V53_TIMEBOX_DATE=2026-08-28`
