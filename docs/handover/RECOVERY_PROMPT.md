@@ -4,7 +4,7 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 ## Current milestone
 
-V52R real-tick reproducibility is accepted. V53 short broker-DEMO confirmation is implemented and pending Windows compile/start.
+V52R real-tick reproducibility is accepted. V53 short broker-DEMO confirmation is active/timeboxed.
 
 Authoritative branch:
 `agent/v53-trend-bos-demo-confirmation`
@@ -52,17 +52,47 @@ Generated forward candidate semantics:
 - book index 3 (`usd40_r1p0_cent_continuous`);
 - magic `530053`.
 
-Confirmation gate:
+Normal confirmation gate:
 - at least 2 distinct market days;
 - at least 1 broker-confirmed natural round trip;
-- hard calendar stop 7 days;
+- EA hard calendar stop 7 days;
 - final flat state;
 - inherited reject/duplicate/direction-mismatch/pending-timeout reconciliation checks.
 
-Possible final verdicts:
+Possible EA final verdicts:
 - `DEMO_CONFIRMATION_PASS`;
 - `HOLD`;
 - `INSUFFICIENT_EXECUTION_SAMPLE`.
+
+## Timebox waiver rule
+
+Operator decision dated 2026-08-27:
+
+If no natural V53 round trip has occurred by the end of 2026-08-28 user-local date, do not extend the wait solely to obtain a sparse event.
+
+Close the milestone as:
+`V53_NO_SIGNAL_TIMEBOX_WAIVER`
+
+Only do this if runtime evidence remains healthy and flat:
+- heartbeat/status updating;
+- `halted=0`;
+- duplicate events = 0;
+- direction mismatches = 0;
+- open/close pending = 0;
+- owned broker positions = 0;
+- no reject attributable to a natural strategy request.
+
+Do **not** call this `DEMO_CONFIRMATION_PASS`; no natural candidate-to-broker round trip was observed.
+
+The waiver preserves these accepted facts:
+- V52R selected `v52_b4_or_b3_trend_bos` on clean real ticks;
+- V50 proved generic broker-DEMO open/close/reconciliation plumbing;
+- the selected research candidate remains unchanged;
+- the missing evidence is specifically the natural V53 integration event.
+
+Do not restart V53, do not add V50-style synthetic probes, and do not retune alpha to force an entry.
+
+If a natural round trip arrives before timebox closure and all checks are clean, use the normal `DEMO_CONFIRMATION_PASS` path.
 
 Safety:
 - DEMO only;
@@ -72,10 +102,9 @@ Safety:
 - no execution-probe trades;
 - no Martingale/grid/doubling/risk increase.
 
-After Windows startup succeeds, do not run START again. Keep PC/Internet/MT5 running. Detached supervisor packages one ZIP under `runtime/v53_trend_bos_demo/OUTPUT_V53/` and records `LATEST_V53_ZIP.txt` after FINAL.
-
 Current classification:
 `V50_EXECUTION_PIPELINE=PASS`
 `V52R_REAL_TICK_REPRO=PASS`
 `RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
-`V53_DEMO_CONFIRMATION=IMPLEMENTED_PENDING_WINDOWS_START`
+`V53_TIMEBOX_DATE=2026-08-28`
+`V53_DEMO_CONFIRMATION=RUNNING_OR_TIMEBOX_PENDING`
