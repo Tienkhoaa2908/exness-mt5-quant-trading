@@ -1,0 +1,7 @@
+# Python/tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated runtime evidence/build outputs. Preserve on disk; do not track.
+runtime/**/OUTPUT_*/
