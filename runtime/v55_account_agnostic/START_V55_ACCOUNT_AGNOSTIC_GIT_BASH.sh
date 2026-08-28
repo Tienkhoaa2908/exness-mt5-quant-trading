@@ -10,4 +10,4 @@ if [[ "$BRANCH" != "$EXPECTED_BRANCH" ]]; then
   exit 20
 fi
 
-python runtime/v55_account_agnostic/RUN_V55_ACCOUNT_AGNOSTIC.py "$@"
+python runtime/v55_account_agnostic/RUN_V55_WINDOWS_GATE.py "$@"
