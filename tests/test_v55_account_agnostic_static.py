@@ -5,6 +5,7 @@ REPO = Path(__file__).resolve().parents[1]
 V54_BUILDER = REPO / "scripts" / "build_v54_production_readiness_source.py"
 BUILDER = REPO / "scripts" / "build_v55_account_agnostic_source.py"
 RUNNER = REPO / "runtime" / "v55_account_agnostic" / "RUN_V55_ACCOUNT_AGNOSTIC.py"
+WINDOWS_GATE = REPO / "runtime" / "v55_account_agnostic" / "RUN_V55_WINDOWS_GATE.py"
 PACKAGER = REPO / "runtime" / "v55_account_agnostic" / "PACKAGE_V55_EVIDENCE.py"
 START = REPO / "runtime" / "v55_account_agnostic" / "START_V55_ACCOUNT_AGNOSTIC_GIT_BASH.sh"
 
@@ -122,6 +123,23 @@ def test_runner_emits_native_mt5_set_format():
     )
 
 
+def test_windows_gate_is_fail_fast_and_prints_attach_diagnostics():
+    g = rt(WINDOWS_GATE)
+    need(
+        g,
+        'READY_TIMEOUT_SECONDS = 60',
+        'DIAG_AFTER_SECONDS = 15',
+        'V55 WINDOWS STARTUP DIAGNOSTICS',
+        'terminal_trade_allowed',
+        'mql_trade_allowed',
+        'terminal_dlls_allowed',
+        'latest_mt5_logs',
+        'recent_common_diagnostics',
+        'MetaTrader 5 is already open. Close the existing terminal first',
+        'v55.wait_ready = fast_wait_ready',
+    )
+
+
 def test_runtime_preserves_inherited_v54_safety_and_v55_evidence_contracts():
     v54 = rt(V54_BUILDER)
     b = rt(BUILDER)
@@ -163,9 +181,9 @@ def test_runtime_preserves_inherited_v54_safety_and_v55_evidence_contracts():
     )
 
 
-def test_one_command_launcher_passes_mode_through():
+def test_one_command_launcher_passes_mode_through_windows_gate():
     s = rt(START)
-    need(s, 'set -euo pipefail', 'RUN_V55_ACCOUNT_AGNOSTIC.py "$@"')
+    need(s, 'set -euo pipefail', 'RUN_V55_WINDOWS_GATE.py "$@"')
 
 
 def main() -> int:
