@@ -65,14 +65,18 @@ V53 classification:
 Do not relabel it `DEMO_CONFIRMATION_PASS`, do not wait for another forced timebox and
 do not rerun V50 probes.
 
-## V54 engineering contract
+## V54/V55 engineering contract
 
 V54 wraps the exact V53 candidate and inherited V49 execution adapter. It adds only
-production safety/operations hardening:
+production safety/operations hardening. V55 then keeps that exact candidate/execution
+mapping and removes the DEMO-vs-REAL code fork: the same generated EA binary supports
+both account modes.
+
+Shared production contract:
 
 - one symbol `XAUUSDm`;
 - M15;
-- magic `540054`;
+- V55 owned magic `550055`;
 - max one owned position;
 - risk-cap sizing, never scaling above inherited virtual volume;
 - daily/session and peak-equity loss protection;
@@ -84,18 +88,29 @@ production safety/operations hardening:
 - retcode/deal/transaction audit;
 - phone notification path;
 - immutable snapshot evidence package;
-- rollback runbook.
+- rollback runbook;
+- broker volume, stop-distance and margin constraints derived at runtime.
 
 No Martingale, no grid, no doubling after loss.
 
-Activation semantics on this branch:
+V55 activation semantics:
 
-`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+- DEMO is active by default;
+- REAL loads the same EA binary;
+- REAL without explicit arm is observe/reconcile only and cannot open new risk;
+- REAL new-risk activation requires both `InpV55AllowRealAccount=true` and the exact
+  arm code `V55_REAL_ARMED`;
+- changing account identity while the EA is running halts new activity and requires a
+  restart;
+- no login/password/server credential is stored in the runner or repository.
 
-`real_money_authorized=0`
+Current canonical V55 entrypoint:
 
-The EA retains `ACCOUNT_TRADE_MODE_DEMO`. Do not remove that guard merely to turn a
-technical readiness test into a real-money transaction.
+`bash runtime/v55_account_agnostic/START_V55_ACCOUNT_AGNOSTIC_GIT_BASH.sh`
+
+The default invocation targets DEMO. The same code path can later target the currently
+logged REAL account through the runner's explicit execution-mode input; do not create a
+separate strategy fork for the real account.
 
 ## CI recovery fact
 
@@ -103,21 +118,39 @@ V53 HEAD's last `quality` workflow was failure. The policy scanner failed first 
 unconditional historical V29 `exit 86` would have failed later. V54 repairs those
 global CI defects without changing historical evidence files.
 
-Do not claim V54 CI PASS until GitHub Actions for the V54 commit is actually green.
+Do not claim CI PASS until GitHub Actions for the current HEAD is actually green.
+
+## Historical recovery invariants — preserve exactly
+
+These are compatibility/recovery facts from V38–V45 and remain part of the repository
+contract even though they are not the active runtime:
+
+- immutable V38 evidence remains the parent recovery anchor;
+- Windows text/console recovery must remember the cp1252 incident and the historical
+  ERR trap behavior;
+- never reintroduce a runtime shell patcher to mutate evidence-producing code;
+- a compile artifact must be tied to the exact source SHA rather than inferred from a
+  stale EX5/log pair;
+- MSYS/Git Bash path conversion incidents are part of the Windows recovery playbook;
+- when a completed checkpoint exists, prefer package-only recovery;
+- after exact completed evidence, do not rerun MT5 merely to rebuild packaging;
+- the historical recovery ladder includes V44 and later gates;
+- V45 is a cold-start multi-year validation designed to avoid look-ahead from 2025
+  state into the 2022 start;
+- `MT5_DONE.json` and `DONE.txt` are completion checkpoints;
+- once those exact completion checkpoints are valid, MT5 must not rerun;
+- package-only recovery must preserve the already completed runtime bytes.
 
 ## Windows gate
 
-Canonical entrypoint:
-
-`bash runtime/v54_production_readiness/START_V54_PRODUCTION_READINESS_GIT_BASH.sh`
-
-The runner must fail closed on wrong branch, dirty tree, deterministic parent mismatch,
-static-test failure, secret-scan failure, MetaEditor compile failure, non-DEMO account,
-wrong symbol/timeframe, DLL permission, ownership ambiguity or startup halt.
+V55 runner must fail closed on wrong branch, dirty tracked tree, deterministic parent
+mismatch, static-test failure, secret-scan failure, MetaEditor compile failure, wrong
+symbol/timeframe, DLL permission, ownership ambiguity, unsupported account mode or
+startup halt.
 
 A successful Windows start must produce an immutable startup ZIP under:
 
-`runtime/v54_production_readiness/OUTPUT_V54/`
+`runtime/v55_account_agnostic/OUTPUT_V55/`
 
 Compile/runtime PASS must come from actual Windows output; never fabricate it.
 

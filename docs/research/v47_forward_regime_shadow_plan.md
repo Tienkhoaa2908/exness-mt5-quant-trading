@@ -16,6 +16,8 @@ V46 breadth4 materially repaired the multi-year risk problem without a parameter
 
 The next useful evidence had to be fresh. Re-optimizing breadth, HL10 or the 0.05 thresholds on 2021-2026 would be same-sample tuning.
 
+No single short period can authorize promotion by itself.
+
 ## Frozen primary
 
 The V47 primary remains exactly the V46 breadth4 mechanism:
@@ -31,7 +33,14 @@ No breadth3/breadth5 ranking is allowed in V47.
 
 ## V47 is not another historical parameter search
 
-Do not run a grid over breadth count, EWMA half-life, score threshold, ADX threshold or DI rules. The accepted 2021-2026 sample is considered consumed for those choices.
+Do not run a grid over:
+- breadth count;
+- EWMA half-life;
+- score threshold;
+- ADX threshold;
+- DI rules.
+
+The accepted 2021-2026 sample is considered consumed for those choices.
 
 ## Mandatory observability fixes
 

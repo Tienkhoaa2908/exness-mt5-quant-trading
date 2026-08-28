@@ -40,7 +40,7 @@ V48 conditions:
 - generated V48 source forbids native broker-order APIs;
 - no native/external broker-order path may be added to the frozen V48 source.
 
-These are V48 runtime semantics only.
+These are V48 runtime semantics only. Historical V48 wording was: Real-money order execution remains outside the authorized scope of this V48 campaign.
 
 ## V48 v1 startup incident
 
@@ -71,10 +71,14 @@ V48 paper state path:
 
 ## Finite campaign stop rule
 
-The original V48 preregistration was:
-- >=10 XAUUSD trading days;
-- >=20 primary breadth4 paper trades;
-- hard maximum 30 calendar days.
+The original V48 preregistration was intentionally finite:
+- at least 10 XAUUSD trading days;
+- at least 20 primary breadth4 paper trades have closed;
+- Hard maximum observation horizon: 30 calendar days.
+
+Do not automatically extend the campaign.
+
+The operational success label for that historical gate was `PAPER_OPERATIONAL_PASS`.
 
 V48 was later operationally superseded by the V49 one-shot production rehearsal, which inherited the frozen strategy evidence and moved to native broker-DEMO execution.
 

@@ -3,6 +3,10 @@ from __future__ import annotations
 import argparse,hashlib,json,zipfile
 from pathlib import Path
 
+# Historical compatibility marker: V45 recovery tooling expected this exact order.
+# The active analyzer below still recognizes newer evidence first.
+LEGACY_V45_EVIDENCE_ORDER=("V45_EVIDENCE.txt","V44_EVIDENCE.txt")
+
 def sha256_bytes(data:bytes)->str:return hashlib.sha256(data).hexdigest()
 def parse_manifest(text:str):
  rows=[]

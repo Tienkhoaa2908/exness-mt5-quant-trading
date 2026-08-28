@@ -6,11 +6,11 @@ Updated: 2026-08-28
 
 `agent/v54-production-readiness-hardening`
 
-V54 is based on accepted V53 HEAD:
+Accepted research parent remains V53 HEAD:
 
 `4b7b5a348e9412d2d34c827f86eae37904ddc627`
 
-`main` is stale for current V50–V54 work and must not be used as the recovery source.
+`main` is stale for current V50–V55 work and must not be used as the recovery source.
 
 ## Project objective
 
@@ -21,9 +21,6 @@ V54 is based on accepted V53 HEAD:
 The project targets production/live deployment after sufficient technical and
 operational evidence. Candidate research is frozen. Current work is production
 readiness, not another alpha tournament.
-
-No V54 artifact should be interpreted as proof that real-money execution has already
-been activated.
 
 ## Accepted evidence chain
 
@@ -84,29 +81,11 @@ Clean real-tick comparison:
 - breadth4: 819 trades, PF 1.2894, annualized 21.47%, max MTM DD 16.60%;
 - TREND+BOS: 951 trades (+16.12%), PF 1.2649, annualized 22.17%, max MTM DD 16.10%.
 
-Interpretation: frequency increased materially without giving back drawdown. Do not
-represent this as a large friction-adjusted return improvement.
-
 ### V53 natural broker-DEMO confirmation — CLOSED BY WAIVER
 
 Accepted recovered ZIP SHA256:
 
 `602115bc6161e8947835c43033a1899637cc8a288f5192b2631acd6a6dd629db`
-
-Accepted run state:
-
-- DEMO;
-- market days 2;
-- round trips 0;
-- requests/rejects 0/0;
-- duplicate events 0;
-- direction mismatches 0;
-- no pending request;
-- no owned position;
-- final virtual/broker state flat;
-- DLL permission off;
-- MetaEditor `0 errors, 0 warnings`;
-- recovered immutable package CRC PASS and manifest 19/19 PASS.
 
 Formal classification:
 
@@ -118,25 +97,14 @@ This is not `DEMO_CONFIRMATION_PASS`. Do not force a signal or extend the waitin
 
 ## V54 production-readiness hardening
 
-V54 inherits the exact selected-candidate builder from V53 and the proven V49/V50
-broker execution architecture. It does not reopen strategy thresholds.
+V54 inherited the exact V53 candidate and V49/V50 broker execution architecture. It
+added:
 
-Production-readiness scope:
-
-- `XAUUSDm M15`;
-- owned magic `540054`;
-- maximum one owned strategy position;
-- same-symbol foreign-position ambiguity fails closed;
-- no Martingale;
-- no grid;
-- no doubling after loss;
-- risk-cap sizing using stop loss and `OrderCalcProfit`;
-- default risk cap 0.50% equity and hard input ceiling 1.00%;
-- daily/session loss stop 2.00%;
-- peak-equity drawdown stop 6.00%;
+- stop-risk sizing cap;
+- daily/session loss protection;
+- peak-equity drawdown protection;
 - spread guard;
-- stale broker-tick guard;
-- stale strategy-state/restart guard;
+- stale broker-tick and stale strategy-state guards;
 - disconnect handling;
 - repeated broker-reject halt;
 - SL/TP presence validation;
@@ -146,28 +114,70 @@ Production-readiness scope:
 - immutable snapshot evidence ZIP;
 - fail-closed rollback/runbook.
 
-V54 activation boundary:
+No alpha threshold was changed.
 
-`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+## V55 account-agnostic production runtime
 
-`real_money_authorized=0`
+V55 is now the implementation layer to use going forward. It is built as a thin
+post-processing envelope over V54, so the candidate and execution mapping remain
+unchanged.
 
-The generated V54 runtime retains an `ACCOUNT_TRADE_MODE_DEMO` guard. This permits
-production engineering and Windows compile/recovery testing without fabricating
-real-money deployment evidence.
+Runtime identity:
 
-## CI defect found during recovery
+- `XAUUSDm M15`;
+- owned magic `550055`;
+- maximum one owned strategy position;
+- candidate `v52_b4_or_b3_trend_bos`;
+- no Martingale;
+- no grid;
+- no doubling after loss.
 
-The accepted V53 HEAD had GitHub Actions `quality` failure. The first observed failure
-was the repo-wide live-policy wording scanner, which treated historical ADR/research
-quotes as current policy. The workflow also contained an unconditional historical V29
-`exit 86`, so it could not become green even after the first failure was fixed.
+Account model:
 
-V54 changes the scanner to active operator-facing documents and removes the unrelated
-historical V29 migration failure from the global quality gate while keeping the old
-archive quarantined and unused by V54.
+`V55_ACCOUNT_MODEL=DEMO_AND_REAL_SAME_BINARY`
 
-Do not claim V54 CI PASS until the V54 commit's workflow concludes successfully.
+DEMO is active by default. The same generated EA can be loaded on REAL. On REAL, new
+risk is fail-closed unless both explicit arming inputs are present:
+
+- `InpV55AllowRealAccount=true`;
+- `InpV55RealArmCode=V55_REAL_ARMED`.
+
+An unarmed REAL instance is `REAL_OBSERVE_ONLY`: it cannot open new positions. Account
+login/mode are pinned at initialization; changing account while the EA remains running
+forces a halt/restart requirement.
+
+V55 also derives broker/account constraints at runtime:
+
+- min/max/step volume;
+- broker stop-distance level;
+- freeze-level telemetry;
+- leverage telemetry;
+- loss-per-lot via `OrderCalcProfit`;
+- required margin via `OrderCalcMargin`;
+- available margin via `ACCOUNT_MARGIN_FREE`;
+- inherited filling mode by symbol.
+
+Daily-loss/peak-equity terminal globals are account-scoped so trial and REAL accounts do
+not share protection state.
+
+Canonical launcher:
+
+`bash runtime/v55_account_agnostic/START_V55_ACCOUNT_AGNOSTIC_GIT_BASH.sh`
+
+Default execution mode is DEMO. REAL mode uses the same source/EX5 and an explicit
+startup preset; no account login/password/server credential is committed or injected by
+the runner.
+
+Authoritative long-term semantics: `docs/adr/ADR-057-account-agnostic-demo-real-runtime.md`.
+
+## CI recovery
+
+The old V53 workflow was blocked by an over-broad policy scanner and an unconditional
+historical V29 `exit 86`. Those defects were repaired. Full pytest collection then
+exposed historical dependency and recovery-contract drift; current work restores those
+contracts rather than skipping tests.
+
+Do not claim current HEAD CI PASS until the workflow concludes successfully.
 
 ## Current classification
 
@@ -185,19 +195,20 @@ Do not claim V54 CI PASS until the V54 commit's workflow concludes successfully.
 
 `V53_NATURAL_MAPPING=NOT_OBSERVED`
 
-`V54_PRODUCTION_READINESS=IMPLEMENTED_PENDING_CI_WINDOWS_COMPILE`
+`V54_PRODUCTION_READINESS=IMPLEMENTED`
 
-`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+`V55_ACCOUNT_AGNOSTIC_RUNTIME=IMPLEMENTED_PENDING_CI_WINDOWS_COMPILE`
 
 ## Next gate
 
-1. obtain green V54 GitHub static/secret/unit-test evidence;
-2. run the single V54 Windows starter;
-3. require MetaEditor `0 errors, 0 warnings`, DEMO READY, clean ownership/reconciliation
-   and automatic immutable startup evidence ZIP;
-4. use normal V54 operation to collect fault/restart/notification evidence as needed;
+1. require green GitHub CI on current HEAD;
+2. run V55 on the currently logged DEMO/trial account using the default launcher;
+3. require MetaEditor `0 errors, 0 warnings`, READY status and immutable startup ZIP;
+4. exercise restart/reconciliation/notification fault paths;
 5. retain `V53_NATURAL_MAPPING=NOT_OBSERVED` until a natural selected-candidate mapping
-   is actually observed.
+   is actually observed;
+6. later REAL deployment uses the same V55 source/EX5 with explicit REAL arming, not a
+   second strategy fork.
 
 Do not reopen alpha research unless a real implementation defect invalidates the
 selected candidate or its evidence.
