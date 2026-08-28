@@ -16,7 +16,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: python -m pip install --disable-pip-version-check pytest numpy pandas
+        run: |
+          python -m pip install --disable-pip-version-check pytest "numpy<3" "pandas<3" "scipy<2" "scikit-learn<2"
+          python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
       - name: Python compile
         run: python -m compileall -q scripts tests runtime/v54_production_readiness
       - name: Active live-policy wording scan
