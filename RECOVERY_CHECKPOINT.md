@@ -1,46 +1,50 @@
-# Recovery checkpoint — V49 One-Shot Production Rehearsal
+# Recovery checkpoint — V54 Production Readiness
 
-Ngày: 2026-08-22.
+Date: 2026-08-28
 
-## Project policy
+## Authority
 
-`LIVE_RESEARCH_ALLOWED=1`
+Current branch:
 
-`LIVE_DEPLOYMENT_TARGET=1`
+`agent/v54-production-readiness-hardening`
 
-Mục tiêu chính thức của project là production/live trading trên Exness bằng vốn thật sau khi hoàn tất readiness evidence. Các guard DEMO-only của V48/V49 là phase-specific runtime constraints, không phải lệnh cấm nghiên cứu tiền thật cho toàn dự án.
+Accepted parent:
 
-Authoritative policy: `docs/adr/ADR-049-live-trading-research-and-readiness-semantics.md`.
+`4b7b5a348e9412d2d34c827f86eae37904ddc627`
 
-## Active runtime
+Primary source of truth:
 
-V49 accepted Windows startup:
-- local startup HEAD `2a12498d8b054127dcff766cd91e4a6b37aeef5a`;
-- static tests 9/9 PASS;
-- secret scan PASS;
-- MetaEditor `0 errors, 0 warnings`;
-- V49 source SHA256 `b3b012e856d814d36414e26d120674af864fea2c24db0b53f096fe7ba0a8f599`;
-- EX5 SHA256 `72c339b37e39efd54e664ce2fb1d9d7736d94d46615849d8887f88347d674175`;
-- `V49_DEMO_REHEARSAL_READY=1`;
-- `V49_ONE_SHOT_STARTED=1`;
-- run id `v49_one_shot_demo_rehearsal_v1__XAUUSDm__PERIOD_M15__2026-08-22_12-33-42__536750`;
-- detached supervisor reported PID `4452`.
+`docs/handover/CURRENT_STATE.md`
 
-Initial `MARKET_DAYS=0` and `ROUND_TRIPS=0` because XAUUSD was closed at startup.
+## Frozen research state
 
-Do not start a second V49 run while the accepted session is active.
+`V50_EXECUTION_PIPELINE=PASS`
 
-## Current readiness
+`V52R_REAL_TICK_REPRO=PASS`
 
-`LIVE_READINESS=PENDING_V49_FINAL`
+`RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
 
-This is not yet `LIVE_READY=1` because the broker-DEMO execution sample has not completed.
+`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
 
-V49 final rule:
-- >=3 market-active XAUUSD dates;
-- >=3 completed broker-DEMO round trips;
-- clean execution/reconciliation -> `LIVE_CANDIDATE_READY`;
-- critical failure -> `HOLD`;
-- insufficient sample at hard stop -> `INSUFFICIENT_EXECUTION_SAMPLE`.
+`V53_NATURAL_MAPPING=NOT_OBSERVED`
 
-If V49 finishes `LIVE_CANDIDATE_READY`, next milestone is production/live deployment engineering: live-account architecture, real-capital sizing, risk controls, VPS/always-on operation, monitoring, reconciliation, recovery and rollout checklist.
+V52 generated-tick evidence is invalid because of data contamination.
+
+## V54 state
+
+`V54_PRODUCTION_READINESS=IMPLEMENTED_PENDING_CI_WINDOWS_COMPILE`
+
+`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+
+The V54 package adds bounded sizing, loss/drawdown protection, ownership/reconciliation
+hardening, disconnect/stale/spread/reject guards, monitoring, notification and
+immutable evidence packaging around the inherited V49/V53 execution stack.
+
+No alpha threshold sweep is authorized by this milestone.
+
+## Operator entrypoint
+
+`bash runtime/v54_production_readiness/START_V54_PRODUCTION_READINESS_GIT_BASH.sh`
+
+Only actual GitHub CI and Windows MetaEditor/runtime evidence may promote the pending
+labels.
