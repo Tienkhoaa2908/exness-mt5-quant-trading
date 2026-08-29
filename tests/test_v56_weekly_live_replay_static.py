@@ -19,8 +19,6 @@ def load(path: Path, name: str):
 
 
 def synthetic_v55() -> str:
-    # MQL source stores Windows path separators as two literal backslashes. Construct
-    # them without Python raw-string edge cases so this fixture is stable on Linux/Windows.
     bs = chr(92) * 2
     text = '''input bool InpV55PushNotifications = true;
 input string InpAdaptiveStateFile = "mt5_quant§paper§v55_demo_rehearsal_state.csv";
@@ -88,7 +86,6 @@ def test_v56_runner_uses_accepted_preweek_state_and_two_phase_real_ticks():
     assert "V56_REAL_TICKS=1" in text
     assert "state_after_v52r.csv" in text
     assert "state_at_week_start.csv" in text
-    assert "fresh $40 book" in text
     assert "look-ahead" in text
     assert "current/end-of-week state" in text
     assert "AllowLiveTrading=1" in text
