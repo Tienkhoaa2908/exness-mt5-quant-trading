@@ -31,8 +31,6 @@ def test_fixed_001_is_explicit_and_risk_bound_rounding_is_removed_from_open_path
     assert 'V57FixedLotCompatible' in text
     assert 'v57_fixed_lot_or_margin_incompatible' in text
     assert 'double bv=V55RiskBoundVolume(B[ix].direction,vv,request_px,B[ix].stop,risk_money,loss_per_lot);' in text
-    # The old line is present only as the exact removal marker / forbidden assertion in Python,
-    # while the generated MQL is required to remove it.
     assert 'for token in forbidden' in text
 
 
@@ -112,11 +110,23 @@ def test_analyzer_reproduces_v56_week_fixed001_baseline_loss():
     assert out["balance_breach_proxy"] is True
 
 
-def test_docs_and_launcher_exist():
-    assert ADR.is_file()
+def test_launcher_bootstraps_portable_python_outside_repo():
     text = LAUNCHER.read_text(encoding="utf-8")
     assert 'agent/v57-fixed001-trend-smc-research' in text
     assert 'RUN_V57_FIXED001_TREND_SMC.py' in text
+    assert 'runtime/v31_mt5_model_gate/OUTPUT_V31_1_MT5/.venv' not in text
+    assert 'py.exe' in text
+    assert 'python.exe' in text
+    assert 'LOCALAPPDATA' in text
+    assert 'mt5_quant/v57_python/.venv' in text
+    assert 'pandas<3' in text
+    assert 'V57_PYTHON_BOOTSTRAP=PASS' in text
+    assert 'V57_PYTHON_VERSION=' in text
+    assert 'V57_PANDAS_VERSION=' in text
+
+
+def test_docs_exist():
+    assert ADR.is_file()
 
 
 def main() -> int:
