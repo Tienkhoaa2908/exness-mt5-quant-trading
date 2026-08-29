@@ -99,3 +99,16 @@ def test_v56_launcher_is_branch_locked():
     text = LAUNCHER.read_text(encoding="utf-8")
     assert 'EXPECTED_BRANCH="agent/v54-production-readiness-hardening"' in text
     assert "RUN_V56_WEEKLY_LIVE_REPLAY.py" in text
+
+
+def main() -> int:
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    for fn in tests:
+        fn()
+        print("PASS", fn.__name__)
+    print(f"V56 weekly replay static tests PASS count={len(tests)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
