@@ -8,6 +8,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 TARGET = HERE / "RUN_V55_ACCOUNT_AGNOSTIC.py"
+FIXED_BUILDER = HERE.parents[1] / "scripts" / "build_v55_account_agnostic_source_windows_fixed.py"
 READY_TIMEOUT_SECONDS = 60
 DIAG_AFTER_SECONDS = 15
 
@@ -22,6 +23,9 @@ def load(path: Path, name: str):
 
 
 v55 = load(TARGET, "v55_account_agnostic_base")
+# Windows/runtime launches must use the corrected builder that removes the
+# inherited V48 DEMO-only OnInit guard before the V55 same-binary transform.
+v55.BUILDER = FIXED_BUILDER
 
 
 def decode_text(path: Path) -> str:
@@ -148,7 +152,11 @@ def readiness_mismatches(s: dict[str, str], execution_mode: str) -> list[str]:
         "production_activation": expected_activation,
         "candidate": "v52_b4_or_b3_trend_bos",
     }
-    out = [f"{key}={s.get(key, '<missing>')} expected={value}" for key, value in expected.items() if s.get(key) != value]
+    out = [
+        f"{key}={s.get(key, '<missing>')} expected={value}"
+        for key, value in expected.items()
+        if s.get(key) != value
+    ]
     if not s.get("run_id", "").strip():
         out.append("run_id=<missing>")
     return out
@@ -205,7 +213,10 @@ def fast_wait_ready(common: Path, execution_mode: str) -> dict[str, str]:
         elif now >= next_progress:
             age = int(now - started)
             stale_note = "fresh_status=0" if not fresh else "fresh_status=1_empty"
-            print(f"V55_READY_WAIT_SECONDS={age} {stale_note} terminal_running={1 if v55.base.task_running('terminal64.exe') else 0}")
+            print(
+                f"V55_READY_WAIT_SECONDS={age} {stale_note} "
+                f"terminal_running={1 if v55.base.task_running('terminal64.exe') else 0}"
+            )
             next_progress = now + 5
 
         if not v55.base.task_running("terminal64.exe"):
@@ -223,13 +234,17 @@ def fast_wait_ready(common: Path, execution_mode: str) -> dict[str, str]:
 
 
 def main() -> int:
+    if not FIXED_BUILDER.is_file():
+        raise RuntimeError(f"V55 fixed builder missing: {FIXED_BUILDER}")
     if v55.base.task_running("terminal64.exe"):
         raise RuntimeError(
-            "MetaTrader 5 is already open. Close the existing terminal first; the V55 gate refuses to kill or replace a running account session."
+            "MetaTrader 5 is already open. Close the existing terminal first; "
+            "the V55 gate refuses to kill or replace a running account session."
         )
     if v55.base.task_running("metaeditor64.exe"):
         raise RuntimeError("MetaEditor is already open. Close it before V55 start.")
 
+    print(f"V55_WINDOWS_BUILDER={FIXED_BUILDER}")
     v55.wait_ready = fast_wait_ready
     return v55.main()
 
