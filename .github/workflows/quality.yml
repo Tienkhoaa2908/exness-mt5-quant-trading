@@ -20,7 +20,7 @@ jobs:
           python -m pip install --disable-pip-version-check pytest "numpy<3" "pandas<3" "scipy<2" "scikit-learn<2"
           python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
       - name: Python compile
-        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay
+        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay runtime/v57_fixed001_trend_smc
       - name: Active live-policy wording scan
         run: python scripts/check_live_policy_wording.py
       - name: Pytest
@@ -42,6 +42,9 @@ jobs:
               Path("runtime/v55_account_agnostic/PACKAGE_V55_EVIDENCE.py"),
               Path("scripts/build_v56_weekly_live_replay_source.py"),
               Path("runtime/v56_weekly_live_replay/RUN_V56_WEEKLY_LIVE_REPLAY.py"),
+              Path("scripts/build_v57_fixed001_trend_smc_source.py"),
+              Path("runtime/v57_fixed001_trend_smc/RUN_V57_FIXED001_TREND_SMC.py"),
+              Path("scripts/analyze_v57_fixed001_trend_smc.py"),
           ]
           for f in active:
               if f.is_file():
