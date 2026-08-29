@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -16,7 +15,9 @@ from pathlib import Path
 EXPECTED_BRANCH = "agent/v54-production-readiness-hardening"
 V48_SOURCE_SHA = "ecb78c603d3426396f3d3f56f35dcdf1b3a0983090a071e2972b6bd9ab9068aa"
 ACCEPTED_V52R_ZIP_SHA256 = "4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c"
-REPLAY_FROM = "2026.08.02"
+WARMUP_FROM = "2026.08.02"
+WARMUP_TO = "2026.08.23"
+REPLAY_FROM = "2026.08.24"
 REPLAY_TO = "2026.08.29"
 WEEK_START = "2026.08.24"
 WEEK_END_EXCLUSIVE = "2026.08.29"
@@ -28,7 +29,9 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = HERE / "OUTPUT_V56"
 CP = OUT / "checkpoint"
-RUN_CP = CP / "run"
+WARM_CP = CP / "warmup"
+REPLAY_CP = CP / "replay"
+RUN_CP = REPLAY_CP / "run"
 ZIP_OUT = OUT / "v56_weekly_real_tick_live_replay.zip"
 
 V55_RUNNER = REPO / "runtime" / "v55_account_agnostic" / "RUN_V55_ACCOUNT_AGNOSTIC.py"
@@ -95,8 +98,6 @@ def recover_v52r_seed() -> tuple[Path, dict]:
     seed_out = OUT / "seed_state_from_accepted_v52r_20260801.csv"
     zip_probe = OUT / "accepted_v52r_zip_probe.zip"
 
-    # First prefer a directly available historical output, but only if its companion ZIP
-    # is the exact accepted V52R evidence package.
     direct_state = REPO / V52R_STATE_PATH
     direct_zip = REPO / V52R_ZIP_PATH
     if direct_state.is_file() and direct_zip.is_file() and sha(direct_zip) == ACCEPTED_V52R_ZIP_SHA256:
@@ -111,9 +112,6 @@ def recover_v52r_seed() -> tuple[Path, dict]:
         print(f"V56_SEED_SOURCE=working_tree sha256={provenance['state_sha256']}")
         return seed_out, provenance
 
-    # git stash --include-untracked stores untracked files in the third parent. The
-    # previous safe-recovery step preserved V52R outputs there. Search every stash and
-    # accept one only when the companion ZIP matches the frozen accepted V52R SHA.
     stash_lines = capture(["git", "stash", "list", "--format=%H"], cwd=REPO).splitlines()
     for stash_hash in stash_lines:
         stash_hash = stash_hash.strip()
@@ -202,12 +200,12 @@ def compile_source(source: Path, source_sha: str, data: Path, expert_dir: Path) 
     return installed, ex5, compile_copy
 
 
-def prepare_common(common: Path, seed: Path) -> Path:
+def prepare_common(common: Path, seed: Path, label: str) -> Path:
     root = common / "mt5_quant" / "v56_weekly_live_replay"
     root.parent.mkdir(parents=True, exist_ok=True)
     if root.exists():
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        archived = root.parent / f"_v56_weekly_replay_previous_{stamp}"
+        archived = root.parent / f"_v56_weekly_replay_{label}_previous_{stamp}"
         if archived.exists():
             shutil.rmtree(archived)
         root.rename(archived)
@@ -217,13 +215,13 @@ def prepare_common(common: Path, seed: Path) -> Path:
     shutil.copy2(seed, dst)
     if sha(dst) != sha(seed):
         raise RuntimeError("V56 seed copy mismatch")
-    print(f"V56_COMMON_SEED_PASS sha256={sha(dst)} path={dst}")
+    print(f"V56_COMMON_SEED_PASS phase={label} sha256={sha(dst)} path={dst}")
     return root
 
 
-def write_tester_config(data: Path) -> Path:
-    ini = data / "config" / "v56_weekly_live_replay.ini"
-    text = f"""[Common]\nKeepPrivate=1\nNewsEnable=0\n[Experts]\nAllowLiveTrading=1\nAllowDllImport=0\nEnabled=1\nAccount=0\nProfile=0\n[Tester]\nExpert=mt5_quant\\{EXPERT_NAME}.ex5\nSymbol=XAUUSDm\nPeriod=M15\nOptimization=0\nModel=4\nFromDate={REPLAY_FROM}\nToDate={REPLAY_TO}\nForwardMode=0\nDeposit=40\nCurrency=USD\nLeverage=1:200\nExecutionMode=0\nOptimizationCriterion=0\nUseCloud=0\nVisual=0\nShutdownTerminal=1\n"""
+def write_tester_config(data: Path, phase: str, from_date: str, to_date: str) -> Path:
+    ini = data / "config" / f"v56_weekly_{phase}.ini"
+    text = f"""[Common]\nKeepPrivate=1\nNewsEnable=0\n[Experts]\nAllowLiveTrading=1\nAllowDllImport=0\nEnabled=1\nAccount=0\nProfile=0\n[Tester]\nExpert=mt5_quant\\{EXPERT_NAME}.ex5\nSymbol=XAUUSDm\nPeriod=M15\nOptimization=0\nModel=4\nFromDate={from_date}\nToDate={to_date}\nForwardMode=0\nDeposit=40\nCurrency=USD\nLeverage=1:200\nExecutionMode=0\nOptimizationCriterion=0\nUseCloud=0\nVisual=0\nShutdownTerminal=1\n"""
     base.write_utf16_ini(ini, text)
     decoded = ini.read_bytes().decode("utf-16")
     for token in (
@@ -232,8 +230,8 @@ def write_tester_config(data: Path) -> Path:
         "Period=M15",
         "Optimization=0",
         "Model=4",
-        f"FromDate={REPLAY_FROM}",
-        f"ToDate={REPLAY_TO}",
+        f"FromDate={from_date}",
+        f"ToDate={to_date}",
         "Deposit=40",
         "Leverage=1:200",
         "AllowLiveTrading=1",
@@ -241,9 +239,9 @@ def write_tester_config(data: Path) -> Path:
         "ShutdownTerminal=1",
     ):
         if token not in decoded:
-            raise RuntimeError(f"V56 tester config missing: {token}")
+            raise RuntimeError(f"V56 tester config missing phase={phase}: {token}")
     shutil.copy2(ini, OUT / ini.name)
-    print(f"V56_TESTER_CONFIG_PASS sha256={sha(ini)} path={ini}")
+    print(f"V56_TESTER_CONFIG_PASS phase={phase} sha256={sha(ini)} path={ini}")
     print("V56_TESTER_MODEL=4")
     print("V56_REAL_TICKS=1")
     return ini
@@ -270,93 +268,148 @@ def newest_complete_run(runs_root: Path, started: float) -> Path | None:
     return max(candidates, key=lambda p: p.stat().st_mtime)
 
 
-def run_mt5(data: Path, common: Path, root: Path, ini: Path, head: str, source_sha: str) -> None:
-    CP.mkdir(parents=True, exist_ok=True)
-    mt5_done = CP / "MT5_DONE.json"
-    if mt5_done.is_file() and RUN_CP.is_dir():
-        info = json.loads(mt5_done.read_text(encoding="utf-8"))
-        if (
-            info.get("head") == head
-            and info.get("source_sha256") == source_sha
-            and info.get("model") == 4
-            and info.get("from") == REPLAY_FROM
-            and info.get("to") == REPLAY_TO
-            and all((RUN_CP / n).is_file() for n in ("monthly_summary.csv", "trades.csv", "manifest.txt"))
-        ):
-            print("V56_REUSE_MT5_CHECKPOINT=1")
-            return
-
+def run_phase(data: Path, root: Path, ini: Path, phase: str, from_date: str, to_date: str) -> tuple[Path, dict[str, str], int]:
     if base.task_running("terminal64.exe"):
-        raise RuntimeError("MetaTrader 5 is open. Close the terminal before V56 Strategy Tester replay.")
+        raise RuntimeError(f"MetaTrader 5 is open before V56 {phase} phase")
     if base.task_running("metaeditor64.exe"):
-        raise RuntimeError("MetaEditor is open. Close it before V56 Strategy Tester replay.")
-
-    if CP.exists():
-        shutil.rmtree(CP)
-    CP.mkdir(parents=True, exist_ok=True)
+        raise RuntimeError(f"MetaEditor is open before V56 {phase} phase")
 
     started = time.time()
-    print(f"RUN_V56_MT5_REAL_TICKS from={REPLAY_FROM} to={REPLAY_TO} analysis_week=2026.08.24..2026.08.28")
+    print(f"RUN_V56_{phase.upper()}_REAL_TICKS from={from_date} to={to_date}")
     cp = subprocess.run([str(base.TERMINAL_EXE), f"/config:{ini}"])
-    print(f"MT5_LAUNCH_RC={cp.returncode}")
+    print(f"V56_{phase.upper()}_MT5_LAUNCH_RC={cp.returncode}")
 
     runs_root = root / "runs"
     run_dir = newest_complete_run(runs_root, started)
     if run_dir is None:
-        # Terminal can return before filesystem timestamps settle on Windows shares.
         def locate():
             return newest_complete_run(runs_root, started) or False
-        run_dir = base.wait_until(locate, 120, 1.0, "V56 complete isolated run artifacts")
+        run_dir = base.wait_until(locate, 120, 1.0, f"V56 {phase} complete isolated run artifacts")
 
-    RUN_CP.mkdir(parents=True, exist_ok=True)
-    for name in ("monthly_summary.csv", "trades.csv", "manifest.txt"):
-        shutil.copy2(run_dir / name, RUN_CP / name)
+    status = root / "V55_PRODUCTION_READINESS_STATUS.txt"
+    if not status.is_file() or status.stat().st_size <= 0:
+        raise RuntimeError(f"V56 {phase} isolated status missing: {status}")
+    status_kv = v55.kv_retry(status)
+    if status_kv.get("account_mode") != "DEMO":
+        raise RuntimeError(
+            f"V56 {phase} must mirror trial environment expected account_mode=DEMO actual={status_kv.get('account_mode')}"
+        )
+    return run_dir, status_kv, cp.returncode
 
+
+def copy_root_artifacts(root: Path, dst: Path, include_state_name: str) -> None:
+    dst.mkdir(parents=True, exist_ok=True)
     artifact_map = {
         "V55_PRODUCTION_READINESS_EVENTS.csv": "events.csv",
         "V55_PRODUCTION_READINESS_TRANSACTIONS.csv": "transactions.csv",
         "V55_PRODUCTION_READINESS_STATUS.txt": "status.txt",
         "V55_PRODUCTION_READINESS_FINAL.txt": "final.txt",
-        "seed_state.csv": "state_after_replay.csv",
+        "seed_state.csv": include_state_name,
     }
     for src_name, dst_name in artifact_map.items():
         src = root / src_name
         if src.is_file() and src.stat().st_size > 0:
-            shutil.copy2(src, CP / dst_name)
+            shutil.copy2(src, dst / dst_name)
 
-    events = CP / "events.csv"
-    status = CP / "status.txt"
-    if not events.is_file() or events.stat().st_size <= 0:
-        raise RuntimeError(f"V56 isolated broker/event evidence missing: {events}")
-    if not status.is_file() or status.stat().st_size <= 0:
-        raise RuntimeError(f"V56 isolated status missing: {status}")
 
-    status_kv = v55.kv_retry(status)
-    if status_kv.get("account_mode") != "DEMO":
-        raise RuntimeError(
-            f"V56 replay must mirror current trial environment expected account_mode=DEMO actual={status_kv.get('account_mode')}"
-        )
+def run_mt5_two_phase(data: Path, common: Path, accepted_seed: Path, head: str, source_sha: str) -> None:
+    overall_done = CP / "MT5_DONE.json"
+    if overall_done.is_file() and RUN_CP.is_dir():
+        info = json.loads(overall_done.read_text(encoding="utf-8"))
+        required = [
+            RUN_CP / "monthly_summary.csv",
+            RUN_CP / "trades.csv",
+            RUN_CP / "manifest.txt",
+            REPLAY_CP / "events.csv",
+            REPLAY_CP / "status.txt",
+            WARM_CP / "state_at_week_start.csv",
+        ]
+        if (
+            info.get("head") == head
+            and info.get("source_sha256") == source_sha
+            and info.get("model") == 4
+            and info.get("warmup_from") == WARMUP_FROM
+            and info.get("warmup_to") == WARMUP_TO
+            and info.get("replay_from") == REPLAY_FROM
+            and info.get("replay_to") == REPLAY_TO
+            and all(p.is_file() and p.stat().st_size > 0 for p in required)
+        ):
+            print("V56_REUSE_TWO_PHASE_MT5_CHECKPOINT=1")
+            return
 
-    mt5_done.write_text(
+    if CP.exists():
+        shutil.rmtree(CP)
+    WARM_CP.mkdir(parents=True, exist_ok=True)
+    REPLAY_CP.mkdir(parents=True, exist_ok=True)
+
+    warm_root = prepare_common(common, accepted_seed, "warmup")
+    warm_ini = write_tester_config(data, "warmup", WARMUP_FROM, WARMUP_TO)
+    warm_run, warm_status, warm_rc = run_phase(data, warm_root, warm_ini, "warmup", WARMUP_FROM, WARMUP_TO)
+    warm_state = warm_root / "seed_state.csv"
+    if not warm_state.is_file() or warm_state.stat().st_size <= 0:
+        raise RuntimeError("V56 warmup did not leave a usable adaptive state")
+    shutil.copy2(warm_state, WARM_CP / "state_at_week_start.csv")
+    shutil.copy2(warm_run / "manifest.txt", WARM_CP / "manifest.txt")
+    copy_root_artifacts(warm_root, WARM_CP, "state_after_warmup.csv")
+    (WARM_CP / "MT5_DONE.json").write_text(
         json.dumps(
             {
-                "head": head,
-                "source_sha256": source_sha,
-                "terminal_rc": cp.returncode,
-                "model": 4,
-                "real_ticks": True,
-                "from": REPLAY_FROM,
-                "to": REPLAY_TO,
-                "week_start": WEEK_START,
-                "week_end_exclusive": WEEK_END_EXCLUSIVE,
-                "run_dir": str(run_dir),
-                "account_mode": status_kv.get("account_mode"),
+                "phase": "warmup",
+                "terminal_rc": warm_rc,
+                "from": WARMUP_FROM,
+                "to": WARMUP_TO,
+                "state_before_sha256": sha(accepted_seed),
+                "state_after_sha256": sha(warm_state),
+                "run_dir": str(warm_run),
+                "account_mode": warm_status.get("account_mode"),
             },
             indent=2,
         ),
         encoding="utf-8",
     )
-    print(f"V56_MT5_DONE=1 run_dir={run_dir}")
+    print(f"V56_STATE_AT_WEEK_START_SHA256={sha(warm_state)}")
+
+    replay_root = prepare_common(common, WARM_CP / "state_at_week_start.csv", "replay")
+    replay_ini = write_tester_config(data, "replay", REPLAY_FROM, REPLAY_TO)
+    replay_run, replay_status, replay_rc = run_phase(data, replay_root, replay_ini, "replay", REPLAY_FROM, REPLAY_TO)
+
+    RUN_CP.mkdir(parents=True, exist_ok=True)
+    for name in ("monthly_summary.csv", "trades.csv", "manifest.txt"):
+        shutil.copy2(replay_run / name, RUN_CP / name)
+    copy_root_artifacts(replay_root, REPLAY_CP, "state_after_replay.csv")
+
+    events = REPLAY_CP / "events.csv"
+    status = REPLAY_CP / "status.txt"
+    if not events.is_file() or events.stat().st_size <= 0:
+        raise RuntimeError(f"V56 replay broker/event evidence missing: {events}")
+    if not status.is_file() or status.stat().st_size <= 0:
+        raise RuntimeError(f"V56 replay status missing: {status}")
+
+    overall_done.write_text(
+        json.dumps(
+            {
+                "head": head,
+                "source_sha256": source_sha,
+                "model": 4,
+                "real_ticks": True,
+                "warmup_from": WARMUP_FROM,
+                "warmup_to": WARMUP_TO,
+                "replay_from": REPLAY_FROM,
+                "replay_to": REPLAY_TO,
+                "week_start": WEEK_START,
+                "week_end_exclusive": WEEK_END_EXCLUSIVE,
+                "warmup_run_dir": str(warm_run),
+                "replay_run_dir": str(replay_run),
+                "warmup_terminal_rc": warm_rc,
+                "replay_terminal_rc": replay_rc,
+                "account_mode": replay_status.get("account_mode"),
+                "week_start_state_sha256": sha(WARM_CP / "state_at_week_start.csv"),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"V56_TWO_PHASE_MT5_DONE=1 replay_run_dir={replay_run}")
 
 
 def analyze() -> dict:
@@ -369,9 +422,9 @@ def analyze() -> dict:
             "--trades",
             RUN_CP / "trades.csv",
             "--events",
-            CP / "events.csv",
+            REPLAY_CP / "events.csv",
             "--status",
-            CP / "status.txt",
+            REPLAY_CP / "status.txt",
             "--output",
             analysis,
             "--summary",
@@ -392,6 +445,8 @@ def package(branch: str, head: str, source_sha: str, compile_txt: Path, provenan
                 f"source_sha256={source_sha}",
                 f"candidate={CANDIDATE}",
                 f"book={BOOK}",
+                f"warmup_from={WARMUP_FROM}",
+                f"warmup_to={WARMUP_TO}",
                 f"replay_from={REPLAY_FROM}",
                 f"replay_to={REPLAY_TO}",
                 f"analysis_week_start={WEEK_START}",
@@ -400,13 +455,16 @@ def package(branch: str, head: str, source_sha: str, compile_txt: Path, provenan
                 "real_ticks=1",
                 "deposit_usd=40",
                 "leverage=1:200",
+                "fresh_book_at_week_start=1",
+                "adaptive_state_warm_forward_only=1",
                 "alpha_changed_from_v55=0",
                 "execution_mapping_changed_from_v55=0",
                 "tester_only=1",
                 "live_orders_possible_from_v56=0",
                 f"seed_source={provenance.get('source','')}",
                 f"accepted_v52r_zip_sha256={provenance.get('accepted_v52r_zip_sha256','')}",
-                f"seed_state_sha256={provenance.get('state_sha256','')}",
+                f"accepted_seed_state_sha256={provenance.get('state_sha256','')}",
+                f"week_start_state_sha256={sha(WARM_CP / 'state_at_week_start.csv')}",
                 f"verdict={result.get('verdict','')}",
                 f"virtual_opens={result.get('events',{}).get('virtual_open_transitions')}",
                 f"broker_open_requests={result.get('events',{}).get('broker_open_requests')}",
@@ -425,17 +483,22 @@ def package(branch: str, head: str, source_sha: str, compile_txt: Path, provenan
     files = [
         OUT / f"{EXPERT_NAME}.mq5",
         compile_txt,
-        OUT / "v56_weekly_live_replay.ini",
+        OUT / "v56_weekly_warmup.ini",
+        OUT / "v56_weekly_replay.ini",
         OUT / "seed_provenance.json",
         OUT / "v56_weekly_replay_analysis.json",
         OUT / "V56_WEEKLY_REPLAY_SUMMARY.txt",
         evidence,
         CP / "MT5_DONE.json",
-        CP / "events.csv",
-        CP / "transactions.csv",
-        CP / "status.txt",
-        CP / "final.txt",
-        CP / "state_after_replay.csv",
+        WARM_CP / "MT5_DONE.json",
+        WARM_CP / "manifest.txt",
+        WARM_CP / "state_at_week_start.csv",
+        WARM_CP / "status.txt",
+        REPLAY_CP / "events.csv",
+        REPLAY_CP / "transactions.csv",
+        REPLAY_CP / "status.txt",
+        REPLAY_CP / "final.txt",
+        REPLAY_CP / "state_after_replay.csv",
         RUN_CP / "monthly_summary.csv",
         RUN_CP / "trades.csv",
         RUN_CP / "manifest.txt",
@@ -484,7 +547,7 @@ def package(branch: str, head: str, source_sha: str, compile_txt: Path, provenan
 
 def main() -> int:
     branch, head = ensure_clean_repo()
-    print("V56 PURPOSE: replay 24-28 Aug 2026 with MT5 Model=4 real ticks using V55 logic; no alpha retuning")
+    print("V56 PURPOSE: warm accepted adaptive state forward, then replay 24-28 Aug 2026 with MT5 Model=4 real ticks using V55 logic; no alpha retuning")
     run([sys.executable, "-m", "py_compile", BUILDER, ANALYZER, STATIC_TEST, Path(__file__).resolve()])
     run([sys.executable, STATIC_TEST])
     run([sys.executable, SECRET_SCAN, REPO])
@@ -499,9 +562,7 @@ def main() -> int:
     seed, provenance = recover_v52r_seed()
     source, source_sha = build_source(expert_dir)
     _, _, compile_txt = compile_source(source, source_sha, data, expert_dir)
-    root = prepare_common(common, seed)
-    ini = write_tester_config(data)
-    run_mt5(data, common, root, ini, head, source_sha)
+    run_mt5_two_phase(data, common, seed, head, source_sha)
     result = analyze()
     package(branch, head, source_sha, compile_txt, provenance, result)
     return 0
