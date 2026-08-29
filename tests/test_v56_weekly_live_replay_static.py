@@ -20,13 +20,13 @@ def load(path: Path, name: str):
 
 def synthetic_v55() -> str:
     return r'''input bool InpV55PushNotifications = true;
-input string InpAdaptiveStateFile = "mt5_quant\\paper\\v55_demo_rehearsal_state.csv";
+input string InpAdaptiveStateFile = "mt5_quant\paper\v55_demo_rehearsal_state.csv";
 input long InpV55Magic = 550055;
 bool g_v55_real_entry_epoch_ready=false;
 // v52_b4_or_b3_trend_bos V55NewRiskAuthorized V55StopsGeometryOk OrderCalcProfit OrderCalcMargin
-string a="mt5_quant\\v55\\V55_PRODUCTION_READINESS_STATUS.txt";
-string b="mt5_quant\\paper\\V48_DEMO_PAPER_STATUS.txt";
-string c="mt5_quant\\runs\\";
+string a="mt5_quant\v55\V55_PRODUCTION_READINESS_STATUS.txt";
+string b="mt5_quant\paper\V48_DEMO_PAPER_STATUS.txt";
+string c="mt5_quant\runs\";
 void V55SyncBrokerWithVirtual()
 {
    const int ci=26,bi=3,ix=BI(ci,bi);
@@ -43,7 +43,7 @@ int OnInit()
    if(MQLInfoInteger(MQL_TESTER)){ V48WriteInitDiagnostic("REFUSED","tester_mode"); Print("V48 DEMO-PAPER refuses tester mode; use frozen V46 for historical tests"); return INIT_FAILED; }
    return INIT_SUCCEEDED;
 }
-'''
+'''.replace('\\"', '"')
 
 
 def test_v56_transform_is_tester_only_and_isolates_outputs():
@@ -54,8 +54,8 @@ def test_v56_transform_is_tester_only_and_isolates_outputs():
     assert "tester_mode" not in out
     assert 'input bool InpV55PushNotifications = false;' in out
     assert mod.V56_STATE_FILE in out
-    assert r"mt5_quant\\v55\\" not in out
-    assert r"mt5_quant\\v56_weekly_live_replay\\" in out
+    assert r"mt5_quant\v55\" not in out
+    assert r"mt5_quant\v56_weekly_live_replay\" in out
     assert "V56_VIRTUAL_OPEN" in out
     assert "V56_VIRTUAL_CLOSE" in out
 
