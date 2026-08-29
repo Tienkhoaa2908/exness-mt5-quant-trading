@@ -14,10 +14,6 @@ V55_FIXED_BUILDER = HERE / "build_v55_account_agnostic_source_windows_fixed.py"
 CANDIDATE = "v52_b4_or_b3_trend_bos"
 V56_STATE_FILE = r"mt5_quant\\v56_weekly_live_replay\\seed_state.csv"
 
-V48_TESTER_REFUSAL = (
-    '   if(MQLInfoInteger(MQL_TESTER)){ V48WriteInitDiagnostic("REFUSED","tester_mode"); '
-    'Print("V48 DEMO-PAPER refuses tester mode; use frozen V46 for historical tests"); return INIT_FAILED; }'
-)
 V56_TESTER_ONLY_GUARD = (
     '   if(!MQLInfoInteger(MQL_TESTER)){ V48WriteInitDiagnostic("REFUSED","v56_tester_only"); '
     'Print("V56 WEEKLY REAL-TICK REPLAY REFUSED: STRATEGY TESTER REQUIRED"); return INIT_FAILED; }'
@@ -39,9 +35,34 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_in_function_once(text: str, function_name: str, next_function_name: str, old: str, new: str) -> str:
+    start = text.find(function_name)
+    if start < 0:
+        raise RuntimeError(f"V56 function missing: {function_name}")
+    end = text.find(next_function_name, start + len(function_name))
+    if end < 0:
+        raise RuntimeError(f"V56 next function missing after {function_name}: {next_function_name}")
+    segment = text[start:end]
+    count = segment.count(old)
+    if count != 1:
+        raise RuntimeError(
+            f"V56 scoped marker drifted function={function_name} expected=1 actual={count} marker={old[:100]!r}"
+        )
+    segment = segment.replace(old, new, 1)
+    return text[:start] + segment + text[end:]
+
+
 def transform_v55_to_v56(text: str) -> str:
-    # V56 is diagnostic only. It must never be attachable to a live chart.
-    text = replace_once(text, V48_TESTER_REFUSAL, V56_TESTER_ONLY_GUARD, "tester-only guard")
+    # V56 is diagnostic only. It must never be attachable to a live chart. Match the
+    # inherited tester refusal structurally because the human-readable milestone label
+    # can drift while the refusal contract remains the same.
+    tester_pattern = re.compile(
+        r'   if\(MQLInfoInteger\(MQL_TESTER\)\)\{ V48WriteInitDiagnostic\("REFUSED","tester_mode"\); '
+        r'Print\("[^"]+"\); return INIT_FAILED; \}'
+    )
+    text, tester_count = tester_pattern.subn(V56_TESTER_ONLY_GUARD, text, count=1)
+    if tester_count != 1:
+        raise RuntimeError(f"V56 tester-only guard drifted expected=1 actual={tester_count}")
 
     # Keep V55 alpha, candidate, sizing and execution mapping unchanged. Disable push
     # notifications only because tester notifications are non-actionable/noisy.
@@ -97,7 +118,13 @@ def transform_v55_to_v56(text: str) -> str:
       g_v56_prev_virtual_direction=B[ix].direction;
    }
    int owned=V55OwnedPositionCount(ticket,broker_dir,broker_vol);'''
-    text = replace_once(text, marker, instrumentation, "selected virtual transition instrumentation")
+    text = replace_in_function_once(
+        text,
+        "void V55SyncBrokerWithVirtual()",
+        "void V55WriteStatus()",
+        marker,
+        instrumentation,
+    )
 
     required = (
         CANDIDATE,
@@ -118,7 +145,7 @@ def transform_v55_to_v56(text: str) -> str:
             raise RuntimeError(f"V56 required token missing: {token}")
 
     forbidden = (
-        "V48 DEMO-PAPER refuses tester mode; use frozen V46 for historical tests",
+        'V48WriteInitDiagnostic("REFUSED","tester_mode")',
         r"mt5_quant\\v55\\",
         'input bool InpV55PushNotifications = true;',
     )
