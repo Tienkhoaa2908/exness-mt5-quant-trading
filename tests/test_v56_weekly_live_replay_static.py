@@ -54,8 +54,8 @@ def test_v56_transform_is_tester_only_and_isolates_outputs():
     assert "tester_mode" not in out
     assert 'input bool InpV55PushNotifications = false;' in out
     assert mod.V56_STATE_FILE in out
-    assert r"mt5_quant\v55\" not in out
-    assert r"mt5_quant\v56_weekly_live_replay\" in out
+    assert "mt5_quant\\\\v55\\\\" not in out
+    assert "mt5_quant\\\\v56_weekly_live_replay\\\\" in out
     assert "V56_VIRTUAL_OPEN" in out
     assert "V56_VIRTUAL_CLOSE" in out
 
