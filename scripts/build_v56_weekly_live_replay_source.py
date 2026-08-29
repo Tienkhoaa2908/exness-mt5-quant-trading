@@ -73,14 +73,11 @@ def transform_v55_to_v56(text: str) -> str:
         "tester notification default",
     )
 
-    # Force the adaptive state onto an isolated V56 FILE_COMMON path. The runner seeds
-    # this from the accepted V52R state-after snapshot and never uses current live state.
+    # Force the adaptive state onto an isolated V56 FILE_COMMON path. Use a callable
+    # replacement so Python's regex engine cannot reinterpret MQL backslashes.
     pattern = re.compile(r'input string InpAdaptiveStateFile = "[^"]+";')
-    text, count = pattern.subn(
-        'input string InpAdaptiveStateFile = "' + V56_STATE_FILE + '";',
-        text,
-        count=1,
-    )
+    state_line = 'input string InpAdaptiveStateFile = "' + V56_STATE_FILE + '";'
+    text, count = pattern.subn(lambda _match: state_line, text, count=1)
     if count != 1:
         raise RuntimeError(f"V56 adaptive-state input drifted expected=1 actual={count}")
 
