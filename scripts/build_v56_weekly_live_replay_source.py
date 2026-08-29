@@ -56,7 +56,7 @@ def transform_v55_to_v56(text: str) -> str:
     # this from the accepted V52R state-after snapshot and never uses current live state.
     pattern = re.compile(r'input string InpAdaptiveStateFile = "[^"]+";')
     text, count = pattern.subn(
-        'input string InpAdaptiveStateFile = "' + V56_STATE_FILE.replace("\\", "\\\\") + '";',
+        'input string InpAdaptiveStateFile = "' + V56_STATE_FILE + '";',
         text,
         count=1,
     )
