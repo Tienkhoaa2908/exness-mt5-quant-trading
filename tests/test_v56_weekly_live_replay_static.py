@@ -70,19 +70,27 @@ def test_v56_instrumentation_only_changes_sync_function():
     assert status.count("int owned=V55OwnedPositionCount(ticket,broker_dir,broker_vol);") == 1
 
 
-def test_v56_runner_uses_accepted_preweek_state_and_real_ticks():
+def test_v56_runner_uses_accepted_preweek_state_and_two_phase_real_ticks():
     text = RUNNER.read_text(encoding="utf-8")
     assert 'ACCEPTED_V52R_ZIP_SHA256 = "4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c"' in text
-    assert 'REPLAY_FROM = "2026.08.02"' in text
+    assert 'WARMUP_FROM = "2026.08.02"' in text
+    assert 'WARMUP_TO = "2026.08.23"' in text
+    assert 'REPLAY_FROM = "2026.08.24"' in text
     assert 'REPLAY_TO = "2026.08.29"' in text
     assert 'WEEK_START = "2026.08.24"' in text
+    assert 'WEEK_END_EXCLUSIVE = "2026.08.29"' in text
     assert "Model=4" in text
     assert "V56_REAL_TICKS=1" in text
     assert "state_after_v52r.csv" in text
+    assert "state_at_week_start.csv" in text
+    assert "fresh $40 book" in text
     assert "look-ahead" in text
     assert "current/end-of-week state" in text
     assert "AllowLiveTrading=1" in text
     assert "AllowDllImport=0" in text
+    assert "run_mt5_two_phase" in text
+    assert "fresh_book_at_week_start=1" in text
+    assert "adaptive_state_warm_forward_only=1" in text
 
 
 def test_v56_analyzer_classifies_alpha_vs_mapping():
