@@ -21,7 +21,7 @@ V56 changes no alpha threshold, selected candidate, book, risk sizing, stop/TP m
 - instruments selected-book virtual OPEN/CLOSE transitions for diagnosis;
 - runs MT5 Strategy Tester with `Model=4` (`Every tick based on real ticks`).
 
-The tested symbol/timeframe remain `XAUUSDm M15`. The tester account is configured with USD 40 and leverage 1:200, matching the project test book.
+The tested symbol/timeframe remain `XAUUSDm M15`. Each tester phase starts with USD 40 and leverage 1:200, matching the project test book.
 
 ## Anti-look-ahead state protocol
 
@@ -31,20 +31,43 @@ The accepted V52R run ended at 2026-08-01 and produced `state_after_v52r.csv`. V
 
 `4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c`
 
-If the output was preserved with `git stash --include-untracked`, V56 may read it from the stash's untracked parent. The replay then starts at 2026-08-02, allowing the adaptive state to evolve forward through 2026-08-23 before the diagnostic week.
+If the output was preserved with `git stash --include-untracked`, V56 may read it from the stash's untracked parent. If the accepted seed cannot be recovered, V56 fails closed. It must not substitute the current V55/V54/V53/V50 state.
 
-If the accepted seed cannot be recovered, V56 fails closed. It must not substitute the current V55/V54/V53/V50 state.
+## Two-phase replay protocol
 
-## Replay interval
+V56 deliberately separates adaptive-state evolution from the diagnostic trading week.
 
-- MT5 replay: 2026-08-02 through 2026-08-29.
-- Diagnostic week: broker timestamps from 2026-08-24 00:00:00 inclusive through 2026-08-29 00:00:00 exclusive.
-- Tester model: 4, real ticks.
-- Optimization: disabled.
-- Visual mode: disabled.
-- Cloud agents: disabled.
+### Phase A — adaptive-state warm-forward
 
-MetaTrader 5 real-tick testing is the closest historical tester mode to online price flow, but it is still a simulation. It does not prove that historical live fills, latency or broker-side execution would have been identical.
+- source state: accepted V52R `state_after_v52r.csv` as of 2026-08-01;
+- interval: 2026-08-02 through 2026-08-23;
+- MT5 model: 4, real ticks;
+- purpose: advance only the adaptive EWMA/breadth state chronologically to the start of Monday 2026-08-24;
+- output: `state_at_week_start.csv` plus warmup provenance.
+
+The warmup phase is not used for the diagnostic week's PnL. Its account/book history must not carry into the measured week.
+
+### Phase B — diagnostic week
+
+- source adaptive state: the Phase A `state_at_week_start.csv`;
+- account/book: a fresh tester start with USD 40 and leverage 1:200;
+- interval: 2026-08-24 through 2026-08-29, with the target trading week being 24–28 August;
+- MT5 model: 4, real ticks;
+- purpose: measure selected virtual entries and their V55 execution mapping with no pre-week PnL/position carry-over.
+
+This split prevents two separate distortions: future-state look-ahead and carrying 02–23 August book PnL/positions into the week being diagnosed.
+
+## Tester controls
+
+- symbol: `XAUUSDm`;
+- timeframe: `M15`;
+- optimization: disabled;
+- cloud agents: disabled;
+- visual mode: disabled;
+- tester DLL permission: disabled;
+- V56 is tester-only and cannot be used as a live-chart EA.
+
+MetaTrader 5 real-tick testing is a historical simulation. It does not prove that historical live fills, latency or broker-side execution would have been identical.
 
 ## Diagnostic verdicts
 
@@ -65,9 +88,11 @@ The runner packages:
 
 - exact generated V56 MQL source and source SHA;
 - MetaEditor compile log;
-- tester INI;
-- accepted V52R seed provenance;
-- run manifest/monthly/trades files;
+- separate warmup and replay tester INIs;
+- accepted V52R seed provenance and accepted ZIP SHA;
+- `state_at_week_start.csv` and its SHA;
+- warmup checkpoint metadata;
+- replay manifest/monthly/trades files;
 - isolated V56 events, transactions and status;
 - post-replay adaptive state;
 - analyzer JSON and text summary;
