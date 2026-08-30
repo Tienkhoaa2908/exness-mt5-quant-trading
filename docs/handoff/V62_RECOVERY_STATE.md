@@ -9,6 +9,14 @@ Last updated: 2026-08-30.
 - Active research branch: `agent/v62-direction-isolated-entry-refinement-research`
 - V62 is Strategy Tester research only. REAL-money authorization remains false.
 
+## Current V62 code-validation checkpoint
+
+- Code head `15d6696eafccadd0859d55cc7f9391e505141dfd` passed GitHub Actions quality run `#814` (`33307869383`) completely.
+- Passed steps include Python compile, V62 launcher Bash syntax, full pytest, policy scan, secret scan and historical-quarantine assertion.
+- V62 pytest executes both `builder.transform(+1)` and `builder.transform(-1)` and verifies closed-bar M5/M1 refinement, direction-isolation defaults, pending state declaration order, four fixed weeks, eight Model=4 passes and analyzer round-trip counting.
+- This is static/Python/Linux evidence only. It is not Windows MetaEditor or MT5 Strategy Tester evidence.
+- Any later docs-only head must still be checked for CI before being given to the operator.
+
 ## Accepted V61 evidence motivating V62
 
 Accepted V61 evidence/source head: `65cb308818a835c25e5fff17d8d71351ab901267`.
