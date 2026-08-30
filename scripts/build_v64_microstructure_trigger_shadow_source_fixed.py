@@ -40,6 +40,15 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 def transform(allowed_direction: int) -> str:
     text = parent.transform(allowed_direction)
 
+    # MQL5 has IntegerToString(long), but no LongToString(). Keep the 64-bit
+    # shadow sequence id intact and make the generated source MetaEditor-valid.
+    text = replace_once(
+        text,
+        "LongToString(g_v64_noise[k].id)",
+        "IntegerToString(g_v64_noise[k].id)",
+        "long id string conversion",
+    )
+
     # First-hit stop/target states are frozen when hit, but the path remains
     # alive until the fixed horizon so we can distinguish genuine invalidation
     # from stop-then-recovery micro-noise.
@@ -77,6 +86,7 @@ def transform(allowed_direction: int) -> str:
 
 def validate(text: str) -> None:
     required = (
+        "IntegerToString(g_v64_noise[k].id)",
         "first-hit matrix resolved; continue path telemetry",
         "id,start,end,direction,entry,max_pnl,min_pnl,s110_t300",
         'V64NoiseFinish(k,"tester_end")',
@@ -85,6 +95,8 @@ def validate(text: str) -> None:
     for token in required:
         if token not in text:
             raise RuntimeError(f"V64 fixed required token missing: {token}")
+    if "LongToString(" in text:
+        raise RuntimeError("V64 generated MQL still uses nonexistent LongToString")
     if 'V64NoiseFinish(k,"all_resolved")' in text:
         raise RuntimeError("V64 noise path still terminates when first-hit matrix resolves")
 
