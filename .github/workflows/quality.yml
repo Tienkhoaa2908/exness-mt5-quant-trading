@@ -31,6 +31,8 @@ jobs:
         run: bash -n runtime/v60_small_loss_cash_target/START_V60_SMALL_LOSS_CASH_TARGET_GIT_BASH.sh
       - name: V61 launcher shell syntax
         run: bash -n runtime/v61_profit_ratchet_m5_refinement/START_V61_PROFIT_RATCHET_M5_REFINEMENT_GIT_BASH.sh
+      - name: V61 fixed launcher shell syntax
+        run: bash -n runtime/v61_profit_ratchet_m5_refinement/START_V61_PROFIT_RATCHET_M5_REFINEMENT_FIXED_GIT_BASH.sh
       - name: Active live-policy wording scan
         run: python scripts/check_live_policy_wording.py
       - name: Pytest
@@ -70,6 +72,9 @@ jobs:
               Path("scripts/build_v61_profit_ratchet_m5_refinement_screen_source.py"),
               Path("runtime/v61_profit_ratchet_m5_refinement/RUN_V61_PROFIT_RATCHET_M5_REFINEMENT.py"),
               Path("scripts/analyze_v61_profit_ratchet_m5_refinement.py"),
+              Path("scripts/build_v61_profit_ratchet_m5_refinement_source_fixed.py"),
+              Path("scripts/build_v61_profit_ratchet_m5_refinement_screen_source_fixed.py"),
+              Path("runtime/v61_profit_ratchet_m5_refinement/RUN_V61_PROFIT_RATCHET_M5_REFINEMENT_FIXED.py"),
           ]
           for f in active:
               if f.is_file():
