@@ -352,7 +352,10 @@ void V64ManagePendingEntry()
    V64PendingEvent("REFINED_ENTRY",d,send_detail,entry,risk_cash,spread_cash);
    if(sent)
    {
-      V64NoiseStart(d,entry);
+      double shadow_entry=g_trade.ResultPrice();
+      if(shadow_entry<=0.0) shadow_entry=entry;
+      V64NoiseStart(d,shadow_entry);
+      V64PendingEvent("NOISE_SHADOW",d,"actual_fill_anchor",shadow_entry,entry,shadow_entry-entry);
       g_v64_pending=false;g_v64_pending_dir=0;g_v64_pending_armed=0;g_v64_pending_arch=V64_ARCH_NONE;
    }
 }
@@ -422,7 +425,6 @@ def transform(allowed_direction: int) -> str:
     ])
     text = replace_once(text, marker, extra, "V64 micro inputs")
 
-    # Insert helpers after inherited globals/functions are available but before ArmPending replacement.
     text = replace_once(text, "void V64ArmPending", V64_HELPERS + "\nvoid V64ArmPending", "V64 helpers")
     text = replace_function(text, "void V64ArmPending", "void V64ManagePendingEntry", ARM_PENDING, "arm")
     text = replace_function(text, "void V64ManagePendingEntry", "void V64EvaluateBar", MANAGE_PENDING, "manage pending")
@@ -457,6 +459,8 @@ def validate(text: str, allowed_direction: int) -> None:
         "V64UpdateNoiseShadows",
         "V64_NOISE_SHADOW.csv",
         "OrderCalcProfit",
+        "g_trade.ResultPrice()",
+        '"actual_fill_anchor"',
         "CopyRates(_Symbol,PERIOD_M1,1,80,m1)",
         "CopyRates(_Symbol,PERIOD_H1,1,90,h1)",
         "CopyRates(_Symbol,PERIOD_H4,1,90,h4)",
@@ -469,7 +473,6 @@ def validate(text: str, allowed_direction: int) -> None:
             raise RuntimeError(f"V64 required token missing: {token}")
     if r"mt5_quant\\v64_profit_quality_risk_zone" in text:
         raise RuntimeError("V64 stale inherited FILE_COMMON root remains")
-    # Actual execution must not be blocked by the old single-lane V63 shadow lifecycle.
     tick = text[text.index("void OnTick()"):text.index("void OnTradeTransaction", text.index("void OnTick()"))]
     if "if(g_shadow_open) return;" in tick or "V64UpdateShadow();" in tick:
         raise RuntimeError("V64 legacy single shadow still gates actual execution")
