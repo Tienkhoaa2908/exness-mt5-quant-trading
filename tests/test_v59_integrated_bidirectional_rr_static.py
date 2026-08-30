@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import importlib.util
 import tempfile
 from pathlib import Path
@@ -22,8 +21,14 @@ def load(path: Path, name: str):
     return mod
 
 
+def generated_mql() -> str:
+    mod = load(BUILDER, "v59_builder_contract")
+    mod.validate(mod.MQL)
+    return mod.MQL
+
+
 def test_standalone_engine_has_symmetric_long_short_path_and_no_v52_dependency():
-    text = BUILDER.read_text(encoding="utf-8")
+    text = generated_mql()
     for token in (
         "V59ScoreDirection(1,f)",
         "V59ScoreDirection(-1,f)",
@@ -39,7 +44,7 @@ def test_standalone_engine_has_symmetric_long_short_path_and_no_v52_dependency()
 
 
 def test_structural_stop_fixed001_and_rr_variants_are_explicit():
-    text = BUILDER.read_text(encoding="utf-8")
+    text = generated_mql()
     for token in (
         "InpV59FixedLot = 0.01",
         "InpV59MaxStopRiskCash = 8.0",
@@ -58,7 +63,7 @@ def test_structural_stop_fixed001_and_rr_variants_are_explicit():
 
 
 def test_features_are_causal_closed_bar_and_multi_timeframe():
-    text = BUILDER.read_text(encoding="utf-8")
+    text = generated_mql()
     for token in (
         "CopyRates(_Symbol,PERIOD_M15,1,320,m15)",
         "CopyRates(_Symbol,PERIOD_H1,1,260,h1)",
@@ -101,7 +106,9 @@ def test_runner_uses_pnl_independent_directional_screen_then_model4():
         "V59_SELECTED_WINDOWS.json",
     ):
         assert token in text, token
-    assert "profit" not in text[text.index("def select_directional_windows"):text.index("def analyze")].lower()
+    selection = text[text.index("def select_directional_windows"):text.index("def analyze")].lower()
+    assert "profit" not in selection
+    assert "net_usd" not in selection
 
 
 def test_analyzer_reports_direction_rr_and_actual_broker():
