@@ -43,7 +43,7 @@ void V61EvaluateBar()
       DoubleToString(f.minus_di,3)+","+DoubleToString(f.macd,6)+","+DoubleToString(f.macd_slope,6)+","+
       DoubleToString(f.distance_ema_atr,4)+","+DoubleToString(f.range_location,4)+","+
       IntegerToString(f.long_score)+","+IntegerToString(f.short_score)+","+IntegerToString(d)+","+why+","+
-      "0,0,0,0,0,0,0,0,0,"+IntegerToString(0)+","+reject+",screen,1";
+      "0,0,0,0,0,0,0,0,"+IntegerToString(0)+","+reject+",screen,1";
    V61Append(V61_EVAL,row);
 }
 '''
