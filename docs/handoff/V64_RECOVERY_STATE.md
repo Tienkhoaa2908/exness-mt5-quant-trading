@@ -8,9 +8,10 @@ Last updated: 2026-08-30.
 - Local operator repo: `D:\v31_mt5_40usd` / `/d/v31_mt5_40usd`
 - Active research branch: `agent/v64-microstructure-trigger-shadow-research`
 - V64 is Strategy Tester research only. REAL-money authorization remains false.
-- V64 substantive code checkpoint: `a7a1f49ed288c9521c02defb6054a13c6cdb44ae`.
-- That exact code checkpoint passed GitHub Actions quality run `#842` / run id `33316317679`: Python compile, V64 launcher Bash syntax, active-policy scan, full pytest, secret scan and V29 archive quarantine all passed.
-- The branch may have a later documentation-only head. A new chat must resolve the branch HEAD and verify quality on that exact HEAD before asking the operator to run Windows.
+- V64 final substantive code checkpoint before the documentation-only handoff commit: `bf2269865dbf8d031fd82581b67c9ef181556a43`.
+- That exact code checkpoint passed GitHub Actions quality run `#845` / run id `33316607107`: Python compile, V64 launcher Bash syntax, active-policy scan, full pytest, secret scan and V29 archive quarantine all passed.
+- The final substantive fix anchors independent noise-shadow paths to `g_trade.ResultPrice()` (actual broker-simulated fill), falling back to the pre-send quote only if ResultPrice is unavailable. Static regression requires this behavior.
+- The branch has a later documentation-only head containing this checkpoint. A new chat must resolve the branch HEAD and verify quality on that exact HEAD before asking the operator to run Windows.
 
 ## Accepted V63 evidence motivating V64
 
@@ -73,7 +74,7 @@ Archetype scores may not compensate for each other. A setup must complete one ar
 
 ## Independent noise-shadow experiment
 
-Every actual V64 entry starts an independent virtual path that remains alive for up to 480 minutes even if the actual trade is stopped. This path must not gate new actual trades.
+Every actual V64 entry starts an independent virtual path anchored to the broker-simulated actual fill and remains alive for up to 480 minutes even if the actual trade is stopped. This path must not gate new actual trades.
 
 First-hit matrix:
 
