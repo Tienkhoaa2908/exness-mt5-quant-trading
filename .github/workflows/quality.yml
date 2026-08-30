@@ -20,13 +20,15 @@ jobs:
           python -m pip install --disable-pip-version-check pytest "numpy<3" "pandas<3" "scipy<2" "scikit-learn<2"
           python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
       - name: Python compile
-        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay runtime/v57_fixed001_trend_smc runtime/v58_fixed001_pullback_trend_cost runtime/v59_integrated_bidirectional_rr
+        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay runtime/v57_fixed001_trend_smc runtime/v58_fixed001_pullback_trend_cost runtime/v59_integrated_bidirectional_rr runtime/v60_small_loss_cash_target
       - name: V57 launcher shell syntax
         run: bash -n runtime/v57_fixed001_trend_smc/START_V57_FIXED001_TREND_SMC_GIT_BASH.sh
       - name: V58 launcher shell syntax
         run: bash -n runtime/v58_fixed001_pullback_trend_cost/START_V58_FIXED001_PULLBACK_TREND_COST_GIT_BASH.sh
       - name: V59 launcher shell syntax
         run: bash -n runtime/v59_integrated_bidirectional_rr/START_V59_INTEGRATED_BIDIRECTIONAL_RR_GIT_BASH.sh
+      - name: V60 launcher shell syntax
+        run: bash -n runtime/v60_small_loss_cash_target/START_V60_SMALL_LOSS_CASH_TARGET_GIT_BASH.sh
       - name: Active live-policy wording scan
         run: python scripts/check_live_policy_wording.py
       - name: Pytest
@@ -58,6 +60,10 @@ jobs:
               Path("scripts/build_v59_integrated_bidirectional_rr_screen_source.py"),
               Path("runtime/v59_integrated_bidirectional_rr/RUN_V59_INTEGRATED_BIDIRECTIONAL_RR.py"),
               Path("scripts/analyze_v59_integrated_bidirectional_rr.py"),
+              Path("scripts/build_v60_small_loss_cash_target_source.py"),
+              Path("scripts/build_v60_small_loss_cash_target_screen_source.py"),
+              Path("runtime/v60_small_loss_cash_target/RUN_V60_SMALL_LOSS_CASH_TARGET.py"),
+              Path("scripts/analyze_v60_small_loss_cash_target.py"),
           ]
           for f in active:
               if f.is_file():
