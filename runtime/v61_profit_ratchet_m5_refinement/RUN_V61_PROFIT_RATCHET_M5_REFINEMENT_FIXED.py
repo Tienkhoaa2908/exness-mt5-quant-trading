@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 import importlib.util
+import json
 import shutil
 import sys
-from datetime import datetime
+from collections import Counter
+from datetime import datetime, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -109,6 +112,107 @@ def copy_run(root: Path, label: str) -> Path:
     )
 
 
+def parse_time(text: str) -> datetime | None:
+    try:
+        return datetime.strptime(text.strip(), "%Y.%m.%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return None
+
+
+def monday(dt: datetime) -> datetime:
+    d = dt - timedelta(days=dt.weekday())
+    return datetime(d.year, d.month, d.day)
+
+
+def select_directional_windows(screen_dir: Path) -> dict:
+    """Choose validation windows from directional regime/setup only, never from PnL.
+
+    Model=2 is a fast window-selection phase. Full execution feasibility belongs to
+    Model=4 real-tick validation because risk-band, spread, M5 stop refinement and
+    broker geometry can differ materially from the screen approximation.
+    """
+    path = screen_dir / "V61_ENTRY_EVAL.csv"
+    weeks: dict[int, Counter[str]] = {1: Counter(), -1: Counter()}
+    feasible_weeks: dict[int, Counter[str]] = {1: Counter(), -1: Counter()}
+    selected_counts: Counter[int] = Counter()
+    feasible_counts: Counter[int] = Counter()
+    reject_counts: Counter[str] = Counter()
+    rows = 0
+
+    with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as fh:
+        for row in csv.DictReader(fh):
+            rows += 1
+            try:
+                d = int(float(row.get("selected_direction", "0") or 0))
+                feasible = int(float(row.get("feasible", "0") or 0))
+                h4 = int(float(row.get("h4_trend", "0") or 0))
+                h1 = int(float(row.get("h1_trend", "0") or 0))
+            except ValueError:
+                continue
+
+            reject = (row.get("reject_reason", "") or "").strip()
+            if reject:
+                reject_counts[reject] += 1
+
+            if d not in (1, -1) or h4 != d or h1 != d:
+                continue
+            dt = parse_time(row.get("time", ""))
+            if dt is None:
+                continue
+            week = monday(dt).strftime("%Y.%m.%d")
+            selected_counts[d] += 1
+            weeks[d][week] += 1
+            if feasible == 1:
+                feasible_counts[d] += 1
+                feasible_weeks[d][week] += 1
+
+    diag = {
+        "screen_rows": rows,
+        "selection_basis": "directional_signal_plus_strict_h4_h1_not_pnl_not_execution_feasibility",
+        "selected_direction_counts": {"long": selected_counts[1], "short": selected_counts[-1]},
+        "screen_feasible_counts": {"long": feasible_counts[1], "short": feasible_counts[-1]},
+        "directional_week_counts": {"long": dict(weeks[1]), "short": dict(weeks[-1])},
+        "screen_feasible_week_counts": {"long": dict(feasible_weeks[1]), "short": dict(feasible_weeks[-1])},
+        "reject_reason_counts": dict(reject_counts),
+    }
+    diag_path = v61.OUT / "V61_SCREEN_DIAGNOSTICS.json"
+    diag_path.write_text(json.dumps(diag, indent=2, sort_keys=True), encoding="utf-8")
+    print("V61_SCREEN_DIAGNOSTICS=" + json.dumps(diag, sort_keys=True))
+
+    used: set[str] = set()
+    result: dict[str, list[dict]] = {"long": [], "short": []}
+    for d, key, label in ((1, "long", "LONG"), (-1, "short", "SHORT")):
+        items = sorted(weeks[d].items(), key=lambda kv: (kv[0], kv[1]), reverse=True)
+        for start_s, count in items:
+            if start_s in used:
+                continue
+            start = datetime.strptime(start_s, "%Y.%m.%d")
+            result[key].append({
+                "direction": label,
+                "from": start_s,
+                "to": (start + timedelta(days=5)).strftime("%Y.%m.%d"),
+                "screen_directional_signal_count": count,
+                "screen_feasible_signal_count": feasible_weeks[d].get(start_s, 0),
+                "selection_basis": "two_most_recent_strict_h4_h1_directional_weeks_not_pnl_not_screen_feasibility",
+            })
+            used.add(start_s)
+            if len(result[key]) >= 2:
+                break
+
+    if len(result["long"]) < 2 or len(result["short"]) < 2:
+        raise RuntimeError(
+            "V61 screen did not find two strict H4/H1 directional weeks per side; "
+            f"selected_long={selected_counts[1]} selected_short={selected_counts[-1]} "
+            f"long_weeks={dict(weeks[1])} short_weeks={dict(weeks[-1])} "
+            f"screen_feasible_long={feasible_counts[1]} screen_feasible_short={feasible_counts[-1]} "
+            f"rejects={dict(reject_counts)}"
+        )
+
+    (v61.OUT / "V61_SELECTED_WINDOWS.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    print("V61_DIRECTIONAL_WINDOWS=" + json.dumps(result, sort_keys=True))
+    return result
+
+
 # Add V61-native aliases around inherited helpers so logs are no longer ambiguous.
 _parent_build_sources = v60.build_sources
 _parent_compile_source = v60.compile_source
@@ -152,18 +256,19 @@ v60.build_sources = build_sources
 v60.compile_source = compile_source
 v60.write_config = write_config
 v60.run_terminal = run_terminal
+v60.select_directional_windows = select_directional_windows
 
-# Parent V61 functions call the V60 module globals for reset/copy but keep their own
-# selection/analyzer/package logic, which is intentional.
 v61.reset_common = reset_common
 v61.copy_run = copy_run
+v61.select_directional_windows = select_directional_windows
 
 
 def main() -> int:
-    # Validate the thin fix itself before opening MetaEditor/MT5.
+    # Validate the thin fixes before opening MetaEditor/MT5.
     v60.run([sys.executable, "-m", "py_compile", Path(__file__), FIXED_BUILDER, FIXED_SCREEN_BUILDER, FIX_TEST])
     v60.run([sys.executable, FIX_TEST])
     print("V61_FILE_COMMON_FIX_STATIC=PASS")
+    print("V61_SCREEN_SELECTION_FIX=PASS")
     rc = v61.main()
     print("V61_FILE_COMMON_FIX_DONE=1")
     return rc
