@@ -46,6 +46,8 @@ def test_fixed_screen_is_dedicated_directional_per_bar_path():
     assert "V61BuildFeatures(f)" in eval_body
     assert "V61SelectDirection(f,why)" in eval_body
     assert "V61Append(V61_EVAL,row)" in eval_body
+    assert '"0,0,0,0,0,0,0,0,"+IntegerToString(0)' in eval_body
+    assert '"0,0,0,0,0,0,0,0,0,"+IntegerToString(0)' not in eval_body
     for token in (
         "V61BuildStopTarget(",
         "V61StartShadow(",
