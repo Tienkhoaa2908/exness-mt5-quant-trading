@@ -29,18 +29,44 @@ def test_fixed_builder_uses_only_canonical_file_common_root():
     assert r"mt5_quant\\v61_profit_ratchet_m5_refinement\\V61_ENTRY_EVAL.csv" in text
 
 
-def test_fixed_screen_preserves_canonical_root_and_screen_mode():
-    mod = load(SCREEN, "v61_fixed_screen_test")
+def test_fixed_screen_is_dedicated_directional_per_bar_path():
+    mod = load(SCREEN, "v61_fixed_directional_screen_test")
     real = load(REAL, "v61_fixed_real_for_screen_test")
-    text = real.transform().replace(
-        "input bool   InpV61ScreenOnly = false;",
-        "input bool   InpV61ScreenOnly = true;",
-        1,
-    )
+    text = mod.transform()
     real.validate(text)
     assert "InpV61ScreenOnly = true" in text
     assert real.CANONICAL_ROOT in text
     assert real.LEGACY_ROOT not in text
+    assert "V61_DIRECTIONAL_SCREEN_ONLY" in text
+    assert "screen_direction_only" in text
+
+    eval_start = text.index("void V61EvaluateBar()")
+    eval_end = text.index("int OnInit()", eval_start)
+    eval_body = text[eval_start:eval_end]
+    assert "V61BuildFeatures(f)" in eval_body
+    assert "V61SelectDirection(f,why)" in eval_body
+    assert "V61Append(V61_EVAL,row)" in eval_body
+    for token in (
+        "V61BuildStopTarget(",
+        "V61StartShadow(",
+        "OrderCalcMargin(",
+        "V61OrderPreflight(",
+        "g_trade.Buy(",
+        "g_trade.Sell(",
+    ):
+        assert token not in eval_body, token
+
+    tick_start = text.index("void OnTick()")
+    tick_end = text.index("void OnTradeTransaction", tick_start)
+    tick_body = text[tick_start:tick_end]
+    assert "V61EvaluateBar();" in tick_body
+    for token in (
+        "V61UpdateShadow(",
+        "V61ManageProfitRatchet(",
+        "V61MaybeSoftLossCut(",
+        "V61OwnedPosition(",
+    ):
+        assert token not in tick_body, token
 
 
 def test_fixed_runner_archives_legacy_and_canonical_and_has_diagnostics():
@@ -56,8 +82,19 @@ def test_fixed_runner_archives_legacy_and_canonical_and_has_diagnostics():
         "V61_TESTER_PASS_START",
         "V61_SCREEN_DIAGNOSTICS",
         "not_pnl_not_screen_feasibility",
+        "V61_SCREEN_COVERAGE_PASS",
+        "MIN_SCREEN_ROWS = 5000",
+        "MIN_SCREEN_SPAN_DAYS = 250",
     ):
         assert token in text, token
+
+
+def write_screen_csv(path: Path, rows: list[list[str]]) -> None:
+    fields = ["time", "selected_direction", "feasible", "h4_trend", "h1_trend", "reject_reason"]
+    with path.open("w", encoding="utf-8", newline="") as fh:
+        wr = csv.writer(fh)
+        wr.writerow(fields)
+        wr.writerows(rows)
 
 
 def test_screen_selector_does_not_require_model2_execution_feasibility():
@@ -70,22 +107,39 @@ def test_screen_selector_does_not_require_model2_execution_feasibility():
         out.mkdir()
         mod.v61.OUT = out
         path = screen / "V61_ENTRY_EVAL.csv"
-        fields = ["time", "selected_direction", "feasible", "h4_trend", "h1_trend", "reject_reason"]
         rows = [
-            ["2026.08.24 10:00:00", "1", "0", "1", "1", "structural_risk_cash_cap"],
-            ["2026.08.17 10:00:00", "1", "0", "1", "1", "structural_risk_too_tight"],
-            ["2026.08.10 10:00:00", "-1", "0", "-1", "-1", "spread_cost_guard"],
-            ["2026.08.03 10:00:00", "-1", "0", "-1", "-1", "structural_risk_cash_cap"],
+            ["2026.08.24 10:00:00", "1", "0", "1", "1", "screen_direction_only"],
+            ["2026.08.17 10:00:00", "1", "0", "1", "1", "screen_direction_only"],
+            ["2026.08.10 10:00:00", "-1", "0", "-1", "-1", "screen_direction_only"],
+            ["2026.08.03 10:00:00", "-1", "0", "-1", "-1", "screen_direction_only"],
         ]
-        with path.open("w", encoding="utf-8", newline="") as fh:
-            wr = csv.writer(fh)
-            wr.writerow(fields)
-            wr.writerows(rows)
-        result = mod.select_directional_windows(screen)
+        write_screen_csv(path, rows)
+        result = mod.select_directional_windows(screen, enforce_coverage=False)
         assert len(result["long"]) == 2
         assert len(result["short"]) == 2
         assert all(x["screen_feasible_signal_count"] == 0 for x in result["long"] + result["short"])
         assert (out / "V61_SCREEN_DIAGNOSTICS.json").is_file()
+
+
+def test_screen_coverage_guard_rejects_truncated_one_row_run():
+    mod = load(RUNNER, "v61_fixed_runner_coverage_test")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        screen = root / "screen"
+        screen.mkdir()
+        out = root / "out"
+        out.mkdir()
+        mod.v61.OUT = out
+        path = screen / "V61_ENTRY_EVAL.csv"
+        write_screen_csv(path, [["2025.09.01 00:00:00", "1", "0", "1", "1", "screen_direction_only"]])
+        try:
+            mod.select_directional_windows(screen, enforce_coverage=True)
+        except RuntimeError as exc:
+            msg = str(exc)
+            assert "screen coverage insufficient" in msg
+            assert "rows=1" in msg
+        else:
+            raise AssertionError("truncated one-row screen must fail coverage guard")
 
 
 def test_fixed_launcher_points_only_to_fixed_runner():
