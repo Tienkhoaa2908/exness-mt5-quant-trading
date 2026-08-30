@@ -8,10 +8,32 @@ Last updated: 2026-08-30.
 - Local operator repo: `D:\v31_mt5_40usd` / `/d/v31_mt5_40usd`
 - Active research branch: `agent/v64-microstructure-trigger-shadow-research`
 - V64 is Strategy Tester research only. REAL-money authorization remains false.
-- V64 final substantive code checkpoint before the documentation-only handoff commit: `bf2269865dbf8d031fd82581b67c9ef181556a43`.
-- That exact code checkpoint passed GitHub Actions quality run `#845` / run id `33316607107`: Python compile, V64 launcher Bash syntax, active-policy scan, full pytest, secret scan and V29 archive quarantine all passed.
-- The final substantive fix anchors independent noise-shadow paths to `g_trade.ResultPrice()` (actual broker-simulated fill), falling back to the pre-send quote only if ResultPrice is unavailable. Static regression requires this behavior.
-- The branch has a later documentation-only head containing this checkpoint. A new chat must resolve the branch HEAD and verify quality on that exact HEAD before asking the operator to run Windows.
+- Accepted V63 evidence remains the prior complete runtime checkpoint; do not overwrite it.
+- V64 substantive architecture is microstructure trigger + independent noise shadow; Windows runtime is not yet accepted.
+
+## V64 orchestration failures already diagnosed
+
+### Failure 1 — stale MT5 locator API
+
+The first Windows V64 run at head `dda48ea1d90fc352141d4a2d62260f25eb972286` passed source generation but failed before MetaEditor with:
+
+`AttributeError: module 'v45_base_for_v48' has no attribute 'find_mt5_data_dir'`.
+
+Root cause: original V64 runner called stale helper names `find_mt5_data_dir()` / `find_common_files_dir()` while the inherited canonical V45 helper exposes `locate_mt5() -> (data, common, expert_dir, inputs)`.
+
+Fix: `RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW_FIXED.py` installs a cached compatibility adapter backed by `base.locate_mt5()`. Launcher uses the fixed runner. Static tests verify a single canonical location tuple and reject mismatched data/common pairing.
+
+### Failure 2 — local pytest dependency
+
+The next Windows run at head `6b76fdcf9ff28ca0053715ad2dbbfc0bd661ce47` passed repo/head checks, V64 core static tests 12/12, and reached the launcher locator regression, then failed before fixed runner execution with:
+
+`Python 3.12.10: No module named pytest`.
+
+This is not a strategy, MQL, MetaEditor or tester failure. The launcher unnecessarily invoked `python -m pytest` even though the local operator Python environment does not require or guarantee pytest.
+
+Fix: the locator regression test now has a direct `__main__` runner, and the launcher executes it as `python tests/test_v64_mt5_locator_compat_static.py`. Local runtime no longer depends on pytest. CI may continue to use pytest independently.
+
+A new chat must resolve the latest exact branch HEAD and require GitHub Actions success on that exact HEAD before giving the operator another Windows command.
 
 ## Accepted V63 evidence motivating V64
 
@@ -129,6 +151,6 @@ Total V64: **12 Model=4 real-tick passes** plus annual Model=2 directional scree
 2. Resolve the latest exact head of `agent/v64-microstructure-trigger-shadow-research`.
 3. Verify GitHub Actions quality on that exact head.
 4. Run only the V64 launcher after MT5 and MetaEditor are closed.
-5. Require 0 errors / 0 warnings for V64 LONG, SHORT and screen experts.
+5. Require `V64_MT5_LOCATOR_COMPAT=PASS`, then 0 errors / 0 warnings for V64 LONG, SHORT and screen experts.
 6. Require annual screen coverage, eight fixed benchmark Model=4 passes and four bearish SHORT Model=4 passes.
 7. Analyze actual profitability first, then archetype quality and the independent stop-then-recovery matrix.
