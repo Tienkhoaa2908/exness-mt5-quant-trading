@@ -128,7 +128,8 @@ def test_adr_and_handoff_record_nonproduction_and_isolated_sum_caveat():
         assert "REAL" in text
     assert "isolated-pass sum" in adr
     assert "not a concurrent" in adr
-    assert "8 real-tick passes" in handoff or "8 Model=4" in handoff
+    assert "8-pass V62 evidence bundle" in handoff
+    assert "total 8 passes" in handoff
 
 
 def main() -> int:
