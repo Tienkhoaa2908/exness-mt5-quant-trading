@@ -24,7 +24,7 @@ def test_fixed_builder_uses_only_canonical_file_common_root():
     assert mod.CANONICAL_ROOT in text
     assert text.count(mod.CANONICAL_ROOT) >= 5
     assert mod.LEGACY_ROOT not in text
-    assert r"mt5_quant\v61_profit_ratchet_m5_refinement\V61_ENTRY_EVAL.csv" in text
+    assert r"mt5_quant\\v61_profit_ratchet_m5_refinement\\V61_ENTRY_EVAL.csv" in text
 
 
 def test_fixed_screen_preserves_canonical_root_and_screen_mode():
