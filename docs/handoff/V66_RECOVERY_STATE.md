@@ -9,6 +9,8 @@ Last updated: 2026-08-31.
 - Active branch: `agent/v66-post-bos-cash-zone-research`.
 - V66 is Strategy Tester research only. REAL-money authorization is false.
 - V66 branches from the V65 accepted-evidence lineage after the V65 evidence handoff update.
+- V66 substantive code checkpoint: `cf64bcf3c4a43c4128f77506e120957c078a586e`.
+- GitHub Actions quality run `#884` / run id `33328003987` completed successfully on that exact substantive checkpoint. Python compile, V66 Bash syntax, active-policy scan, full pytest, secret scan and quarantine all passed.
 
 ## Accepted V65 evidence
 
@@ -117,4 +119,4 @@ The V66 analyzer explicitly repairs the inherited V65 summary-label defect: plan
 
 ## Next recovery step
 
-Require full GitHub Actions success on the exact final V66 head. Then, with MT5 and MetaEditor closed, run only the V66 launcher. If Windows runtime completes, inspect bundle integrity, both compile logs, 12-pass completeness, LONG/SHORT actual metrics, stage-two arm-to-zone-touch conversion, expiry/invalidation reasons, planned vs realized loss, and noise-shadow first-hit outcomes.
+Resolve the exact latest V66 branch head and require quality success on that exact head. Then, with MT5 and MetaEditor closed, run only the V66 launcher. If Windows runtime completes, inspect bundle integrity, both compile logs, 12-pass completeness, LONG/SHORT actual metrics, stage-two arm-to-zone-touch conversion, expiry/invalidation reasons, planned vs realized loss, and noise-shadow first-hit outcomes.
