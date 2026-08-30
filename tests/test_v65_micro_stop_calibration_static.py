@@ -4,8 +4,10 @@ import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BUILDER = ROOT / "scripts" / "build_v65_micro_stop_calibration_source.py"
+BUILDER = ROOT / "scripts" / "build_v65_micro_stop_calibration_source_fixed.py"
+BASE_BUILDER = ROOT / "scripts" / "build_v65_micro_stop_calibration_source.py"
 RUNNER = ROOT / "runtime" / "v65_micro_stop_calibration" / "RUN_V65_MICRO_STOP_CALIBRATION.py"
+FIXED_RUNNER = ROOT / "runtime" / "v65_micro_stop_calibration" / "RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py"
 LAUNCHER = ROOT / "runtime" / "v65_micro_stop_calibration" / "START_V65_MICRO_STOP_CALIBRATION_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-067-v65-micro-stop-calibration-research.md"
 HANDOFF = ROOT / "docs" / "handoff" / "V65_RECOVERY_STATE.md"
@@ -20,7 +22,19 @@ def load(path: Path, name: str):
 
 
 def source(direction: int) -> str:
-    return load(BUILDER, f"v65_builder_{direction}").transform(direction)
+    return load(BUILDER, f"v65_fixed_builder_{direction}").transform(direction)
+
+
+def test_v65_fixed_builder_normalizes_all_v64_roots():
+    mod = load(BUILDER, "v65_fixed_root_contract")
+    for d in (-1, 1):
+        s = mod.transform(d)
+        assert mod.base.V65_ROOT in s
+        assert r"mt5_quant\\v64_microstructure_trigger_shadow" not in s
+    fixed_text = BUILDER.read_text(encoding="utf-8")
+    assert 'if label == "FILE_COMMON root"' in fixed_text
+    assert "text.replace(old, new)" in fixed_text
+    assert "stale FILE_COMMON root remains" in fixed_text
 
 
 def test_v65_micro_trigger_precedes_cash_risk_gate():
@@ -71,7 +85,17 @@ def test_v65_runner_reuses_exact_v64_windows_without_pnl_reselection():
     assert '("bearish4", "2026.06.15", "2026.06.20")' in text
     assert '"real_tick_passes": 12' not in text or "12" in text
     assert '"selection_uses_pnl": False' in text
-    assert "screen" not in text.lower().split("BEARISH_WINDOWS =", 1)[1].split("DIRECTIONS =", 1)[0]
+    lower = text.lower()
+    window_block = lower.split("bearish_windows =", 1)[1].split("directions =", 1)[0]
+    assert "screen" not in window_block
+    assert "select_bearish_weeks" not in text
+
+
+def test_v65_fixed_runner_routes_original_runner_to_fixed_builder():
+    text = FIXED_RUNNER.read_text(encoding="utf-8")
+    assert "RUN_V65_MICRO_STOP_CALIBRATION.py" in text
+    assert "build_v65_micro_stop_calibration_source_fixed.py" in text
+    assert "runner.BUILDER = FIXED_BUILDER" in text
 
 
 def test_v65_docs_and_launcher_exist_and_tester_only():
@@ -82,7 +106,8 @@ def test_v65_docs_and_launcher_exist_and_tester_only():
     launcher = LAUNCHER.read_text(encoding="utf-8")
     assert "set -Eeuo pipefail" in launcher
     assert "agent/v65-micro-stop-calibration-research" in launcher
-    assert "RUN_V65_MICRO_STOP_CALIBRATION.py" in launcher
+    assert "RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py" in launcher
+    assert "build_v65_micro_stop_calibration_source_fixed.py" in launcher
     docs = ADR.read_text(encoding="utf-8") + HANDOFF.read_text(encoding="utf-8")
     assert "REAL" in docs
     assert "0.01" in docs
