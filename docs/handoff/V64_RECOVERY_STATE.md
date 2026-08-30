@@ -8,6 +8,9 @@ Last updated: 2026-08-30.
 - Local operator repo: `D:\v31_mt5_40usd` / `/d/v31_mt5_40usd`
 - Active research branch: `agent/v64-microstructure-trigger-shadow-research`
 - V64 is Strategy Tester research only. REAL-money authorization remains false.
+- V64 substantive code checkpoint: `a7a1f49ed288c9521c02defb6054a13c6cdb44ae`.
+- That exact code checkpoint passed GitHub Actions quality run `#842` / run id `33316317679`: Python compile, V64 launcher Bash syntax, active-policy scan, full pytest, secret scan and V29 archive quarantine all passed.
+- The branch may have a later documentation-only head. A new chat must resolve the branch HEAD and verify quality on that exact HEAD before asking the operator to run Windows.
 
 ## Accepted V63 evidence motivating V64
 
