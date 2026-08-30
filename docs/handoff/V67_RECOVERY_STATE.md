@@ -8,6 +8,9 @@ Last updated: 2026-08-31.
 - Local operator repo: `D:\v31_mt5_40usd` / `/d/v31_mt5_40usd`.
 - Active branch: `agent/v67-post-zone-reclaim-quality-research`.
 - V67 is Strategy Tester research only. REAL-money authorization is false.
+- V67 substantive/static checkpoint: `be0f3e2283124bd1c900b2fd0d5ced890815ffc2`.
+- GitHub Actions quality run `#901` / run id `33330663885` completed successfully on that exact substantive checkpoint. Python compile, V67 launcher syntax, active-policy scan, full pytest, secret scan and V29 quarantine all passed.
+- Any later documentation-only head must itself pass quality before Windows runtime is accepted.
 - Do not `git clean`.
 - Do not `stash pop` while MT5/tester work is active.
 - Do not rerun older milestones merely to recover V67.
@@ -139,7 +142,7 @@ Important events:
 - `REFINED_ENTRY`;
 - `NOISE_SHADOW`.
 
-The analyzer must report stage conversion, consistency by lane, realized loss statistics, and losing-trade duration counts within 15/30/60 seconds. Historical frequency/profit goal counters inherited from the V64 analyzer are retained only as legacy diagnostics and are explicitly not promotion gates.
+The analyzer reports stage conversion, consistency by lane, realized loss statistics, and losing-trade duration counts within 15/30/60 seconds. Historical frequency/profit goal counters inherited from the V64 analyzer are retained only as legacy diagnostics and are explicitly not promotion gates.
 
 ## V67 files
 
