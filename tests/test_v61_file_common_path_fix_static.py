@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
+import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
@@ -52,8 +54,38 @@ def test_fixed_runner_archives_legacy_and_canonical_and_has_diagnostics():
         "V61_EVIDENCE_ROOT_PASS",
         "V61_COMPILE_PASS",
         "V61_TESTER_PASS_START",
+        "V61_SCREEN_DIAGNOSTICS",
+        "not_pnl_not_screen_feasibility",
     ):
         assert token in text, token
+
+
+def test_screen_selector_does_not_require_model2_execution_feasibility():
+    mod = load(RUNNER, "v61_fixed_runner_selector_test")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        screen = root / "screen"
+        screen.mkdir()
+        out = root / "out"
+        out.mkdir()
+        mod.v61.OUT = out
+        path = screen / "V61_ENTRY_EVAL.csv"
+        fields = ["time", "selected_direction", "feasible", "h4_trend", "h1_trend", "reject_reason"]
+        rows = [
+            ["2026.08.24 10:00:00", "1", "0", "1", "1", "structural_risk_cash_cap"],
+            ["2026.08.17 10:00:00", "1", "0", "1", "1", "structural_risk_too_tight"],
+            ["2026.08.10 10:00:00", "-1", "0", "-1", "-1", "spread_cost_guard"],
+            ["2026.08.03 10:00:00", "-1", "0", "-1", "-1", "structural_risk_cash_cap"],
+        ]
+        with path.open("w", encoding="utf-8", newline="") as fh:
+            wr = csv.writer(fh)
+            wr.writerow(fields)
+            wr.writerows(rows)
+        result = mod.select_directional_windows(screen)
+        assert len(result["long"]) == 2
+        assert len(result["short"]) == 2
+        assert all(x["screen_feasible_signal_count"] == 0 for x in result["long"] + result["short"])
+        assert (out / "V61_SCREEN_DIAGNOSTICS.json").is_file()
 
 
 def test_fixed_launcher_points_only_to_fixed_runner():
@@ -68,7 +100,7 @@ def main() -> int:
     for fn in tests:
         fn()
         print("PASS", fn.__name__)
-    print(f"V61 FILE_COMMON fix static tests PASS count={len(tests)}")
+    print(f"V61 fixed-layer static tests PASS count={len(tests)}")
     return 0
 
 
