@@ -116,6 +116,14 @@ Important new events:
 
 Existing stage and fast-loss diagnostics remain.
 
+## Static checkpoint
+
+- V69 substantive/static checkpoint: `695759bfcc1802179293639f341f5123f688a7c7`.
+- V69-specific Actions run `#2` / run id `33335442297` completed successfully on that exact checkpoint: Python compile, launcher syntax, generated-source state-machine tests and secret scan passed.
+- Full repository quality run `#926` / run id `33335442296` completed successfully on the same checkpoint: Python compile, historical launcher syntax checks, policy wording, full pytest, secret scan and V29 quarantine all passed.
+- The earlier V69-specific run on `afecb535...` failed only because the test duplicated a FILE_COMMON literal with the wrong Python backslash representation. The test was corrected to use canonical builder constants; strategy logic was unchanged.
+- Any later documentation-only head must itself pass V69-specific and full quality checks before Windows runtime is accepted.
+
 ## V69 files
 
 - `scripts/build_v69_confirm_separation_retest_source.py`;
