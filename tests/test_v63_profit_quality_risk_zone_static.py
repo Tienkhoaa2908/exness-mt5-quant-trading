@@ -104,11 +104,13 @@ def test_v63_runner_keeps_four_week_benchmark_and_adds_pnl_independent_bearish_s
         'BEARISH_WEEK_COUNT = 4',
         '"selection_uses_pnl": False',
         'V63_BEARISH_WINDOWS=',
-        'V63_REAL_TICK_PASS_START',
-        'V63_REAL_TICK_PASS_DONE',
+        'prefix = "V63_SCREEN_PASS" if model == SCREEN_MODEL else "V63_REAL_TICK_PASS"',
+        'print(f"{prefix}_START label={label} config={ini}")',
+        'print(f"{prefix}_DONE label={label}")',
     ):
         assert token in text, token
-    assert "result_cash" not in text[text.index("def select_bearish_weeks"):text.index("def analyze", text.index("def select_bearish_weeks"))]
+    selector = text[text.index("def select_bearish_weeks"):text.index("def analyze", text.index("def select_bearish_weeks"))]
+    assert "result_cash" not in selector
 
 
 def test_v63_analyzer_round_trips_and_weekly_profit_goal_are_reporting_only():
@@ -146,7 +148,7 @@ def test_v63_adr_and_handoff_freeze_profit_objective_without_guarantee_or_real_s
         assert "SHORT" in text
         assert "REAL" in text
         assert "not a promised" in text or "not a promised weekly return" in text
-    assert "first arm" in adr
+    assert "first M15 arm" in adr
     assert "12" in handoff
 
 
