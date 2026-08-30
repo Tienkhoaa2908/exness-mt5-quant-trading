@@ -1,0 +1,30 @@
+name: v68-quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  v68-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: V68 Python compile
+        run: |
+          python -m py_compile \
+            scripts/build_v68_v67_holdout_stability_source.py \
+            scripts/analyze_v68_v67_holdout_stability.py \
+            tests/test_v68_v67_holdout_stability_static.py \
+            runtime/v68_v67_holdout_stability/RUN_V68_V67_HOLDOUT_STABILITY.py
+      - name: V68 launcher syntax
+        run: bash -n runtime/v68_v67_holdout_stability/START_V68_V67_HOLDOUT_STABILITY_GIT_BASH.sh
+      - name: V68 generated-source equivalence tests
+        run: python tests/test_v68_v67_holdout_stability_static.py
+      - name: Secret scan
+        run: python scripts/secret_scan.py .
