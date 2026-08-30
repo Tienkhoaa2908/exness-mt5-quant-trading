@@ -20,8 +20,8 @@ def load(path: Path, name: str):
 def install_mt5_locator_compat(base) -> None:
     """Bridge V64's stale locator names to the canonical V45 locate_mt5 API.
 
-    The canonical helper returns (data, common, expert_dir, inputs).  Cache the
-    tuple so both compatibility lookups resolve the same MT5 installation.
+    The canonical helper returns (data, common, expert_dir, inputs). Cache the
+    tuple so every compatibility lookup resolves the same MT5 installation.
     """
     locate = getattr(base, "locate_mt5", None)
     if not callable(locate):
@@ -55,7 +55,12 @@ def install_mt5_locator_compat(base) -> None:
 def main() -> int:
     runner = load(ORIGINAL_RUNNER, "v64_original_runner_fixed_locator")
     install_mt5_locator_compat(runner.base)
-    data, common, expert_dir, _ = runner.base.locate_mt5()
+
+    # Warm the adapter once. The original V64 main then reuses this exact cached
+    # installation through its stale helper names without rescanning APPDATA.
+    data = runner.base.find_mt5_data_dir()
+    common = runner.base.find_common_files_dir(data)
+    expert_dir = Path(data) / "MQL5" / "Experts" / "mt5_quant"
     print(f"V64_MT5_LOCATOR_COMPAT=PASS data={data} common={common} expert_dir={expert_dir}")
     return runner.main()
 
