@@ -10,8 +10,10 @@ Last updated: 2026-08-30.
 - V64 is Strategy Tester research only. REAL-money authorization remains false.
 - Accepted V63 evidence remains the prior complete runtime checkpoint; do not overwrite it.
 - V64 substantive architecture is microstructure trigger + independent noise shadow; Windows runtime is not yet accepted.
+- Compile-portability substantive checkpoint: `a907a71ace02a1257b5053fb16a1c95fe9e201e4`.
+- GitHub Actions quality run `#857` / run id `33323338636` completed success on that exact checkpoint: Python compile, V64 launcher syntax, full pytest, policy scan, secret scan and archive quarantine all passed.
 
-## V64 orchestration failures already diagnosed
+## V64 orchestration / compile failures already diagnosed
 
 ### Failure 1 — stale MT5 locator API
 
@@ -32,6 +34,24 @@ The next Windows run at head `6b76fdcf9ff28ca0053715ad2dbbfc0bd661ce47` passed r
 This is not a strategy, MQL, MetaEditor or tester failure. The launcher unnecessarily invoked `python -m pytest` even though the local operator Python environment does not require or guarantee pytest.
 
 Fix: the locator regression test now has a direct `__main__` runner, and the launcher executes it as `python tests/test_v64_mt5_locator_compat_static.py`. Local runtime no longer depends on pytest. CI may continue to use pytest independently.
+
+### Failure 3 — invalid MQL5 long-to-string helper
+
+The subsequent Windows run at head `89592999a5aa8101131fcb1dcac0b7ab64387ff6` passed repo/head safety, core static tests, locator static tests, secret scan, source generation and `V64_MT5_LOCATOR_COMPAT=PASS`. It then reached MetaEditor LONG compilation.
+
+MetaEditor compile log for `V64MicrostructureTriggerShadowLong.mq5` reported:
+
+`Result: 4 errors, 12 warnings`
+
+The root error at generated source line 955 was:
+
+`error 256: undeclared identifier 'LongToString'`
+
+The remaining parser errors/warnings on lines 955-957 were cascade diagnostics from that invalid call. The generated code attempted `LongToString(g_v64_noise[k].id)` in `V64NoiseFinish()`.
+
+MQL5 provides `IntegerToString(long number, ...)`; `LongToString` is not a valid conversion API. The fixed V64 builder now replaces the invalid call with `IntegerToString(g_v64_noise[k].id)` without narrowing the 64-bit shadow sequence id. Builder validation and direct static regression forbid any generated `LongToString(` token and require the supported conversion for both LONG and SHORT generated sources.
+
+The fixed runner also now owns a MetaEditor compile-diagnostic gate. MetaEditor process return code is not treated as compile success. The runner parses the compile log `Result:` line; if errors or warnings are nonzero it immediately copies and prints the compile log with `V64_COMPILE_FAIL` and raises, rather than waiting blindly for the 120-second EX5+0/0 timeout. A 0-error/0-warning result still additionally requires a nonempty EX5.
 
 A new chat must resolve the latest exact branch HEAD and require GitHub Actions success on that exact HEAD before giving the operator another Windows command.
 
@@ -151,6 +171,6 @@ Total V64: **12 Model=4 real-tick passes** plus annual Model=2 directional scree
 2. Resolve the latest exact head of `agent/v64-microstructure-trigger-shadow-research`.
 3. Verify GitHub Actions quality on that exact head.
 4. Run only the V64 launcher after MT5 and MetaEditor are closed.
-5. Require `V64_MT5_LOCATOR_COMPAT=PASS`, then 0 errors / 0 warnings for V64 LONG, SHORT and screen experts.
+5. Require `V64_MT5_LOCATOR_COMPAT=PASS` and `V64_COMPILE_DIAGNOSTICS=ENABLED`, then 0 errors / 0 warnings for V64 LONG, SHORT and screen experts.
 6. Require annual screen coverage, eight fixed benchmark Model=4 passes and four bearish SHORT Model=4 passes.
 7. Analyze actual profitability first, then archetype quality and the independent stop-then-recovery matrix.
