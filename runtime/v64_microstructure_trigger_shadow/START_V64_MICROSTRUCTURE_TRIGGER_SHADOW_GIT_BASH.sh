@@ -5,8 +5,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 BRANCH="agent/v64-microstructure-trigger-shadow-research"
-RUNNER="runtime/v64_microstructure_trigger_shadow/RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW.py"
+RUNNER="runtime/v64_microstructure_trigger_shadow/RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW_FIXED.py"
+ORIGINAL_RUNNER="runtime/v64_microstructure_trigger_shadow/RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW.py"
 STATIC="tests/test_v64_microstructure_trigger_shadow_static.py"
+LOCATOR_TEST="tests/test_v64_mt5_locator_compat_static.py"
 
 printf '%s\n' '============================================================'
 printf '%s\n' 'V64 MICROSTRUCTURE TRIGGER + NOISE SHADOW RESEARCH'
@@ -62,9 +64,12 @@ printf 'V64_PYTHON=%s\n' "$PY"
   scripts/build_v64_microstructure_trigger_shadow_screen_source.py \
   scripts/analyze_v64_microstructure_trigger_shadow.py \
   "$STATIC" \
+  "$LOCATOR_TEST" \
+  "$ORIGINAL_RUNNER" \
   "$RUNNER"
 
 "$PY" "$STATIC"
+"$PY" -m pytest -q "$LOCATOR_TEST"
 "$PY" scripts/secret_scan.py "$ROOT"
 printf '%s\n' 'V64_PRE_RUNTIME_STATIC=PASS'
 
