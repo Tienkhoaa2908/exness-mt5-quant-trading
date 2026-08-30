@@ -43,7 +43,7 @@ Confirmed root cause: inherited builder transformed V60 namespace to legacy `mt5
 
 Fixed layer introduced canonical builders/runner/launcher and regression coverage. The fixed runner archives both canonical and legacy roots, emits canonical/legacy listings on missing evidence, and explicitly fails with `V61_FILE_COMMON_ROOT_MISMATCH` if fresh evidence leaks to the legacy root.
 
-## V61 failure 2: Model=2 screen selection incorrectly required execution feasibility
+## V61 failure 2: Model=2 selector incorrectly required execution feasibility
 
 Head observed on Windows: `7e3a7881ad5201ab1f51c62fbd1f6ab98da433a7`.
 
@@ -56,11 +56,42 @@ What passed in this run:
 - Model=2 screen ran and `V61_EVIDENCE_ROOT_PASS label=screen` proved canonical FILE_COMMON evidence path was fixed.
 - `MT5_LAUNCH_RC=100007` is not, by itself, evidence of tester failure because screen evidence was successfully produced and copied.
 
-Failure: selection raised `V61 screen did not find two feasible strict H4/H1 weeks per side; long_weeks={} short_weeks={}`.
+Failure: selector required `feasible=1`, which mixed window-selection with the narrow `$0.75-$1.25` risk band, M5 stop refinement, spread/margin and broker geometry.
 
-Confirmed design bug: the screen selector required `feasible=1`. In V61, `feasible` includes the narrow `$0.75-$1.25` risk band plus spread/margin/broker geometry and M5 stop refinement. That is inappropriate for Model=2 whose purpose is only PnL-independent directional/window screening. Execution feasibility belongs to Model=4 real-tick validation.
+Fix: screen selection now uses `selected_direction` plus strict H4/H1 alignment, never PnL and never Model=2 execution feasibility. Model=4 remains authoritative for actual trade feasibility and broker mapping.
 
-Fix: `RUN_V61_PROFIT_RATCHET_M5_REFINEMENT_FIXED.py` now selects two most recent LONG and SHORT weeks using `selected_direction` plus strict H4/H1 alignment, without using PnL and without requiring Model=2 execution feasibility. It separately records `screen_feasible_signal_count`, rejection counts, and `V61_SCREEN_DIAGNOSTICS.json`. Model=4 remains authoritative for actual trade feasibility and broker mapping.
+## V61 failure 3: screen EA evaluated only one M15 row
+
+Head observed on Windows: `7699983739c9dbdb9cf9d611d5b4db98001a0bd1`.
+
+What passed in this run:
+
+- Canonical FILE_COMMON evidence root passed.
+- Both V61 fixed sources compiled again with MetaEditor `0 errors, 0 warnings`.
+- Model=2 screen completed and copied evidence.
+
+Critical evidence:
+
+- `V61_SCREEN_DIAGNOSTICS` reported `screen_rows=1` across the configured interval `2025.09.01 -> 2026.08.29`.
+- The single observed row was LONG on week `2025.09.01`; no SHORT rows were observed.
+- Therefore the resulting `selected_long=1 selected_short=0` must **not** be interpreted as directional-model scarcity. A one-row full-year screen is invalid coverage.
+
+Confirmed design weakness:
+
+- The screen builder previously generated the full execution EA and only flipped `InpV61ScreenOnly=true`.
+- Its `OnTick` / `V61EvaluateBar` path still contained execution/shadow lifecycle logic, stop construction, M5 refinement and other stateful code inappropriate for a pure regime/window screen.
+- Window screening and execution validation must be separated at the EA path level, not only at the Python selector level.
+
+Current fix:
+
+- `build_v61_profit_ratchet_m5_refinement_screen_source_fixed.py` now produces a dedicated directional screen path.
+- Screen `OnTick` evaluates every new M15 bar and only calls feature building + directional selection + CSV logging.
+- Screen evaluation does **not** call stop construction, M5 stop refinement, shadow lifecycle, spread/margin, OrderCheck, position management, Buy or Sell.
+- Screen CSV execution fields are placeholders only; Model=4 real-tick EA remains authoritative for execution feasibility.
+- Runner now requires at least `5000` screen rows and at least `250` calendar days of screen span before interpreting LONG/SHORT frequency.
+- Runner emits `V61_SCREEN_COVERAGE_PASS` only after that guard succeeds.
+- A one-row or otherwise truncated screen now fails explicitly with `V61 screen coverage insufficient` before any model-scarcity conclusion.
+- Static regression tests cover the dedicated screen path, the one-row coverage failure, PnL/feasibility-independent selection and CSV placeholder alignment.
 
 ## Fixed layer files
 
@@ -78,17 +109,18 @@ Use the fixed thin layer, not the old V61 launcher:
 - Do not use `git clean`.
 - Do not `stash pop` while a tester/runtime task is active.
 - Do not overwrite accepted historical evidence.
-- Do not claim V61 Windows PASS until the current fixed source is recompiled 0/0 and all requested Model=4 tester passes finish with an evidence ZIP.
+- Do not claim V61 Windows PASS until the current dedicated-screen source compiles 0/0, screen coverage passes, and all requested Model=4 tester passes finish with an evidence ZIP.
 - Do not arm or execute REAL-money trading as part of V61 research.
-- Do not infer alpha/model failure from orchestration, FILE_COMMON, or screen-selection errors.
+- Do not infer alpha/model failure from orchestration, FILE_COMMON, selector, or truncated-screen errors.
 
 ## What a new chat should do next
 
 1. Read this file first.
 2. Resolve latest branch head and verify CI on that exact SHA.
 3. Run only `START_V61_PROFIT_RATCHET_M5_REFINEMENT_FIXED_GIT_BASH.sh` after MT5 and MetaEditor are closed.
-4. Require fixed-source MetaEditor 0/0 evidence.
-5. Require `V61_EVIDENCE_ROOT_PASS` for screen and every real-tick pass.
-6. Inspect `V61_SCREEN_DIAGNOSTICS` / `V61_SCREEN_DIAGNOSTICS.json`; screen selection must be PnL-independent and must not require execution feasibility.
-7. If fewer than two directional weeks exist on either side, treat that as a directional-model frequency problem and inspect counts before changing execution/risk logic.
-8. Once V61 completes, analyze LONG/SHORT separately, `m15` vs `m5` stop-source counts, OrderCheck blocks, profit-lock modifications/failures, actual net USD/PF/average loss/max loss, and shadow `$2/$3/$4` outcomes.
+4. Require current real and dedicated-screen MetaEditor `0 errors, 0 warnings` evidence.
+5. Require `V61_EVIDENCE_ROOT_PASS label=screen` and then `V61_SCREEN_COVERAGE_PASS` with >=5000 rows and >=250 days.
+6. Only after coverage passes may `selected_direction_counts` and directional week counts be interpreted as model frequency evidence.
+7. Model=2 screen selection remains PnL-independent and execution-feasibility-independent.
+8. Model=4 remains authoritative for M5 stop refinement, `$0.75-$1.25` risk-band feasibility, spread/margin, OrderCheck, broker mapping, profit ratchet and PnL.
+9. Once V61 completes, analyze LONG/SHORT separately, `m15` vs `m5` stop-source counts, OrderCheck blocks, profit-lock modifications/failures, actual net USD/PF/average loss/max loss, and shadow `$2/$3/$4` outcomes.
