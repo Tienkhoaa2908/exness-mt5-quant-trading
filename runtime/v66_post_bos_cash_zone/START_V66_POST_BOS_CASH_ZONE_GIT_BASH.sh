@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 BRANCH="agent/v66-post-bos-cash-zone-research"
-RUNNER="runtime/v66_post_bos_cash_zone/RUN_V66_POST_BOS_CASH_ZONE.py"
+RUNNER="runtime/v66_post_bos_cash_zone/RUN_V66_POST_BOS_CASH_ZONE_FIXED.py"
 STATIC="tests/test_v66_post_bos_cash_zone_static.py"
 
 printf '%s\n' '============================================================'
@@ -56,7 +56,9 @@ printf 'V66_PYTHON=%s\n' "$PY"
 "$PY" --version
 "$PY" -m py_compile \
   scripts/build_v66_post_bos_cash_zone_source.py \
+  scripts/build_v66_post_bos_cash_zone_source_fixed.py \
   scripts/analyze_v66_post_bos_cash_zone.py \
+  runtime/v66_post_bos_cash_zone/RUN_V66_POST_BOS_CASH_ZONE.py \
   "$STATIC" \
   "$RUNNER"
 "$PY" "$STATIC"
