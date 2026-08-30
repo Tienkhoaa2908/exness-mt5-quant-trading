@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import tempfile
 from pathlib import Path
 
@@ -145,6 +146,14 @@ def test_v60_launcher_is_portable_and_tester_only_workflow():
     assert "py.exe" in text and "python.exe" in text
     assert "RUN_V60_SMALL_LOSS_CASH_TARGET.py" in text
     assert "runtime/v31_mt5_model_gate/OUTPUT_V31_1_MT5/.venv" not in text
+    # Under `set -u`, monetary strings such as "$1.25" inside double quotes
+    # become positional-parameter expansion and crash when no args are supplied.
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith('echo "'):
+            assert re.search(r"(?<!\\)\$[1-9]", stripped) is None, stripped
+    assert "echo 'fixed 0.01 | strict H4/H1 | structural loss <= $1.25 | TP $2'" in text
+    assert "echo 'shadow cash targets: $2 / $3 / $4'" in text
 
 
 def test_adr_records_loss_first_non_forced_stop_policy():
