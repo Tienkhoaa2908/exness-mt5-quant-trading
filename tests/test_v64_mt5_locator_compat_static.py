@@ -67,6 +67,8 @@ def test_v64_launcher_uses_fixed_runner():
     text = LAUNCHER.read_text(encoding="utf-8")
     assert "RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW_FIXED.py" in text
     assert 'exec "$PY" "$RUNNER"' in text
+    assert '"$PY" "$LOCATOR_TEST"' in text
+    assert '-m pytest' not in text
 
 
 def test_v64_fixed_runner_requires_canonical_api():
@@ -75,3 +77,11 @@ def test_v64_fixed_runner_requires_canonical_api():
     assert "base.find_mt5_data_dir = find_mt5_data_dir" in text
     assert "base.find_common_files_dir = find_common_files_dir" in text
     assert "V64_MT5_LOCATOR_COMPAT=PASS" in text
+
+
+if __name__ == "__main__":
+    tests = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    for fn in tests:
+        fn()
+        print(f"PASS {fn.__name__}")
+    print(f"V64 locator static tests PASS count={len(tests)}")
