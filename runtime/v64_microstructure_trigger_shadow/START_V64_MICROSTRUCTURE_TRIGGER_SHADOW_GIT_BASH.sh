@@ -69,7 +69,7 @@ printf 'V64_PYTHON=%s\n' "$PY"
   "$RUNNER"
 
 "$PY" "$STATIC"
-"$PY" -m pytest -q "$LOCATOR_TEST"
+"$PY" "$LOCATOR_TEST"
 "$PY" scripts/secret_scan.py "$ROOT"
 printf '%s\n' 'V64_PRE_RUNTIME_STATIC=PASS'
 
