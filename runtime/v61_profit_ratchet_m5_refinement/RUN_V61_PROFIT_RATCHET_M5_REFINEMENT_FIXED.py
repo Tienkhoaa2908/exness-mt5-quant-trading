@@ -19,6 +19,8 @@ FIX_TEST = REPO / "tests" / "test_v61_file_common_path_fix_static.py"
 
 CANONICAL_DIR = "v61_profit_ratchet_m5_refinement"
 LEGACY_DIR = "v61_small_loss_cash_target"
+MIN_SCREEN_ROWS = 5000
+MIN_SCREEN_SPAN_DAYS = 250
 
 
 def load(path: Path, name: str):
@@ -124,12 +126,13 @@ def monday(dt: datetime) -> datetime:
     return datetime(d.year, d.month, d.day)
 
 
-def select_directional_windows(screen_dir: Path) -> dict:
+def select_directional_windows(screen_dir: Path, *, enforce_coverage: bool = True) -> dict:
     """Choose validation windows from directional regime/setup only, never from PnL.
 
-    Model=2 is a fast window-selection phase. Full execution feasibility belongs to
-    Model=4 real-tick validation because risk-band, spread, M5 stop refinement and
-    broker geometry can differ materially from the screen approximation.
+    Model=2 is a fast window-selection phase. The dedicated screen EA must emit one
+    evaluation row per M15 bar. Full execution feasibility belongs only to Model=4
+    real-tick validation because risk-band, spread, M5 stop refinement and broker
+    geometry are execution questions, not window-selection questions.
     """
     path = screen_dir / "V61_ENTRY_EVAL.csv"
     weeks: dict[int, Counter[str]] = {1: Counter(), -1: Counter()}
@@ -138,10 +141,18 @@ def select_directional_windows(screen_dir: Path) -> dict:
     feasible_counts: Counter[int] = Counter()
     reject_counts: Counter[str] = Counter()
     rows = 0
+    first_time: datetime | None = None
+    last_time: datetime | None = None
 
     with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as fh:
         for row in csv.DictReader(fh):
             rows += 1
+            dt_any = parse_time(row.get("time", ""))
+            if dt_any is not None:
+                if first_time is None or dt_any < first_time:
+                    first_time = dt_any
+                if last_time is None or dt_any > last_time:
+                    last_time = dt_any
             try:
                 d = int(float(row.get("selected_direction", "0") or 0))
                 feasible = int(float(row.get("feasible", "0") or 0))
@@ -151,12 +162,12 @@ def select_directional_windows(screen_dir: Path) -> dict:
                 continue
 
             reject = (row.get("reject_reason", "") or "").strip()
-            if reject:
+            if reject and reject not in ("feature_not_ready", "regime_neutral", "no_trigger", "score_below_threshold", "no_edge", "screen_direction_only"):
                 reject_counts[reject] += 1
 
             if d not in (1, -1) or h4 != d or h1 != d:
                 continue
-            dt = parse_time(row.get("time", ""))
+            dt = dt_any
             if dt is None:
                 continue
             week = monday(dt).strftime("%Y.%m.%d")
@@ -166,18 +177,41 @@ def select_directional_windows(screen_dir: Path) -> dict:
                 feasible_counts[d] += 1
                 feasible_weeks[d][week] += 1
 
+    span_days = 0.0
+    if first_time is not None and last_time is not None:
+        span_days = (last_time - first_time).total_seconds() / 86400.0
+
     diag = {
         "screen_rows": rows,
+        "screen_first_time": first_time.strftime("%Y.%m.%d %H:%M:%S") if first_time else None,
+        "screen_last_time": last_time.strftime("%Y.%m.%d %H:%M:%S") if last_time else None,
+        "screen_span_days": round(span_days, 3),
+        "minimum_required_rows": MIN_SCREEN_ROWS,
+        "minimum_required_span_days": MIN_SCREEN_SPAN_DAYS,
         "selection_basis": "directional_signal_plus_strict_h4_h1_not_pnl_not_execution_feasibility",
         "selected_direction_counts": {"long": selected_counts[1], "short": selected_counts[-1]},
         "screen_feasible_counts": {"long": feasible_counts[1], "short": feasible_counts[-1]},
         "directional_week_counts": {"long": dict(weeks[1]), "short": dict(weeks[-1])},
         "screen_feasible_week_counts": {"long": dict(feasible_weeks[1]), "short": dict(feasible_weeks[-1])},
         "reject_reason_counts": dict(reject_counts),
+        "directional_screen_only": True,
     }
     diag_path = v61.OUT / "V61_SCREEN_DIAGNOSTICS.json"
     diag_path.write_text(json.dumps(diag, indent=2, sort_keys=True), encoding="utf-8")
     print("V61_SCREEN_DIAGNOSTICS=" + json.dumps(diag, sort_keys=True))
+
+    if enforce_coverage and (rows < MIN_SCREEN_ROWS or span_days < MIN_SCREEN_SPAN_DAYS):
+        raise RuntimeError(
+            "V61 screen coverage insufficient; directional screen must evaluate the full research interval, "
+            f"rows={rows} required_rows>={MIN_SCREEN_ROWS} span_days={span_days:.3f} "
+            f"required_span_days>={MIN_SCREEN_SPAN_DAYS} first={diag['screen_first_time']} last={diag['screen_last_time']}"
+        )
+
+    if enforce_coverage:
+        print(
+            f"V61_SCREEN_COVERAGE_PASS rows={rows} span_days={span_days:.3f} "
+            f"first={diag['screen_first_time']} last={diag['screen_last_time']}"
+        )
 
     used: set[str] = set()
     result: dict[str, list[dict]] = {"long": [], "short": []}
@@ -201,11 +235,10 @@ def select_directional_windows(screen_dir: Path) -> dict:
 
     if len(result["long"]) < 2 or len(result["short"]) < 2:
         raise RuntimeError(
-            "V61 screen did not find two strict H4/H1 directional weeks per side; "
+            "V61 full-coverage directional screen did not find two strict H4/H1 weeks per side; "
             f"selected_long={selected_counts[1]} selected_short={selected_counts[-1]} "
-            f"long_weeks={dict(weeks[1])} short_weeks={dict(weeks[-1])} "
-            f"screen_feasible_long={feasible_counts[1]} screen_feasible_short={feasible_counts[-1]} "
-            f"rejects={dict(reject_counts)}"
+            f"long_weeks={dict(weeks[1])} short_weeks={dict(weeks[-1])}. "
+            "This is now a directional-model scarcity result, not a screen execution-feasibility result."
         )
 
     (v61.OUT / "V61_SELECTED_WINDOWS.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
@@ -269,6 +302,7 @@ def main() -> int:
     v60.run([sys.executable, FIX_TEST])
     print("V61_FILE_COMMON_FIX_STATIC=PASS")
     print("V61_SCREEN_SELECTION_FIX=PASS")
+    print("V61_DIRECTIONAL_SCREEN_COVERAGE_GUARD=PASS")
     rc = v61.main()
     print("V61_FILE_COMMON_FIX_DONE=1")
     return rc
