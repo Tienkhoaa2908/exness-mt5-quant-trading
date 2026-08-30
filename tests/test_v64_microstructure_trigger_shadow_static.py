@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import csv
 import importlib.util
-import json
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,7 +61,6 @@ def test_v64_micro_trigger_is_closed_bar_sweep_reclaim_displacement_bos():
     assert "InpV64MinM1BodyFraction = 0.45" in s
     assert "InpV64MinSweepAtr = 0.05" in s
     assert "InpV64MicroBosBufferAtr = 0.02" in s
-    # No future/current incomplete bar input for micro confirmation.
     micro = s[s.index("bool V64MicroSweepBos"):s.index("int V64NoiseSlot")]
     assert "CopyRates(_Symbol,PERIOD_M1,0," not in micro
     assert ".shift(-1)" not in micro
@@ -90,7 +86,7 @@ def test_v64_spread_geometry_blocks_too_tight_stop():
     assert "spread_cash<=0.0" in s
 
 
-def test_v64_noise_shadow_survives_actual_stop_and_has_3x3_matrix():
+def test_v64_noise_shadow_survives_actual_stop_has_3x3_matrix_and_actual_fill_anchor():
     s = source(1)
     assert "V64_NOISE_SHADOW.csv" in s
     assert "const double stops[3]={1.10,1.35,1.60};" in s
@@ -101,6 +97,9 @@ def test_v64_noise_shadow_survives_actual_stop_and_has_3x3_matrix():
     assert 'V64NoiseFinish(k,"tester_end")' in s
     assert "InpV64NoiseShadowMaxMinutes = 480" in s
     assert "OrderCalcProfit" in s
+    assert "double shadow_entry=g_trade.ResultPrice();" in s
+    assert "V64NoiseStart(d,shadow_entry);" in s
+    assert '"actual_fill_anchor"' in s
 
 
 def test_v64_actual_execution_no_longer_gated_by_legacy_single_shadow():
@@ -112,7 +111,7 @@ def test_v64_actual_execution_no_longer_gated_by_legacy_single_shadow():
     assert "V64UpdateShadow();" not in tick
     assert "if(g_shadow_open) return;" not in tick
     manage = s[s.index("void V64ManagePendingEntry"):s.index("void V64EvaluateBar")]
-    assert "V64NoiseStart(d,entry);" in manage
+    assert "V64NoiseStart(d,shadow_entry);" in manage
     assert "V64StartShadow(" not in manage
 
 
