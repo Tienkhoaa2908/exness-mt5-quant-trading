@@ -8,6 +8,9 @@ Last updated: 2026-08-31.
 - Local operator repo: `D:\v31_mt5_40usd` / `/d/v31_mt5_40usd`.
 - Active branch: `agent/v68-v67-holdout-stability-research`.
 - V68 is Strategy Tester research only. REAL-money authorization is false.
+- V68 substantive/static checkpoint: `4de9ee33287611ffaa443b32b300508056433b80`.
+- V68-specific GitHub Actions `v68-quality` run id `33332136872` completed successfully on that exact checkpoint: Python compile, Bash syntax, generated-source equivalence/static tests and secret scan all passed.
+- Any later docs-only head must itself pass V68-specific CI before Windows runtime is accepted.
 - Do not `git clean`.
 - Do not `stash pop` while MT5/tester work is active.
 - Do not rerun older milestones merely to recover V68.
@@ -118,4 +121,4 @@ Stable positive expectancy and loss control matter more than a fixed number of t
 
 ## Next recovery step
 
-Require GitHub Actions success on the exact final V68 head. Then close MT5 and MetaEditor and run only the V68 launcher. Do not call V68 Windows PASS until both experts compile `0 errors, 0 warnings`, all 18 Model=4 passes complete, and the evidence ZIP passes integrity checks.
+Require V68-specific GitHub Actions success on the exact final V68 head. Then close MT5 and MetaEditor and run only the V68 launcher. Do not call V68 Windows PASS until both experts compile `0 errors, 0 warnings`, all 18 Model=4 passes complete, and the evidence ZIP passes integrity checks.
