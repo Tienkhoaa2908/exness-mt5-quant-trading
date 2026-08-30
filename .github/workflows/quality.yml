@@ -20,7 +20,7 @@ jobs:
           python -m pip install --disable-pip-version-check pytest "numpy<3" "pandas<3" "scipy<2" "scikit-learn<2"
           python -m pip install --disable-pip-version-check torch --index-url https://download.pytorch.org/whl/cpu
       - name: Python compile
-        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay runtime/v57_fixed001_trend_smc runtime/v58_fixed001_pullback_trend_cost runtime/v59_integrated_bidirectional_rr runtime/v60_small_loss_cash_target runtime/v61_profit_ratchet_m5_refinement runtime/v62_direction_isolated_entry_refinement runtime/v63_profit_quality_risk_zone runtime/v64_microstructure_trigger_shadow runtime/v65_micro_stop_calibration
+        run: python -m compileall -q scripts tests runtime/v54_production_readiness runtime/v55_account_agnostic runtime/v56_weekly_live_replay runtime/v57_fixed001_trend_smc runtime/v58_fixed001_pullback_trend_cost runtime/v59_integrated_bidirectional_rr runtime/v60_small_loss_cash_target runtime/v61_profit_ratchet_m5_refinement runtime/v62_direction_isolated_entry_refinement runtime/v63_profit_quality_risk_zone runtime/v64_microstructure_trigger_shadow runtime/v65_micro_stop_calibration runtime/v66_post_bos_cash_zone
       - name: V57 launcher shell syntax
         run: bash -n runtime/v57_fixed001_trend_smc/START_V57_FIXED001_TREND_SMC_GIT_BASH.sh
       - name: V58 launcher shell syntax
@@ -41,6 +41,8 @@ jobs:
         run: bash -n runtime/v64_microstructure_trigger_shadow/START_V64_MICROSTRUCTURE_TRIGGER_SHADOW_GIT_BASH.sh
       - name: V65 launcher shell syntax
         run: bash -n runtime/v65_micro_stop_calibration/START_V65_MICRO_STOP_CALIBRATION_GIT_BASH.sh
+      - name: V66 launcher shell syntax
+        run: bash -n runtime/v66_post_bos_cash_zone/START_V66_POST_BOS_CASH_ZONE_GIT_BASH.sh
       - name: Active live-policy wording scan
         run: python scripts/check_live_policy_wording.py
       - name: Pytest
@@ -96,7 +98,14 @@ jobs:
               Path("scripts/analyze_v64_microstructure_trigger_shadow.py"),
               Path("runtime/v64_microstructure_trigger_shadow/RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW.py"),
               Path("scripts/build_v65_micro_stop_calibration_source.py"),
+              Path("scripts/build_v65_micro_stop_calibration_source_fixed.py"),
               Path("runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION.py"),
+              Path("runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py"),
+              Path("scripts/build_v66_post_bos_cash_zone_source.py"),
+              Path("scripts/build_v66_post_bos_cash_zone_source_fixed.py"),
+              Path("scripts/analyze_v66_post_bos_cash_zone.py"),
+              Path("runtime/v66_post_bos_cash_zone/RUN_V66_POST_BOS_CASH_ZONE.py"),
+              Path("runtime/v66_post_bos_cash_zone/RUN_V66_POST_BOS_CASH_ZONE_FIXED.py"),
           ]
           for f in active:
               if f.is_file():
