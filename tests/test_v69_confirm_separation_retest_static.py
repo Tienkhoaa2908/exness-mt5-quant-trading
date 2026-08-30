@@ -19,13 +19,18 @@ def load(path: Path, name: str):
     return mod
 
 
+def builder_module(direction: int):
+    return load(BUILDER, f"v69_builder_{direction}")
+
+
 def generated(direction: int) -> str:
-    return load(BUILDER, f"v69_builder_{direction}").transform(direction)
+    return builder_module(direction).transform(direction)
 
 
 def test_v69_cash_contract_and_identity() -> None:
     for d in (-1, 1):
-        s = generated(d)
+        m = builder_module(d)
+        s = m.transform(d)
         assert '#property version   "69.00"' in s
         assert "InpV64Magic = 690069" in s
         assert "InpV64FixedLot = 0.01" in s
@@ -34,8 +39,8 @@ def test_v69_cash_contract_and_identity() -> None:
         assert "InpV64EmergencyLossCash = 1.20" in s
         assert "InpV64PrimaryTargetCash = 3.50" in s
         assert f"InpV64AllowedDirection = {d}" in s
-        assert r"mt5_quant\v69_confirm_separation_retest" in s
-        assert r"mt5_quant\v68_v67_holdout_stability" not in s
+        assert m.V69_ROOT in s
+        assert m.V68_ROOT not in s
         assert "LongToString(" not in s
 
 
