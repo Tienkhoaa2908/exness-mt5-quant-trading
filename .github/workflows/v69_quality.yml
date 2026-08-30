@@ -1,0 +1,30 @@
+name: v69-quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  v69-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: V69 Python compile
+        run: |
+          python -m py_compile \
+            scripts/build_v69_confirm_separation_retest_source.py \
+            scripts/analyze_v69_confirm_separation_retest.py \
+            runtime/v69_confirm_separation_retest/RUN_V69_CONFIRM_SEPARATION_RETEST.py \
+            tests/test_v69_confirm_separation_retest_static.py
+      - name: V69 launcher syntax
+        run: bash -n runtime/v69_confirm_separation_retest/START_V69_CONFIRM_SEPARATION_RETEST_GIT_BASH.sh
+      - name: V69 generated-source state-machine tests
+        run: python tests/test_v69_confirm_separation_retest_static.py
+      - name: Secret scan
+        run: python scripts/secret_scan.py .
