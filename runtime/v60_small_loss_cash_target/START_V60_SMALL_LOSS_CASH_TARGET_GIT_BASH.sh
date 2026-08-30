@@ -62,8 +62,8 @@ fi
 
 echo "============================================================"
 echo "V60 SMALL-LOSS CASH-TARGET RESEARCH"
-echo "fixed 0.01 | strict H4/H1 | structural loss <= $1.25 | TP $2"
-echo "shadow cash targets: $2 / $3 / $4"
+echo 'fixed 0.01 | strict H4/H1 | structural loss <= $1.25 | TP $2'
+echo 'shadow cash targets: $2 / $3 / $4'
 echo "screen Model=2 -> 2 LONG + 2 SHORT PnL-independent weeks -> Model=4"
 echo "============================================================"
 echo "V60_PYTHON=$PY"
