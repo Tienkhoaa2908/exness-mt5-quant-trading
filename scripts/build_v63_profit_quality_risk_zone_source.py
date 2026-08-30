@@ -50,6 +50,42 @@ def replace_function(text: str, start_sig: str, next_sig: str, replacement: str,
     return text[:start] + replacement.strip() + "\n\n" + text[end:]
 
 
+M5_STRUCTURAL_STOP = r'''
+bool V63M5RefinedStop(const int d,const double entry,double &stop)
+{
+   stop=0.0;
+   if(!InpV63UseM5Refinement || d==0 || entry<=0.0) return false;
+   MqlRates m5[];
+   ArraySetAsSeries(m5,true);
+   int n=CopyRates(_Symbol,PERIOD_M5,1,180,m5);
+   if(n<120) return false;
+
+   double atr=V63ATR(m5,n,14,0);
+   double ema20=V63EMA(m5,n,20,0);
+   double ema50=V63EMA(m5,n,50,0);
+   if(atr<=0.0 || ema20<=0.0 || ema50<=0.0) return false;
+
+   // Risk-zone entry deliberately does NOT require current M5 close to have
+   // already reclaimed EMA20. The M5 trend structure is EMA20/EMA50; price
+   // proximity to the structural invalidation is handled by the cash-risk band.
+   bool trend_ok=(d>0 ? ema20>ema50 : ema20<ema50);
+   if(!trend_ok) return false;
+
+   double sh1=0,sh2=0,sl1=0,sl2=0;int shi1=-1,shi2=-1,sli1=-1,sli2=-1;
+   V63ConfirmedSwings(m5,n,sh1,shi1,sh2,shi2,sl1,sli1,sl2,sli2);
+   if(shi2<0 || sli2<0) return false;
+
+   bool structure_ok=(d>0 ? (sl1>=sl2 || sh1>sh2) : (sh1<=sh2 || sl1<sl2));
+   if(!structure_ok) return false;
+
+   if(d>0) stop=sl1-InpV63M5StopAtrBuffer*atr;
+   else stop=sh1+InpV63M5StopAtrBuffer*atr;
+
+   if((d>0 && stop>=entry) || (d<0 && stop<=entry)) return false;
+   return true;
+}
+'''
+
 MICRO_AND_QUALITY = r'''
 bool V63M1TurnConfirmed(const int d,string &detail)
 {
@@ -155,16 +191,23 @@ void V63ManagePendingEntry()
 
    int d=g_v63_pending_dir;
 
-   // Rebuild all slow/medium features at the actual entry decision. A pending
-   // setup cannot trade merely because the regime was valid hours earlier.
+   // Rebuild all slow/medium features at the actual entry decision. H4/H1 must
+   // still align. A neutral current selector is allowed during a pullback; only
+   // an actual opposite selector invalidates the pending trend setup.
    V63Features cur;
    if(!V63BuildFeatures(cur)) return;
+   if(cur.h4_trend!=d || cur.h1_trend!=d)
+   {
+      V63PendingEvent("ENTRY_VETO",d,"stale_h4_h1_regime",cur.adx,(double)cur.h4_trend,(double)cur.h1_trend);
+      V63ClearPending("stale_h4_h1_regime");
+      return;
+   }
    string current_why="";
    int current_d=V63SelectDirection(cur,current_why);
-   if(current_d!=d)
+   if(current_d==-d)
    {
-      V63PendingEvent("ENTRY_VETO",d,"stale_regime",(double)current_d,cur.adx,0.0);
-      V63ClearPending("stale_regime");
+      V63PendingEvent("ENTRY_VETO",d,"opposite_current_selector",(double)current_d,cur.adx,0.0);
+      V63ClearPending("opposite_current_selector");
       return;
    }
 
@@ -316,13 +359,13 @@ def transform(allowed_direction: int) -> str:
     text = replace_once(text, "input double InpV63MaxStopRiskCash = 1.25;", "input double InpV63MaxStopRiskCash = 1.05;", "max planned risk")
     text = replace_once(
         text,
-        "input double InpV63M5ReclaimAtr = 0.10;",
-        "input double InpV63M5ReclaimAtr = 0.10;\n"
+        "input double InpV63M5RetestAtr = 0.30;\ninput double InpV63M5ReclaimAtr = 0.10;",
         "input double InpV63EmergencyLossCash = 1.10;\n"
         "input double InpV63MinEntryADX = 16.0;",
         "profit-quality inputs",
     )
 
+    text = replace_function(text, "bool V63M5RefinedStop", "bool V63BuildStopTarget", M5_STRUCTURAL_STOP, "M5 structural stop")
     text = replace_function(text, "bool V63MicroEntryReady", "void V63ArmPending", MICRO_AND_QUALITY, "micro and quality")
     text = replace_function(text, "void V63ArmPending", "void V63ManagePendingEntry", ARM_PENDING, "arm pending")
     text = replace_function(text, "void V63ManagePendingEntry", "void V63EvaluateBar", MANAGE_PENDING, "manage pending")
@@ -354,7 +397,8 @@ def validate(text: str, allowed_direction: int) -> None:
         f"InpV63AllowedDirection = {allowed_direction}",
         "expired_first_arm_ttl",
         "first_arm_ttl_preserved",
-        "stale_regime",
+        "stale_h4_h1_regime",
+        "opposite_current_selector",
         "momentum_double_opposed",
         "weak_trend_chop",
         "RISK_ZONE_WAIT",
@@ -371,6 +415,8 @@ def validate(text: str, allowed_direction: int) -> None:
             raise RuntimeError(f"V63 required token missing: {token}")
     if r"mt5_quant\\v63_direction_isolated_entry_refinement" in text:
         raise RuntimeError("V63 stale inherited FILE_COMMON root remains")
+    if "InpV63M5RetestAtr" in text or "InpV63M5ReclaimAtr" in text:
+        raise RuntimeError("V63 obsolete EMA-retest entry inputs remain")
 
     arm_start = text.index("void V63ArmPending")
     arm_end = text.index("void V63ManagePendingEntry", arm_start)
