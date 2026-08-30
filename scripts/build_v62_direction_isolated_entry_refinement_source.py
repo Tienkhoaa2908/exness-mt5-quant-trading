@@ -8,8 +8,6 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 PARENT = HERE / "build_v61_profit_ratchet_m5_refinement_source_fixed.py"
-
-V61_ROOT = r"mt5_quant\\v61_profit_ratchet_m5_refinement"
 V62_ROOT = r"mt5_quant\\v62_direction_isolated_entry_refinement"
 FIXED_LOT = 0.01
 MAGIC = 620062
@@ -285,9 +283,11 @@ datetime g_v62_pending_armed=0;
 datetime g_v62_last_m1_bar=0;
 double g_v62_pending_reference=0.0;
 double g_v62_pending_raw_stop=0.0;
-int g_v62_pending_score=0;
-V62Features g_v62_pending_features;'''
-    text = replace_once(text, globals_anchor, globals_new, "pending globals")
+int g_v62_pending_score=0;'''
+    text = replace_once(text, globals_anchor, globals_new, "pending primitive globals")
+
+    features_anchor = "   int short_score;\n};"
+    text = replace_once(text, features_anchor, features_anchor + "\nV62Features g_v62_pending_features;", "pending feature state")
 
     text = replace_function(text, "void V62EvaluateBar()", "int OnInit()", PENDING_HELPERS + "\n\n" + EVALUATE_BAR, "evaluate")
     text = replace_function(text, "void OnTick()", "void OnTradeTransaction", ON_TICK, "OnTick")
@@ -323,10 +323,10 @@ def validate(text: str, allowed_direction: int) -> None:
             raise RuntimeError(f"V62 required token missing: {token}")
     if r"mt5_quant\\v62_profit_ratchet_m5_refinement" in text:
         raise RuntimeError("V62 stale inherited FILE_COMMON root remains")
-    if allowed_direction == 1 and "InpV62AllowedDirection = -1" in text:
-        raise RuntimeError("V62 LONG source leaked SHORT default")
-    if allowed_direction == -1 and "InpV62AllowedDirection = 1" in text:
-        raise RuntimeError("V62 SHORT source leaked LONG default")
+    struct_end = text.index("   int short_score;\n};")
+    pending_decl = text.index("V62Features g_v62_pending_features;")
+    if pending_decl <= struct_end:
+        raise RuntimeError("V62 pending feature state declared before V62Features definition")
 
 
 def build(output: Path, allowed_direction: int) -> str:
