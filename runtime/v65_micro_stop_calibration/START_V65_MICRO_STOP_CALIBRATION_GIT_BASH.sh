@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 BRANCH="agent/v65-micro-stop-calibration-research"
-RUNNER="runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION.py"
+RUNNER="runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py"
 STATIC="tests/test_v65_micro_stop_calibration_static.py"
 
 printf '%s\n' '============================================================'
@@ -56,7 +56,9 @@ printf 'V65_PYTHON=%s\n' "$PY"
 "$PY" --version
 "$PY" -m py_compile \
   scripts/build_v65_micro_stop_calibration_source.py \
+  scripts/build_v65_micro_stop_calibration_source_fixed.py \
   "$STATIC" \
+  runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION.py \
   "$RUNNER"
 "$PY" "$STATIC"
 "$PY" scripts/secret_scan.py "$ROOT"
