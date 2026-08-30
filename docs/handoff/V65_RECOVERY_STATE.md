@@ -9,6 +9,9 @@ Last updated: 2026-08-31.
 - Active branch: `agent/v65-micro-stop-calibration-research`
 - V65 is Strategy Tester research only. REAL-money authorization is false.
 - Base checkpoint is accepted V64 evidence head `762dd7ea89654c76ab9a18281787cab08ae07378`.
+- V65 substantive/static checkpoint: `a6fe2e23cd1b6253d48f4fc1d66ea815b6c19446`.
+- GitHub Actions quality run `#870` / run id `33325985091` completed successfully on that exact substantive checkpoint. Python compile, V65 Bash syntax, active-policy scan, full pytest, secret scan and V29 quarantine all passed.
+- Any later documentation-only head must itself pass quality before being used for Windows runtime.
 
 ## Accepted V64 evidence
 
@@ -98,14 +101,19 @@ Bearish SHORT Model=4 windows frozen from accepted V64 PnL-independent screen:
 
 Total V65 = 12 Model=4 passes.
 
-## V65 files
+## V65 implementation layers
 
-- `scripts/build_v65_micro_stop_calibration_source.py`
-- `runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION.py`
-- `runtime/v65_micro_stop_calibration/START_V65_MICRO_STOP_CALIBRATION_GIT_BASH.sh`
-- `tests/test_v65_micro_stop_calibration_static.py`
-- `docs/adr/ADR-067-v65-micro-stop-calibration-research.md`
-- `docs/handoff/V65_RECOVERY_STATE.md`
+- `scripts/build_v65_micro_stop_calibration_source.py`: strategy transform and M1 micro-stop semantics.
+- `scripts/build_v65_micro_stop_calibration_source_fixed.py`: owning fixed layer that normalizes all inherited V64 FILE_COMMON root occurrences and then requires no stale root remains.
+- `runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION.py`: frozen-window 12-pass protocol, analysis and packaging.
+- `runtime/v65_micro_stop_calibration/RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py`: routes the runtime through the fixed builder.
+- `runtime/v65_micro_stop_calibration/START_V65_MICRO_STOP_CALIBRATION_GIT_BASH.sh`: branch-pinned local gate and runner launcher.
+- `tests/test_v65_micro_stop_calibration_static.py`: generated LONG/SHORT sequencing, structural-stop/no-clamp, FILE_COMMON/noise path, frozen-window, fixed-layer and launcher regressions.
+- `docs/adr/ADR-067-v65-micro-stop-calibration-research.md`.
+- `docs/handoff/V65_RECOVERY_STATE.md`.
+- `.github/workflows/quality.yml` includes V65 runtime Python compile, V65 launcher Bash syntax and V65 active quarantine coverage.
+
+The first V65 CI attempt failed only in static glue: the inherited V64 root occurred six times while the first builder attempted a one-occurrence replacement, and one test lowercased source text before splitting on uppercase markers. The fixed builder normalizes all root occurrences; the test now reads the correct fixed layers. No strategy/runtime evidence was produced during those failed CI attempts.
 
 ## Safety / recovery
 
@@ -120,4 +128,4 @@ Total V65 = 12 Model=4 passes.
 
 ## Next recovery step
 
-Resolve the exact latest branch head, require GitHub Actions success on that exact head, then run only the V65 launcher with MT5 and MetaEditor closed. If runtime completes, inspect ZIP integrity, both compile logs, 12-pass completeness, actual trades, `MICRO_CANDIDATE` / `MICRO_REJECT` distributions, realized losses and inherited noise-shadow evidence.
+Resolve the exact latest branch head and require GitHub Actions quality success on that exact head. Then run only the V65 launcher with MT5 and MetaEditor closed. If runtime completes, inspect ZIP integrity, both compile logs, all 12 fixed-window Model=4 passes, actual trades, `MICRO_CANDIDATE` / `MICRO_REJECT` distributions, realized losses and inherited noise-shadow evidence.
