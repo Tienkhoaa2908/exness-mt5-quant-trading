@@ -40,6 +40,57 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
+def replace_tester_guard_with_demo_guard(text: str) -> str:
+    token_re = re.compile(r"MQLInfoInteger\s*\(\s*MQL_TESTER\s*\)")
+    hits = list(token_re.finditer(text))
+    if len(hits) != 1:
+        raise RuntimeError(f"V69 forward tester token drifted expected=1 actual={len(hits)}")
+
+    hit = hits[0]
+    search_start = max(0, hit.start() - 300)
+    prefix = text[search_start:hit.start()]
+    if_matches = list(re.finditer(r"\bif\s*\(", prefix))
+    if not if_matches:
+        raise RuntimeError("V69 forward cannot locate tester if before MQL_TESTER")
+    if_start = search_start + if_matches[-1].start()
+
+    brace_open = text.find("{", hit.end())
+    if brace_open < 0:
+        raise RuntimeError("V69 forward tester guard opening brace missing")
+
+    depth = 0
+    brace_close = -1
+    for pos in range(brace_open, len(text)):
+        ch = text[pos]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                brace_close = pos
+                break
+    if brace_close < 0:
+        raise RuntimeError("V69 forward tester guard closing brace missing")
+
+    block = text[if_start:brace_close + 1]
+    if "return INIT_FAILED;" not in block:
+        raise RuntimeError("V69 forward tester guard is not an INIT_FAILED refusal")
+    if "MQL_TESTER" not in block:
+        raise RuntimeError("V69 forward parsed wrong guard block")
+
+    line_start = text.rfind("\n", 0, if_start) + 1
+    indent = text[line_start:if_start]
+    if indent.strip():
+        indent = "   "
+
+    demo_guard = (
+        f'{indent}if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)'
+        '{ V48WriteInitDiagnostic("REFUSED","v69_forward_demo_only"); '
+        'Print("V69 FROZEN FORWARD REFUSED: DEMO ACCOUNT REQUIRED"); return INIT_FAILED; }'
+    )
+    return text[:if_start] + demo_guard + text[brace_close + 1:]
+
+
 def transform() -> str:
     # Strategy semantics come directly from the frozen V69 LONG builder.
     text = parent.transform(1)
@@ -52,21 +103,9 @@ def transform() -> str:
     text = text.replace(V69_RESEARCH_ROOT, V69_FORWARD_ROOT)
     text = text.replace("V69 SEP RETEST L", "V69 FORWARD DEMO L")
 
-    # V56 intentionally made the V57+ lineage tester-only. Later builders renamed
-    # diagnostics/messages, so match the refusal by behavior rather than milestone text.
-    # Still require exactly one single-line fail-closed tester guard.
-    tester_guard = re.compile(
-        r'^[ \t]*if\(!MQLInfoInteger\(MQL_TESTER\)\)\{[^\n]*return INIT_FAILED;[^\n]*\}[ \t]*$',
-        re.MULTILINE,
-    )
-    demo_guard = (
-        '   if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)'
-        '{ V48WriteInitDiagnostic("REFUSED","v69_forward_demo_only"); '
-        'Print("V69 FROZEN FORWARD REFUSED: DEMO ACCOUNT REQUIRED"); return INIT_FAILED; }'
-    )
-    text, n = tester_guard.subn(demo_guard, text, count=1)
-    if n != 1:
-        raise RuntimeError(f"V69 forward tester-only guard drifted expected=1 actual={n}")
+    # V57+ is tester-only. Change only that runtime refusal, by parsing the actual
+    # guard structurally rather than depending on milestone-specific text/layout.
+    text = replace_tester_guard_with_demo_guard(text)
 
     # Fail closed on every tick as well, so an account-mode change cannot reach an order path.
     on_tick = "void OnTick()\n{"
@@ -113,7 +152,7 @@ def validate(text: str) -> None:
 
     forbidden = (
         V69_RESEARCH_ROOT,
-        "if(!MQLInfoInteger(MQL_TESTER))",
+        "MQL_TESTER",
         "InpV64AllowedDirection = -1",
     )
     for token in forbidden:
