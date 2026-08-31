@@ -97,6 +97,16 @@ def test_supervisor_drops_partial_final_record() -> None:
         assert dst.read_bytes() == b"a,b\n1,2\n"
 
 
+def test_supervisor_background_helpers_never_open_console_windows() -> None:
+    text = SUPERVISOR.read_text(encoding="utf-8")
+    assert "CREATE_NO_WINDOW" in text
+    assert "hidden_subprocess_kwargs" in text
+    assert '["tasklist.exe"' in text
+    assert "**hidden_subprocess_kwargs()" in text
+    assert '"-WindowStyle", "Hidden"' in text
+    assert '"-NonInteractive"' in text
+
+
 def test_supervisor_drives_panel_and_exports_short_review() -> None:
     text = SUPERVISOR.read_text(encoding="utf-8")
     for token in (
