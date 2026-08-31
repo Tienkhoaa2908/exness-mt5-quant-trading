@@ -20,9 +20,11 @@ jobs:
           python -m py_compile \
             scripts/build_v69_confirm_separation_retest_source.py \
             scripts/build_v69_frozen_forward_demo_source.py \
+            scripts/build_v69_frozen_forward_demo_dashboard_source.py \
             scripts/analyze_v69_forward_trade_quality.py \
             tests/test_v69_confirm_separation_retest_static.py \
             tests/test_v69_frozen_forward_demo_static.py \
+            tests/test_v69_frozen_forward_demo_dashboard_static.py \
             tests/test_v69_forward_trade_quality.py \
             tests/test_v69_trade_quality_runtime_static.py \
             tests/test_v69_one_shot_prospective_demo_static.py \
@@ -37,6 +39,8 @@ jobs:
           bash -n runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
+      - name: Frozen forward dashboard tests
+        run: python tests/test_v69_frozen_forward_demo_dashboard_static.py
       - name: V69 parent regression tests
         run: python tests/test_v69_confirm_separation_retest_static.py
       - name: Trade-quality analyzer tests
@@ -59,12 +63,24 @@ jobs:
           grep -Fq 'no working Python 3.10+ found' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
           ! grep -Fiq 'terminal64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+      - name: Dashboard strategy isolation contract
+        run: |
+          grep -Fq 'FROZEN_PARENT_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"' scripts/build_v69_frozen_forward_demo_dashboard_source.py
+          grep -Fq 'V69_DASHBOARD_STRATEGY_CHANGED=0' scripts/build_v69_frozen_forward_demo_dashboard_source.py
+          grep -Fq 'V69_DASHBOARD_HEARTBEAT.txt' scripts/build_v69_frozen_forward_demo_dashboard_source.py
+          grep -Fq 'V69_SMOKE_PROGRESS.txt' scripts/build_v69_frozen_forward_demo_dashboard_source.py
+          grep -Fq 'Trade #5:' scripts/build_v69_frozen_forward_demo_dashboard_source.py
+          ! grep -Fq 'V69ForwardRealMoneyAuthorized=true' scripts/build_v69_frozen_forward_demo_dashboard_source.py
       - name: Prospective one-shot safety contract
         run: |
           grep -Fq 'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'SMOKE_MIN_CLOSED_TRADES = 2' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'SMOKE_HARD_CAP_HOURS = 48' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq '"dashboard_ui_only": True' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
           grep -Fq '"demo_only": True' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
           grep -Fq '"real_money_authorized": False' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
           grep -Fq '"real_money_auto_promotion": False' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'V69_FORWARD_OUTPUT_READY=1' runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
           grep -Fq 'PYTHON_REJECTED=' runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
           ! grep -Fiq 'taskkill' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
           ! grep -Fiq 'OrderSend(' runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
