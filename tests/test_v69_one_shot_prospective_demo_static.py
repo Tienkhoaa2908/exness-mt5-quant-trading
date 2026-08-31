@@ -19,20 +19,20 @@ def load(path: Path, name: str):
     return mod
 
 
-def test_contract_is_frozen_demo_long_only() -> None:
+def test_contract_is_frozen_demo_long_only_with_ui_overlay() -> None:
     text = RUNNER.read_text(encoding="utf-8")
     required = (
         'FROZEN_V69_RESEARCH_HEAD = "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1"',
         'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"',
-        'EXPERT_NAME = "V69FrozenForwardDemoLong"',
-        'SYMBOL = "XAUUSDm"',
-        'PERIOD = "M15"',
+        'EXPERT_NAME = "V69FrozenForwardSmokeDashboardLong"',
+        'SMOKE_MIN_CLOSED_TRADES = 2',
+        'SMOKE_HARD_CAP_HOURS = 48',
         '"direction": "LONG_ONLY"',
         '"demo_only": True',
         '"real_money_authorized": False',
         '"short_enabled": False',
         '"strategy_changed": False',
-        '"strategy_threshold_tuning_allowed": False',
+        '"dashboard_ui_only": True',
         '"real_money_auto_promotion": False',
     )
     for token in required:
@@ -40,17 +40,13 @@ def test_contract_is_frozen_demo_long_only() -> None:
     assert "V69ForwardRealMoneyAuthorized=true" not in text
 
 
-def test_startup_is_config_driven_not_manual_attach() -> None:
+def test_startup_is_config_driven_and_waits_for_live_tick_heartbeat() -> None:
     text = RUNNER.read_text(encoding="utf-8")
     for token in (
-        "[StartUp]",
-        "Expert={EXPERT_NAME}",
-        "Symbol={SYMBOL}",
-        "Period={PERIOD}",
-        "AllowLiveTrading=1",
-        "AllowDllImport=0",
-        "TERMINAL_EXE",
-        "V69_FORWARD_DEMO_READY=1",
+        "[StartUp]", "Expert={EXPERT_NAME}", "Symbol={SYMBOL}", "Period={PERIOD}",
+        "AllowLiveTrading=1", "AllowDllImport=0", "TERMINAL_EXE",
+        "V69_FORWARD_DEMO_READY=1", "V69_DASHBOARD_HEARTBEAT.txt",
+        'hb.get("period") == "PERIOD_M15"', 'ticks > 0', "V69_RUNTIME_SMOKE_VERIFIED=1",
     ):
         assert token in text, token
     assert "attach manually" not in text.lower()
@@ -88,11 +84,20 @@ def test_supervisor_drops_partial_final_record() -> None:
         assert dst.read_bytes() == b"a,b\n1,2\n"
 
 
-def test_supervisor_never_auto_authorizes_real_money() -> None:
+def test_supervisor_drives_panel_and_exports_short_review() -> None:
+    text = SUPERVISOR.read_text(encoding="utf-8")
+    for token in (
+        "V69_SMOKE_PROGRESS.txt", "panel_progress=", "panel_done=", "panel_need=", "panel_output=",
+        "QUICK_REVIEW_READY", "TIME_CAP_REVIEW_READY", "v69_forward_smoke_final.zip",
+        "V69_FORWARD_OUTPUT_READY=1", "OUTPUT_EXPORTED", "notify_output",
+    ):
+        assert token in text, token
+
+
+def test_supervisor_never_auto_authorizes_real_money_or_sends_orders() -> None:
     text = SUPERVISOR.read_text(encoding="utf-8")
     assert '"real_money_authorized": False' in text
     assert '"real_money_auto_promotion": False' in text
-    assert "EARLY_REVIEW_READY means evidence is ready for review" in text
     for forbidden in ("g_trade.Buy", "g_trade.Sell", "OrderSend(", "OrderSendAsync("):
         assert forbidden not in text
 
