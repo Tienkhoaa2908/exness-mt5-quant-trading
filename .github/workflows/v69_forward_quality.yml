@@ -20,15 +20,29 @@ jobs:
           python -m py_compile \
             scripts/build_v69_confirm_separation_retest_source.py \
             scripts/build_v69_frozen_forward_demo_source.py \
+            scripts/analyze_v69_forward_trade_quality.py \
             tests/test_v69_confirm_separation_retest_static.py \
             tests/test_v69_frozen_forward_demo_static.py \
-            runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+            tests/test_v69_forward_trade_quality.py \
+            tests/test_v69_trade_quality_runtime_static.py \
+            runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py \
+            runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
       - name: Shell syntax
         run: bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
       - name: V69 parent regression tests
         run: python tests/test_v69_confirm_separation_retest_static.py
+      - name: Trade-quality analyzer tests
+        run: python tests/test_v69_forward_trade_quality.py
+      - name: Trade-quality runtime isolation tests
+        run: python tests/test_v69_trade_quality_runtime_static.py
+      - name: Diagnostics read-only contract
+        run: |
+          grep -Fq 'MT5_DEMO_CAN_REMAIN_RUNNING=1' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
+          grep -Fq 'development_only_not_independent' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
+          ! grep -Fiq 'terminal64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
+          ! grep -Fiq 'metaeditor64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
       - name: Preparation contract
         run: |
           grep -Fq 'V69_FORWARD_EXPECTED_HEAD is required' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
