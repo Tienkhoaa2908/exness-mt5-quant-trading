@@ -83,10 +83,12 @@ def replace_tester_guard_with_demo_guard(text: str) -> str:
     if indent.strip():
         indent = "   "
 
+    # Keep the forward adapter self-contained: do not call milestone-specific
+    # diagnostics helpers that are not guaranteed to exist in the frozen V69 source.
     demo_guard = (
         f'{indent}if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)'
-        '{ V48WriteInitDiagnostic("REFUSED","v69_forward_demo_only"); '
-        'Print("V69 FROZEN FORWARD REFUSED: DEMO ACCOUNT REQUIRED"); return INIT_FAILED; }'
+        '{ Print("V69 FROZEN FORWARD REFUSED: DEMO ACCOUNT REQUIRED reason=v69_forward_demo_only"); '
+        'return INIT_FAILED; }'
     )
     return text[:if_start] + demo_guard + text[brace_close + 1:]
 
@@ -161,6 +163,7 @@ def validate(text: str) -> None:
         "MQL_TESTER",
         "InpV64AllowedDirection = -1",
         "V69ForwardRealMoneyAuthorized=true",
+        "V48WriteInitDiagnostic",
     )
     for token in forbidden:
         if token in text:
