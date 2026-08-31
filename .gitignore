@@ -5,3 +5,6 @@ __pycache__/
 
 # Generated runtime evidence/build outputs. Preserve on disk; do not track.
 runtime/**/OUTPUT_*/
+
+# Generated forward preparation logs. Preserve locally; never make the repo dirty.
+runtime/v69_frozen_forward_demo/V69_FORWARD_PREP_*.log
