@@ -64,6 +64,7 @@ void V69DPanelBase()
       ObjectSetInteger(0,name,OBJPROP_BGCOLOR,clrBlack);
       ObjectSetInteger(0,name,OBJPROP_BORDER_COLOR,clrDimGray);
       ObjectSetInteger(0,name,OBJPROP_BACK,false);
+      ObjectSetInteger(0,name,OBJPROP_ZORDER,0);
       ObjectSetInteger(0,name,OBJPROP_SELECTABLE,false);
       ObjectSetInteger(0,name,OBJPROP_HIDDEN,true);
    }
@@ -77,6 +78,7 @@ void V69DLabel(const string key,const string text,const int y,const int size,con
       ObjectCreate(0,name,OBJ_LABEL,0,0,0);
       ObjectSetInteger(0,name,OBJPROP_CORNER,CORNER_LEFT_UPPER);
       ObjectSetInteger(0,name,OBJPROP_XDISTANCE,12);
+      ObjectSetInteger(0,name,OBJPROP_ZORDER,1);
       ObjectSetInteger(0,name,OBJPROP_SELECTABLE,false);
       ObjectSetInteger(0,name,OBJPROP_HIDDEN,true);
       ObjectSetString(0,name,OBJPROP_FONT,"Consolas");
@@ -102,13 +104,11 @@ string V69DProgressValue(const string key,const string fallback)
    return out;
 }
 
-string V69DTradeRow(const ulong exit_deal)
+double V69DPositionNet(const ulong exit_deal)
 {
-   if(exit_deal==0) return "-";
+   if(exit_deal==0) return 0.0;
    long posid=HistoryDealGetInteger(exit_deal,DEAL_POSITION_ID);
-   datetime close_time=(datetime)HistoryDealGetInteger(exit_deal,DEAL_TIME);
-   double exit_price=HistoryDealGetDouble(exit_deal,DEAL_PRICE);
-   datetime entry_time=0;double entry_price=0.0;double net=0.0;
+   double net=0.0;
    int total=HistoryDealsTotal();
    for(int j=0;j<total;j++)
    {
@@ -118,6 +118,24 @@ string V69DTradeRow(const ulong exit_deal)
       if((long)HistoryDealGetInteger(d,DEAL_MAGIC)!=InpV64Magic) continue;
       net+=HistoryDealGetDouble(d,DEAL_PROFIT)+HistoryDealGetDouble(d,DEAL_COMMISSION)+
            HistoryDealGetDouble(d,DEAL_SWAP)+HistoryDealGetDouble(d,DEAL_FEE);
+   }
+   return net;
+}
+
+string V69DTradeRow(const ulong exit_deal)
+{
+   if(exit_deal==0) return "-";
+   long posid=HistoryDealGetInteger(exit_deal,DEAL_POSITION_ID);
+   datetime close_time=(datetime)HistoryDealGetInteger(exit_deal,DEAL_TIME);
+   double exit_price=HistoryDealGetDouble(exit_deal,DEAL_PRICE);
+   datetime entry_time=0;double entry_price=0.0;
+   int total=HistoryDealsTotal();
+   for(int j=0;j<total;j++)
+   {
+      ulong d=HistoryDealGetTicket(j);
+      if(d==0 || HistoryDealGetInteger(d,DEAL_POSITION_ID)!=posid) continue;
+      if(HistoryDealGetString(d,DEAL_SYMBOL)!=_Symbol) continue;
+      if((long)HistoryDealGetInteger(d,DEAL_MAGIC)!=InpV64Magic) continue;
       long e=HistoryDealGetInteger(d,DEAL_ENTRY);
       if(e==DEAL_ENTRY_IN && (entry_time==0 || (datetime)HistoryDealGetInteger(d,DEAL_TIME)<entry_time))
       {
@@ -126,6 +144,7 @@ string V69DTradeRow(const ulong exit_deal)
       }
    }
    int seconds=(entry_time>0 ? (int)(close_time-entry_time) : 0);
+   double net=V69DPositionNet(exit_deal);
    return TimeToString(close_time,TIME_DATE|TIME_MINUTES)+"  "+DoubleToString(entry_price,_Digits)+" -> "+
           DoubleToString(exit_price,_Digits)+"  pnl $"+DoubleToString(net,2)+"  dur "+IntegerToString(seconds)+"s";
 }
@@ -152,9 +171,7 @@ void V69DStats(int &closed,int &wins,int &losses,double &realized,
    closed=ArraySize(exits);
    for(int k=0;k<closed;k++)
    {
-      string row=V69DTradeRow(exits[k]);
-      int p=StringFind(row,"pnl $");
-      double net=(p>=0 ? StringToDouble(StringSubstr(row,p+5)) : 0.0);
+      double net=V69DPositionNet(exits[k]);
       if(net>0) wins++; else if(net<0) losses++;
    }
    if(closed>0) r1=V69DTradeRow(exits[closed-1]);
@@ -271,6 +288,7 @@ def validate(text: str, base: str) -> None:
         "V69DWriteHeartbeat();",
         "V69DUpdate();",
         "HistoryDealsTotal()",
+        "V69DPositionNet",
         "OBJ_RECTANGLE_LABEL",
         "PROGRESS:",
         "OUTPUT:",
