@@ -52,11 +52,12 @@ def transform() -> str:
     text = text.replace(V69_RESEARCH_ROOT, V69_FORWARD_ROOT)
     text = text.replace("V69 SEP RETEST L", "V69 FORWARD DEMO L")
 
-    # V56 intentionally made the V57+ lineage tester-only. For prospective validation,
-    # replace only that environment refusal with a strict DEMO-account refusal.
+    # V56 intentionally made the V57+ lineage tester-only. Later builders renamed
+    # diagnostics/messages, so match the refusal by behavior rather than milestone text.
+    # Still require exactly one single-line fail-closed tester guard.
     tester_guard = re.compile(
-        r'   if\(!MQLInfoInteger\(MQL_TESTER\)\)\{ V48WriteInitDiagnostic\("REFUSED","[^"]+"\); '
-        r'Print\("[^"]+"\); return INIT_FAILED; \}'
+        r'^[ \t]*if\(!MQLInfoInteger\(MQL_TESTER\)\)\{[^\n]*return INIT_FAILED;[^\n]*\}[ \t]*$',
+        re.MULTILINE,
     )
     demo_guard = (
         '   if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)'
