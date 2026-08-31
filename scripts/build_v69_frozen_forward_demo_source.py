@@ -95,7 +95,13 @@ def transform() -> str:
     # Strategy semantics come directly from the frozen V69 LONG builder.
     text = parent.transform(1)
 
-    text = replace_once(text, '#property version   "69.00"', '#property version   "69.10"', "version")
+    version_old = '#property version   "69.00"'
+    version_new = (
+        '#property version   "69.10"\n'
+        '// Forward validation authorization is deliberately immutable and false.\n'
+        'const bool V69ForwardRealMoneyAuthorized=false;'
+    )
+    text = replace_once(text, version_old, version_new, "version and authorization marker")
     text = replace_once(text, "input long   InpV64Magic = 690069;", "input long   InpV64Magic = 690169;", "magic")
 
     if V69_RESEARCH_ROOT not in text:
@@ -127,6 +133,7 @@ def transform() -> str:
 def validate(text: str) -> None:
     required = (
         '#property version   "69.10"',
+        "const bool V69ForwardRealMoneyAuthorized=false;",
         V69_FORWARD_ROOT,
         "InpV64Magic = 690169",
         "InpV64AllowedDirection = 1",
@@ -143,7 +150,6 @@ def validate(text: str) -> None:
         "ACCOUNT_TRADE_MODE_DEMO",
         "v69_forward_demo_only",
         "V69 FROZEN FORWARD HALT: DEMO ACCOUNT REQUIRED",
-        "real_money_authorized=0",
         "g_trade.Buy",
     )
     for token in required:
@@ -154,6 +160,7 @@ def validate(text: str) -> None:
         V69_RESEARCH_ROOT,
         "MQL_TESTER",
         "InpV64AllowedDirection = -1",
+        "V69ForwardRealMoneyAuthorized=true",
     )
     for token in forbidden:
         if token in text:
