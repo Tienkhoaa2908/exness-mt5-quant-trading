@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import importlib.util
+import tempfile
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[1]
+RUNNER = REPO / "runtime" / "v69_one_shot_prospective_demo" / "RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py"
+SUPERVISOR = REPO / "runtime" / "v69_one_shot_prospective_demo" / "SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py"
+LAUNCHER = REPO / "runtime" / "v69_one_shot_prospective_demo" / "START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh"
+
+
+def load(path: Path, name: str):
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_contract_is_frozen_demo_long_only() -> None:
+    text = RUNNER.read_text(encoding="utf-8")
+    required = (
+        'FROZEN_V69_RESEARCH_HEAD = "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1"',
+        'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"',
+        'EXPERT_NAME = "V69FrozenForwardDemoLong"',
+        'SYMBOL = "XAUUSDm"',
+        'PERIOD = "M15"',
+        '"direction": "LONG_ONLY"',
+        '"demo_only": True',
+        '"real_money_authorized": False',
+        '"short_enabled": False',
+        '"strategy_changed": False',
+        '"strategy_threshold_tuning_allowed": False',
+        '"real_money_auto_promotion": False',
+    )
+    for token in required:
+        assert token in text, token
+    assert "V69ForwardRealMoneyAuthorized=true" not in text
+
+
+def test_startup_is_config_driven_not_manual_attach() -> None:
+    text = RUNNER.read_text(encoding="utf-8")
+    for token in (
+        "[StartUp]",
+        "Expert={EXPERT_NAME}",
+        "Symbol={SYMBOL}",
+        "Period={PERIOD}",
+        "AllowLiveTrading=1",
+        "AllowDllImport=0",
+        "TERMINAL_EXE",
+        "V69_FORWARD_DEMO_READY=1",
+    ):
+        assert token in text, token
+    assert "attach manually" not in text.lower()
+
+
+def test_runner_does_not_force_kill_terminal_or_metaeditor() -> None:
+    text = RUNNER.read_text(encoding="utf-8").lower()
+    for forbidden in ("taskkill", "terminate()", "kill()", "stop-process"):
+        assert forbidden not in text, forbidden
+    assert "already running. close mt5 once" in text
+    assert "already running. close metaeditor once" in text
+
+
+def test_launcher_probes_real_python_execution() -> None:
+    text = LAUNCHER.read_text(encoding="utf-8")
+    assert "probe_python" in text
+    assert "PYTHON_REJECTED=" in text
+    assert "V31_PINNED_VENV" in text
+    assert "py.exe -3" in text
+    assert "python.exe" in text
+    assert "V69_ONE_SHOT_EXPECTED_HEAD is required" in text
+    assert "DO NOT git clean" in text
+    assert "DO NOT stash pop" in text
+
+
+def test_supervisor_drops_partial_final_record() -> None:
+    mod = load(SUPERVISOR, "v69_one_shot_supervisor_test")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        src = root / "src.csv"
+        dst = root / "dst.csv"
+        src.write_bytes(b"a,b\n1,2\n3,")
+        copied = mod.snapshot_complete_lines(src, dst)
+        assert copied == len(b"a,b\n1,2\n")
+        assert dst.read_bytes() == b"a,b\n1,2\n"
+
+
+def test_supervisor_never_auto_authorizes_real_money() -> None:
+    text = SUPERVISOR.read_text(encoding="utf-8")
+    assert '"real_money_authorized": False' in text
+    assert '"real_money_auto_promotion": False' in text
+    assert "EARLY_REVIEW_READY means evidence is ready for review" in text
+    for forbidden in ("g_trade.Buy", "g_trade.Sell", "OrderSend(", "OrderSendAsync("):
+        assert forbidden not in text
+
+
+def main() -> int:
+    tests = [v for k, v in globals().items() if k.startswith("test_") and callable(v)]
+    for test in tests:
+        test()
+        print(f"PASS {test.__name__}")
+    print(f"V69 one-shot prospective static tests PASS count={len(tests)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
