@@ -70,7 +70,8 @@ jobs:
           grep -Fq 'V69_DASHBOARD_HEARTBEAT.txt' scripts/build_v69_frozen_forward_demo_dashboard_source.py
           grep -Fq 'V69_SMOKE_PROGRESS.txt' scripts/build_v69_frozen_forward_demo_dashboard_source.py
           grep -Fq 'Trade #5:' scripts/build_v69_frozen_forward_demo_dashboard_source.py
-          grep -Fq 'DASHBOARD_SOURCE_SHA256 = "1471257e63b04b78d8efa8fe75d1f532b61116dbe3a0cad30928f438730879fa"' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'DASHBOARD_SOURCE_SHA256 =' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'test_dashboard_pin_matches_builder_output' tests/test_v69_one_shot_prospective_demo_static.py
       - name: Prospective one-shot safety contract
         run: |
           grep -Fq 'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
