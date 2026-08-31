@@ -15,6 +15,7 @@ EXPECTED_BRANCH = "agent/v69-one-shot-prospective-demo"
 FROZEN_V69_RESEARCH_HEAD = "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1"
 ACCEPTED_V69_EVIDENCE_SHA256 = "e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb"
 FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"
+DASHBOARD_SOURCE_SHA256 = "1471257e63b04b78d8efa8fe75d1f532b61116dbe3a0cad30928f438730879fa"
 EXPERT_NAME = "V69FrozenForwardSmokeDashboardLong"
 SYMBOL = "XAUUSDm"
 PERIOD = "M15"
@@ -117,6 +118,8 @@ def build_compile_install(runner, data: Path, expert_dir: Path) -> tuple[Path, P
     sha_a, sha_b = runner.sha(source_a), runner.sha(source_b)
     if sha_a != sha_b:
         raise RuntimeError(f"dashboard deterministic build mismatch a={sha_a} b={sha_b}")
+    if sha_a != DASHBOARD_SOURCE_SHA256:
+        raise RuntimeError(f"dashboard source drift expected={DASHBOARD_SOURCE_SHA256} actual={sha_a}")
     print(f"V69_FROZEN_PARENT_SOURCE_SHA256={FROZEN_FORWARD_SOURCE_SHA256}")
     print(f"V69_DASHBOARD_SOURCE_SHA256={sha_a}")
     print("V69_DASHBOARD_UI_ONLY=1")
