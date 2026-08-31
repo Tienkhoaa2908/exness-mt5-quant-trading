@@ -24,6 +24,7 @@ def test_contract_is_frozen_demo_long_only_with_ui_overlay() -> None:
     required = (
         'FROZEN_V69_RESEARCH_HEAD = "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1"',
         'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"',
+        'DASHBOARD_SOURCE_SHA256 = "1471257e63b04b78d8efa8fe75d1f532b61116dbe3a0cad30928f438730879fa"',
         'EXPERT_NAME = "V69FrozenForwardSmokeDashboardLong"',
         'SMOKE_MIN_CLOSED_TRADES = 2',
         'SMOKE_HARD_CAP_HOURS = 48',
