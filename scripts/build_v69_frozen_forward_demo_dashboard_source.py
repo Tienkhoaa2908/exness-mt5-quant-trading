@@ -186,7 +186,7 @@ void V69DWriteHeartbeat()
    int h=FileOpen(V69D_HEARTBEAT_FILE,FILE_WRITE|FILE_TXT|FILE_COMMON|FILE_ANSI);
    if(h==INVALID_HANDLE) return;
    FileWriteString(h,"time="+TimeToString(TimeCurrent(),TIME_DATE|TIME_MINUTES|TIME_SECONDS)+"\r\n");
-   FileWriteString(h,"tick_count="+LongToString(g_v69d_ticks)+"\r\n");
+   FileWriteString(h,"tick_count="+IntegerToString(g_v69d_ticks)+"\r\n");
    FileWriteString(h,"symbol="+_Symbol+"\r\n");
    FileWriteString(h,"period="+EnumToString((ENUM_TIMEFRAMES)_Period)+"\r\n");
    FileWriteString(h,"account_mode="+IntegerToString((int)AccountInfoInteger(ACCOUNT_TRADE_MODE))+"\r\n");
@@ -211,7 +211,7 @@ void V69DUpdate()
       {
          double exitp=(d>0 ? tick.bid : tick.ask);
          ENUM_ORDER_TYPE ot=(d>0 ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
-         OrderCalcProfit(ot,_Symbol,InpV64FixedLot,entry,exitp,floating);
+         if(!OrderCalcProfit(ot,_Symbol,InpV64FixedLot,entry,exitp,floating)) floating=0.0;
       }
    }
    double wr=(closed>0 ? 100.0*wins/closed : 0.0);
@@ -219,7 +219,7 @@ void V69DUpdate()
    V69DLabel("01","LONG ONLY | XAUUSDm M15 | lot 0.01 | REAL DISABLED",30,9,clrSilver);
    V69DLabel("02","PnL realized $"+DoubleToString(realized,2)+" | floating $"+DoubleToString(floating,2),50,10,(realized+floating>=0?clrLime:clrTomato));
    V69DLabel("03","Closed "+IntegerToString(closed)+" | W "+IntegerToString(wins)+" | L "+IntegerToString(losses)+" | WR "+DoubleToString(wr,1)+"%",70,10,clrWhite);
-   V69DLabel("04","Position "+(open?"OPEN":"FLAT")+" | ticks "+LongToString(g_v69d_ticks),90,9,clrWhite);
+   V69DLabel("04","Position "+(open?"OPEN":"FLAT")+" | ticks "+IntegerToString(g_v69d_ticks),90,9,clrWhite);
    V69DLabel("05","PROGRESS: "+V69DProgressValue("panel_progress","starting..."),112,9,clrYellow);
    V69DLabel("06","DONE:     "+V69DProgressValue("panel_done","waiting supervisor"),130,8,clrLime);
    V69DLabel("07","NEED:     "+V69DProgressValue("panel_need","runtime heartbeat"),148,8,clrOrange);
@@ -298,11 +298,13 @@ def validate(text: str, base: str) -> None:
         "const bool V69ForwardRealMoneyAuthorized=false;",
         "InpV64AllowedDirection = 1",
         "InpV64Magic = 690169",
+        "IntegerToString(g_v69d_ticks)",
+        "if(!OrderCalcProfit(",
     )
     for token in required:
         if token not in text:
             raise RuntimeError(f"V69 dashboard required token missing: {token}")
-    for forbidden in ("V69ForwardRealMoneyAuthorized=true", "InpV64AllowedDirection = -1"):
+    for forbidden in ("V69ForwardRealMoneyAuthorized=true", "InpV64AllowedDirection = -1", "LongToString("):
         if forbidden in text:
             raise RuntimeError(f"V69 dashboard forbidden token present: {forbidden}")
 
