@@ -9,6 +9,7 @@ REPO = Path(__file__).resolve().parents[1]
 RUNNER = REPO / "runtime" / "v69_one_shot_prospective_demo" / "RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py"
 SUPERVISOR = REPO / "runtime" / "v69_one_shot_prospective_demo" / "SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py"
 LAUNCHER = REPO / "runtime" / "v69_one_shot_prospective_demo" / "START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh"
+BUILDER = REPO / "scripts" / "build_v69_frozen_forward_demo_dashboard_source.py"
 
 
 def load(path: Path, name: str):
@@ -24,7 +25,7 @@ def test_contract_is_frozen_demo_long_only_with_ui_overlay() -> None:
     required = (
         'FROZEN_V69_RESEARCH_HEAD = "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1"',
         'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"',
-        'DASHBOARD_SOURCE_SHA256 = "1471257e63b04b78d8efa8fe75d1f532b61116dbe3a0cad30928f438730879fa"',
+        'DASHBOARD_SOURCE_SHA256 = "5d00901309c949deafbd7c89164257ca2779fdbddc0e570a09cd82a8272875a0"',
         'EXPERT_NAME = "V69FrozenForwardSmokeDashboardLong"',
         'SMOKE_MIN_CLOSED_TRADES = 2',
         'SMOKE_HARD_CAP_HOURS = 48',
@@ -39,6 +40,17 @@ def test_contract_is_frozen_demo_long_only_with_ui_overlay() -> None:
     for token in required:
         assert token in text, token
     assert "V69ForwardRealMoneyAuthorized=true" not in text
+
+
+def test_dashboard_pin_matches_builder_output() -> None:
+    runner = load(RUNNER, "v69_one_shot_runner_pin_test")
+    builder = load(BUILDER, "v69_one_shot_builder_pin_test")
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / "dashboard.mq5"
+        actual = builder.build(out)
+    assert actual == runner.DASHBOARD_SOURCE_SHA256, (
+        f"runner dashboard pin stale expected_builder={actual} runner_pin={runner.DASHBOARD_SOURCE_SHA256}"
+    )
 
 
 def test_startup_is_config_driven_and_waits_for_live_tick_heartbeat() -> None:
