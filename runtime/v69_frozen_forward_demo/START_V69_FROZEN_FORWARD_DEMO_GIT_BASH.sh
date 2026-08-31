@@ -7,7 +7,8 @@ PREP="$SCRIPT_DIR/PREPARE_V69_FROZEN_FORWARD_DEMO.py"
 BRANCH="agent/v69-frozen-forward-demo-validation"
 EXPECTED="${V69_FORWARD_EXPECTED_HEAD:-}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
-LOG="$SCRIPT_DIR/V69_FORWARD_PREP_${STAMP}.log"
+LOG_DIR="$SCRIPT_DIR/OUTPUT_FORWARD_PREP"
+LOG="$LOG_DIR/V69_FORWARD_PREP_${STAMP}.log"
 
 if [[ -z "$EXPECTED" ]]; then
     printf '%s\n' 'FATAL: V69_FORWARD_EXPECTED_HEAD is required.'
@@ -100,6 +101,8 @@ printf '%s\n' '  SHORT disabled'
 printf '%s\n' '  DEMO account only'
 printf '%s\n' '  REAL money authorization = false'
 printf '%s\n' '  this step compiles/installs only; it does not start evidence'
+
+mkdir -p "$LOG_DIR"
 
 set +e
 (
