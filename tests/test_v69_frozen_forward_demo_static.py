@@ -36,12 +36,13 @@ def test_forward_is_long_only_and_keeps_v69_cash_contract() -> None:
 
 def test_forward_replaces_tester_refusal_with_strict_demo_guards() -> None:
     s = load(BUILDER, "v69_forward_demo_guard").transform()
-    assert "if(!MQLInfoInteger(MQL_TESTER))" not in s
+    assert "MQL_TESTER" not in s
     assert "ACCOUNT_TRADE_MODE_DEMO" in s
     assert "v69_forward_demo_only" in s
     assert "V69 FROZEN FORWARD HALT: DEMO ACCOUNT REQUIRED" in s
     assert "ExpertRemove();" in s
-    assert "real_money_authorized=0" in s
+    assert "const bool V69ForwardRealMoneyAuthorized=false;" in s
+    assert "V69ForwardRealMoneyAuthorized=true" not in s
 
 
 def test_forward_preserves_v69_entry_state_machine_exactly() -> None:
