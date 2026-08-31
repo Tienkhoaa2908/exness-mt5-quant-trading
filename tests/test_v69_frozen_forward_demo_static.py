@@ -39,10 +39,12 @@ def test_forward_replaces_tester_refusal_with_strict_demo_guards() -> None:
     assert "MQL_TESTER" not in s
     assert "ACCOUNT_TRADE_MODE_DEMO" in s
     assert "v69_forward_demo_only" in s
+    assert "V69 FROZEN FORWARD REFUSED: DEMO ACCOUNT REQUIRED" in s
     assert "V69 FROZEN FORWARD HALT: DEMO ACCOUNT REQUIRED" in s
     assert "ExpertRemove();" in s
     assert "const bool V69ForwardRealMoneyAuthorized=false;" in s
     assert "V69ForwardRealMoneyAuthorized=true" not in s
+    assert "V48WriteInitDiagnostic" not in s
 
 
 def test_forward_preserves_v69_entry_state_machine_exactly() -> None:
