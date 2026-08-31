@@ -1,0 +1,30 @@
+name: v69-forward-quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  v69-forward-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python compile
+        run: |
+          python -m py_compile \
+            scripts/build_v69_confirm_separation_retest_source.py \
+            scripts/build_v69_frozen_forward_demo_source.py \
+            tests/test_v69_confirm_separation_retest_static.py \
+            tests/test_v69_frozen_forward_demo_static.py
+      - name: Frozen forward source tests
+        run: python tests/test_v69_frozen_forward_demo_static.py
+      - name: V69 parent regression tests
+        run: python tests/test_v69_confirm_separation_retest_static.py
+      - name: Secret scan
+        run: python scripts/secret_scan.py .
