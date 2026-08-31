@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import os
 import subprocess
 import time
 import zipfile
@@ -42,6 +43,13 @@ def load(path: Path, name: str):
     return mod
 
 
+def hidden_subprocess_kwargs() -> dict:
+    """Prevent console-window flashes for background Windows helper processes."""
+    if os.name != "nt":
+        return {}
+    return {"creationflags": getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)}
+
+
 def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fh:
@@ -61,6 +69,7 @@ def task_running(image: str) -> bool:
     cp = subprocess.run(
         ["tasklist.exe", "/FI", f"IMAGENAME eq {image}"],
         capture_output=True, text=True, encoding="utf-8", errors="replace",
+        **hidden_subprocess_kwargs(),
     )
     return image.lower() in cp.stdout.lower()
 
@@ -166,8 +175,11 @@ def notify_output(zip_path: Path) -> None:
         f"[System.Windows.MessageBox]::Show('{msg.replace(chr(39), chr(39)*2)}','V69 OUTPUT EXPORTED') | Out-Null"
     )
     try:
-        subprocess.Popen(["powershell.exe", "-NoProfile", "-Command", ps],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", ps],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            **hidden_subprocess_kwargs(),
+        )
     except Exception as exc:
         log(f"NOTIFY_SKIPPED {type(exc).__name__}: {exc}")
 
