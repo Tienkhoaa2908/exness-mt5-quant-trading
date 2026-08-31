@@ -75,7 +75,8 @@ def test_forward_recovery_doc_exists() -> None:
     assert HANDOFF.is_file()
     t = HANDOFF.read_text(encoding="utf-8")
     assert "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1" in t
-    assert "SHORT remains disabled" in t
+    assert "SHORT tiếp tục **vô hiệu hóa / rejected**" in t
+    assert "REAL-money authorization tiếp tục là **false**" in t
 
 
 def main() -> int:
