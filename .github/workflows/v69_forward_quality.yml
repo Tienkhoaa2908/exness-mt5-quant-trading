@@ -25,12 +25,16 @@ jobs:
             tests/test_v69_frozen_forward_demo_static.py \
             tests/test_v69_forward_trade_quality.py \
             tests/test_v69_trade_quality_runtime_static.py \
+            tests/test_v69_one_shot_prospective_demo_static.py \
             runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py \
-            runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
+            runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py \
+            runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py \
+            runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
       - name: Shell syntax
         run: |
           bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
           bash -n runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          bash -n runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
       - name: V69 parent regression tests
@@ -39,6 +43,8 @@ jobs:
         run: python tests/test_v69_forward_trade_quality.py
       - name: Trade-quality runtime isolation tests
         run: python tests/test_v69_trade_quality_runtime_static.py
+      - name: Prospective one-shot tests
+        run: python tests/test_v69_one_shot_prospective_demo_static.py
       - name: Diagnostics read-only contract
         run: |
           grep -Fq 'MT5_DEMO_CAN_REMAIN_RUNNING=1' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
@@ -53,6 +59,15 @@ jobs:
           grep -Fq 'no working Python 3.10+ found' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
           ! grep -Fiq 'terminal64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+      - name: Prospective one-shot safety contract
+        run: |
+          grep -Fq 'FROZEN_FORWARD_SOURCE_SHA256 = "0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93"' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq '"demo_only": True' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq '"real_money_authorized": False' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq '"real_money_auto_promotion": False' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          grep -Fq 'PYTHON_REJECTED=' runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
+          ! grep -Fiq 'taskkill' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+          ! grep -Fiq 'OrderSend(' runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
       - name: Preparation contract
         run: |
           grep -Fq 'V69_FORWARD_EXPECTED_HEAD is required' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
