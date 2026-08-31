@@ -107,14 +107,9 @@ def parse_deals(rows: list[dict[str, str]]) -> list[dict]:
             if entry_time is not None and exit_time is not None
             else None
         )
-        realized = (
-            num(ex, "profit")
-            + num(ex, "commission")
-            + num(ex, "swap")
-            + num(ex, "fee")
-        )
         entry_cost = num(ent, "commission") + num(ent, "swap") + num(ent, "fee")
         exit_cost = num(ex, "commission") + num(ex, "swap") + num(ex, "fee")
+        realized = num(ex, "profit") + entry_cost + exit_cost
         trades.append(
             {
                 "trade_index": idx + 1,
@@ -266,7 +261,6 @@ def quality_summary(trades: list[dict], events: list[dict[str, str]]) -> dict:
     base = summarize_pnl(pnl)
     matched = [t for t in trades if t.get("noise_matched")]
     losses = [t for t in trades if t["realized_pnl_usd"] < -1e-9]
-    wins = [t for t in trades if t["realized_pnl_usd"] > 1e-9]
     matched_losses = [t for t in matched if t["realized_pnl_usd"] < -1e-9]
     matched_wins = [t for t in matched if t["realized_pnl_usd"] > 1e-9]
 
@@ -405,11 +399,7 @@ def diagnosis(summary: dict) -> dict:
 
 
 def clean_trade_for_json(trade: dict) -> dict:
-    return {
-        k: v
-        for k, v in trade.items()
-        if not k.endswith("_dt")
-    }
+    return {k: v for k, v in trade.items() if not k.endswith("_dt")}
 
 
 def analyze(root: Path) -> dict:
