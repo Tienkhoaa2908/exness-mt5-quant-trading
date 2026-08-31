@@ -28,7 +28,9 @@ jobs:
             runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py \
             runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
       - name: Shell syntax
-        run: bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
+        run: |
+          bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
+          bash -n runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
       - name: V69 parent regression tests
@@ -43,6 +45,14 @@ jobs:
           grep -Fq 'development_only_not_independent' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
           ! grep -Fiq 'terminal64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py
+      - name: Diagnostics launcher contract
+        run: |
+          grep -Fq 'V69_TRADE_QUALITY_EXPECTED_HEAD is required' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          grep -Fq 'V31_PINNED_VENV' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          grep -Fq 'PYTHON_REJECTED=' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          grep -Fq 'no working Python 3.10+ found' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          ! grep -Fiq 'terminal64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
+          ! grep -Fiq 'metaeditor64.exe' runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
       - name: Preparation contract
         run: |
           grep -Fq 'V69_FORWARD_EXPECTED_HEAD is required' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
