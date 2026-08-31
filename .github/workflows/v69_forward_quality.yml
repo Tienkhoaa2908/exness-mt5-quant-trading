@@ -21,10 +21,22 @@ jobs:
             scripts/build_v69_confirm_separation_retest_source.py \
             scripts/build_v69_frozen_forward_demo_source.py \
             tests/test_v69_confirm_separation_retest_static.py \
-            tests/test_v69_frozen_forward_demo_static.py
+            tests/test_v69_frozen_forward_demo_static.py \
+            runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+      - name: Shell syntax
+        run: bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
       - name: V69 parent regression tests
         run: python tests/test_v69_confirm_separation_retest_static.py
+      - name: Preparation contract
+        run: |
+          grep -Fq 'V69_FORWARD_EXPECTED_HEAD is required' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+          grep -Fq 'MetaTrader 5 must be closed during forward preparation' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+          grep -Fq 'MetaEditor must be closed during forward preparation' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+          grep -Fq '"real_money_authorized": False' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+          grep -Fq '"short_enabled": False' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
+          grep -Fq 'DO NOT git clean' runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
+          grep -Fq 'DO NOT stash pop' runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
       - name: Secret scan
         run: python scripts/secret_scan.py .
