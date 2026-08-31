@@ -38,13 +38,24 @@ def test_dashboard_is_ui_only_over_exact_frozen_parent() -> None:
         "const bool V69ForwardRealMoneyAuthorized=false;",
         "InpV64AllowedDirection = 1",
         "InpV64Magic = 690169",
+        "IntegerToString(g_v69d_ticks)",
+        "if(!OrderCalcProfit(",
     ):
         assert token in text, token
     for forbidden in (
         "V69ForwardRealMoneyAuthorized=true",
         "InpV64AllowedDirection = -1",
+        "LongToString(",
     ):
         assert forbidden not in text
+
+
+def test_dashboard_uses_mt5_compile_safe_ui_helpers() -> None:
+    mod = load(BUILDER, "v69_dashboard_compile_api_test")
+    text = mod.transform()
+    assert text.count("IntegerToString(g_v69d_ticks)") == 2
+    assert "LongToString(" not in text
+    assert "if(!OrderCalcProfit(ot,_Symbol,InpV64FixedLot,entry,exitp,floating)) floating=0.0;" in text
 
 
 def test_critical_frozen_strategy_blocks_are_byte_identical() -> None:
