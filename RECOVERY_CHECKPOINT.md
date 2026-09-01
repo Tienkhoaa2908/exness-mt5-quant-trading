@@ -1,50 +1,56 @@
-# Recovery checkpoint — V54 Production Readiness
+# Recovery Checkpoint — V69 Frozen Forward DEMO Smoke
 
-Date: 2026-08-28
+Updated: 2026-09-01 (+07)
 
-## Authority
+Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
-Current branch:
+Active branch: `agent/v69-one-shot-prospective-demo`
 
-`agent/v54-production-readiness-hardening`
+Always fetch the current remote HEAD; do not hardcode an old chat SHA as current state.
 
-Accepted parent:
+Canonical recovery path:
 
-`4b7b5a348e9412d2d34c827f86eae37904ddc627`
+1. `docs/handover/OPERATING_PROTOCOL.md`
+2. `docs/handover/CURRENT_STATE.md`
+3. `docs/handover/KNOWN_FAILURES.md`
+4. `docs/handover/TURN_SYNC.md`
+5. `docs/handover/RECOVERY_PROMPT.md`
 
-Primary source of truth:
+Frozen V69 research HEAD:
 
-`docs/handover/CURRENT_STATE.md`
+`0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`
 
-## Frozen research state
+Accepted V69 evidence ZIP SHA256:
 
-`V50_EXECUTION_PIPELINE=PASS`
+`e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`
 
-`V52R_REAL_TICK_REPRO=PASS`
+Frozen forward parent source SHA256:
 
-`RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
+`0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`
 
-`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
+Current forward contract:
 
-`V53_NATURAL_MAPPING=NOT_OBSERVED`
+- XAUUSDm M15;
+- LONG only;
+- fixed lot 0.01;
+- DEMO only;
+- SHORT disabled;
+- REAL authorization false;
+- two natural closed strategy trades or 48-hour smoke-review cap.
 
-V52 generated-tick evidence is invalid because of data contamination.
+Latest Windows finding: broker volume contract validates lot 0.01 (`min=0.01`,
+`step=0.01`, `max=200`), but the first dry-run OrderCheck returned generic local error
+4756. The first broker-ready runner incorrectly failed after 12 seconds while its EA
+broker check refreshed only every 30 seconds, so one startup sample could be treated as a
+permanent blocker.
 
-## V54 state
+The active branch now uses a visible `SYSTEM HEALTH` layer, 5-second independent broker
+checks, two consecutive READY confirmations, account/EA permissions, connection/symbol
+synchronization checks, execution-mode-aware request construction and complete local plus
+server retcode/comment telemetry.
 
-`V54_PRODUCTION_READINESS=IMPLEMENTED_PENDING_CI_WINDOWS_COMPILE`
+Current gate:
 
-`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+`V69_BROKER_HEALTH_FIX=IMPLEMENTED_PENDING_EXACT_HEAD_CI_AND_WINDOWS_RERUN`
 
-The V54 package adds bounded sizing, loss/drawdown protection, ownership/reconciliation
-hardening, disconnect/stale/spread/reject guards, monitoring, notification and
-immutable evidence packaging around the inherited V49/V53 execution stack.
-
-No alpha threshold sweep is authorized by this milestone.
-
-## Operator entrypoint
-
-`bash runtime/v54_production_readiness/START_V54_PRODUCTION_READINESS_GIT_BASH.sh`
-
-Only actual GitHub CI and Windows MetaEditor/runtime evidence may promote the pending
-labels.
+Do not authorize REAL money from this checkpoint.
