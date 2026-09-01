@@ -1,214 +1,273 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-08-28
+Updated: 2026-09-01 (+07)
 
-## Authoritative working branch
+## Authority
 
-`agent/v54-production-readiness-hardening`
+Repository:
 
-Accepted research parent remains V53 HEAD:
+`Tienkhoaa2908/exness-mt5-quant-trading`
 
-`4b7b5a348e9412d2d34c827f86eae37904ddc627`
+Authoritative active branch:
 
-`main` is stale for current V50–V55 work and must not be used as the recovery source.
+`agent/v69-one-shot-prospective-demo`
 
-## Project objective
+Do not recover from stale `main` or the old V54/V55 production-readiness branch.
+Always fetch the current remote HEAD of this branch rather than relying on a SHA copied
+from an older conversation.
 
-`LIVE_RESEARCH_ALLOWED=1`
+Mandatory read order:
 
-`LIVE_DEPLOYMENT_TARGET=1`
+1. `docs/handover/OPERATING_PROTOCOL.md`
+2. `docs/handover/CURRENT_STATE.md`
+3. `docs/handover/KNOWN_FAILURES.md`
+4. `docs/handover/TURN_SYNC.md`
+5. `docs/handover/RECOVERY_PROMPT.md`
+6. current branch commits + exact-HEAD CI
 
-The project targets production/live deployment after sufficient technical and
-operational evidence. Candidate research is frozen. Current work is production
-readiness, not another alpha tournament.
+## Current objective
 
-## Accepted evidence chain
+Finish a short live-market **DEMO smoke validation** of frozen V69 LONG on Exness MT5,
+prove runtime/broker order-path readiness, collect a small amount of natural forward
+trade evidence, then review before any later real-money deployment decision.
 
-### V50 execution plumbing — PASS
+This is not another long backtest campaign. Historical research has already done most of
+the economic evaluation.
 
-Accepted recovered ZIP SHA256:
+Current safety boundary:
 
-`587cc102e85f6565b9ad880a757a9bd1ffc901c90d7f9d86c7cdadd0841b7e72`
+- symbol/timeframe: `XAUUSDm M15`;
+- direction: LONG only;
+- fixed lot: `0.01`;
+- DEMO only;
+- SHORT rejected/disabled;
+- REAL authorization false;
+- no automatic REAL promotion.
 
-Authoritative result:
+## Frozen V69 research identity
 
-`EXECUTION_PIPELINE_PASS`
+Accepted research branch:
 
-Three completed XAUUSDm DEMO round trips, six requests, zero rejects, final flat/no
-halt. Do not rerun V50 probe trades.
+`agent/v69-confirm-separation-retest-research`
 
-### V51 higher-frequency tournament — KEEP BREADTH4
+Frozen V69 research HEAD:
 
-Accepted ZIP SHA256:
+`0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`
 
-`8475b12077a28b18df722965895565772a6020a12ddebfd958aed67652808d98`
+Accepted V69 evidence ZIP SHA256:
 
-Formal result:
+`e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`
 
-`V51_KEEP_BREADTH4`
+Frozen forward parent source SHA256:
 
-Broad breadth3 expansion increased frequency but violated drawdown/rolling-stability
-guardrails. Same-sample diagnostics motivated one source-aware TREND/BOS lane.
+`0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`
 
-### V52 generated-tick run — INVALID DATA
+Frozen V69 LONG contract:
 
-ZIP SHA256:
+- XAUUSDm M15;
+- fixed lot `0.01`;
+- structural planned cash risk `$0.85-$1.10`;
+- emergency cash loss guard about `$1.20`;
+- primary target `+$3.50`;
+- risk/spread ratio `>=4`;
+- post-zone closed-M1 reclaim cannot order immediately;
+- post-confirm favorable separation must reach at least `$1.30` from the fixed stop;
+- the separation tick itself cannot order;
+- a later retest into the unchanged cash-risk zone is required;
+- reclaim confirmation age at least 30 seconds;
+- fixed structural stop, no widening/clamp;
+- entry ordering: `POST_ZONE_REVERSAL_CONFIRM -> return -> POST_CONFIRM_SEPARATION -> POST_CONFIRM_RETEST_READY -> POST_CONFIRM_ENTRY_READY -> V64OrderPreflight`.
 
-`01f63cdcbff48ea0bb7d5d7ebf405e9612a7783e6ecc35b7c9afe6ef81abbed8`
+The `$1.30` and 30-second values are development choices, not proven global optima.
 
-Formal classification:
+## Accepted V68 -> V69 development evidence
 
-`V52_RESULT=INVALID_DATA_CONTAMINATION`
+V68 LONG replay:
 
-Do not use its raw challenger selection or metrics as evidence.
+- 28 trades;
+- 10 wins / 18 losses;
+- net `+$2.87`;
+- PF about `1.146`;
+- gross profit about `$22.57`;
+- gross loss `$19.70`;
+- max realized DD `$6.04`;
+- 11/18 losers closed within 60 seconds.
 
-### V52R real-tick reproducibility — PASS
+V69 LONG development replay:
 
-Accepted ZIP SHA256:
+- 24 trades;
+- 10 wins / 14 losses;
+- net `+$7.14`;
+- gross profit `$22.58`;
+- gross loss `$15.44`;
+- PF `1.462`;
+- max realized DD `$3.34`;
+- 10/14 losers closed within 60 seconds (71.4%).
 
-`4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c`
+V69 retained all 10 V68 winners while removing four losers. This supports the
+separation/retest architecture as a selectivity improvement, but the surviving loser set
+is still dominated by very fast failures.
 
-Formal result:
+V69 monthly LONG development replay:
 
-`V52R_CHALLENGER_SELECTED`
+- Sep 2025 `-$1.84`;
+- Oct `+$9.15`;
+- Nov `+$1.24`;
+- Dec `-$2.28`;
+- Jan 2026 `+$0.87`;
+- Feb-May `$0`;
+- total `+$7.14`;
+- excluding October: `-$2.01`.
 
-Selected research candidate:
+Therefore regime concentration remains a major concern.
 
-`v52_b4_or_b3_trend_bos`
+Methodology boundary: V69 was designed after V68 was inspected. The Sep 2025-May 2026
+V69 replay is development evidence, not an independent holdout. Do not retune on the
+same period and call it independent validation.
 
-Clean real-tick comparison:
+## Current failure-mode priority
 
-- breadth4: 819 trades, PF 1.2894, annualized 21.47%, max MTM DD 16.60%;
-- TREND+BOS: 951 trades (+16.12%), PF 1.2649, annualized 22.17%, max MTM DD 16.10%.
+Verified priority from existing evidence:
 
-### V53 natural broker-DEMO confirmation — CLOSED BY WAIVER
+1. entry-state / regime quality;
+2. same-setup re-entry suppression if cluster diagnostics confirm it;
+3. exit/harvest quality if MFE/capture diagnostics show material positive-MFE
+   round-trips.
 
-Accepted recovered ZIP SHA256:
+Do not lower the profit-ratchet threshold blindly. Current lineage only protects after
+about +$2, which creates a theoretical sub-$2 harvest gap, but many fast losers may have
+near-zero MFE and cannot be rescued by earlier exits.
 
-`602115bc6161e8947835c43033a1899637cc8a288f5192b2631acd6a6dd629db`
+## Current V69 forward implementation
 
-Formal classification:
+Active branch contains a one-shot Windows/MT5 flow that:
 
-`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
-
-`V53_NATURAL_MAPPING=NOT_OBSERVED`
-
-This is not `DEMO_CONFIRMATION_PASS`. Do not force a signal or extend the waiting gate.
-
-## V54 production-readiness hardening
-
-V54 inherited the exact V53 candidate and V49/V50 broker execution architecture. It
-added:
-
-- stop-risk sizing cap;
-- daily/session loss protection;
-- peak-equity drawdown protection;
-- spread guard;
-- stale broker-tick and stale strategy-state guards;
-- disconnect handling;
-- repeated broker-reject halt;
-- SL/TP presence validation;
-- deterministic broker/virtual reconciliation;
-- request/retcode/deal audit trail;
-- MetaQuotes push notification path;
-- immutable snapshot evidence ZIP;
-- fail-closed rollback/runbook.
-
-No alpha threshold was changed.
-
-## V55 account-agnostic production runtime
-
-V55 is now the implementation layer to use going forward. It is built as a thin
-post-processing envelope over V54, so the candidate and execution mapping remain
-unchanged.
-
-Runtime identity:
-
-- `XAUUSDm M15`;
-- owned magic `550055`;
-- maximum one owned strategy position;
-- candidate `v52_b4_or_b3_trend_bos`;
-- no Martingale;
-- no grid;
-- no doubling after loss.
-
-Account model:
-
-`V55_ACCOUNT_MODEL=DEMO_AND_REAL_SAME_BINARY`
-
-DEMO is active by default. The same generated EA can be loaded on REAL. On REAL, new
-risk is fail-closed unless both explicit arming inputs are present:
-
-- `InpV55AllowRealAccount=true`;
-- `InpV55RealArmCode=V55_REAL_ARMED`.
-
-An unarmed REAL instance is `REAL_OBSERVE_ONLY`: it cannot open new positions. Account
-login/mode are pinned at initialization; changing account while the EA remains running
-forces a halt/restart requirement.
-
-V55 also derives broker/account constraints at runtime:
-
-- min/max/step volume;
-- broker stop-distance level;
-- freeze-level telemetry;
-- leverage telemetry;
-- loss-per-lot via `OrderCalcProfit`;
-- required margin via `OrderCalcMargin`;
-- available margin via `ACCOUNT_MARGIN_FREE`;
-- inherited filling mode by symbol.
-
-Daily-loss/peak-equity terminal globals are account-scoped so trial and REAL accounts do
-not share protection state.
+- verifies exact Git state;
+- probes a working Python runtime instead of trusting `py.exe`;
+- runs static/regression/secret gates;
+- deterministically builds the V69 DEMO dashboard source;
+- MetaEditor-compiles and verifies exact MQ5/EX5 identity;
+- archives previous forward Common Files state;
+- generates an MT5 startup config;
+- launches the exact EA automatically on `XAUUSDm M15`;
+- waits for live tick heartbeat;
+- performs broker/order-path dry-run preflight;
+- starts a silent `pythonw.exe` supervisor with no console-window flashing;
+- updates the chart dashboard and rolling/final evidence packages.
 
 Canonical launcher:
 
-`bash runtime/v55_account_agnostic/START_V55_ACCOUNT_AGNOSTIC_GIT_BASH.sh`
+`bash runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh`
 
-Default execution mode is DEMO. REAL mode uses the same source/EX5 and an explicit
-startup preset; no account login/password/server credential is committed or injected by
-the runner.
+The chart EA remains named:
 
-Authoritative long-term semantics: `docs/adr/ADR-057-account-agnostic-demo-real-runtime.md`.
+`V69FrozenForwardSmokeDashboardLong`
 
-## CI recovery
+## Forward smoke review horizon
 
-The old V53 workflow was blocked by an over-broad policy scanner and an unconditional
-historical V29 `exit 86`. Those defects were repaired. Full pytest collection then
-exposed historical dependency and recovery-contract drift; current work restores those
-contracts rather than skipping tests.
+This live DEMO step is intentionally short:
 
-Do not claim current HEAD CI PASS until the workflow concludes successfully.
+- runtime/broker health can pass immediately after stable startup checks;
+- quick economic review target: 2 naturally closed strategy trades;
+- hard review cap: 48 hours even if two trades do not occur;
+- output is then packaged as `v69_forward_smoke_final.zip`.
+
+Two trades are not statistical proof of profitability. They are a small operational /
+forward sanity sample on top of the historical research.
+
+## Latest live DEMO evidence — 2026-09-01
+
+The earlier dashboard successfully proved:
+
+- Exness DEMO account loaded;
+- `XAUUSDm M15` chart correct;
+- EA initialization occurred;
+- live ticks were arriving;
+- telemetry/dashboard updates were functioning;
+- REAL remained disabled.
+
+The broker-ready overlay then exposed a previously hidden order-path issue before a
+strategy signal occurred.
+
+Observed broker fields:
+
+- fixed lot `0.01`;
+- broker min lot `0.0100`;
+- broker volume step `0.0100`;
+- broker max lot `200.0000`;
+- symbol trade mode `4` (full trading);
+- filling flags `3` (FOK + IOC available);
+- first `OrderCheck()` returned false with local error `4756`.
+
+Conclusion: the failure is **not lot size**. `0.01` is valid under the broker's current
+volume contract.
+
+The first broker-ready harness had a logic defect: EA broker refresh interval was 30
+seconds while the runner permanently failed after 12 seconds on the same detail. It
+could therefore classify one startup `OrderCheck` result as a permanent block without a
+second independent check. It also discarded `MqlTradeCheckResult.retcode/comment` when
+the function returned false.
+
+## Latest fix now on the active branch
+
+Broker/system-health overlay has been hardened to:
+
+- refresh every 5 seconds;
+- publish `broker_check_seq`;
+- check `TERMINAL_CONNECTED`;
+- check `ACCOUNT_TRADE_ALLOWED`;
+- check `ACCOUNT_TRADE_EXPERT`;
+- check terminal + MQL trade permissions;
+- check symbol synchronization;
+- check symbol trade mode and min/max/step volume;
+- capture execution mode via `SYMBOL_TRADE_EXEMODE`;
+- build dry-run request according to execution mode;
+- capture both local `_LastError` and server `retcode/comment`;
+- initially classify bare 4756 with no server retcode as transient;
+- require two independent consecutive READY checks before startup PASS;
+- require repeated independent confirmation before fatal classification;
+- allow transient broker transport up to 90 seconds to stabilize;
+- display `SYSTEM HEALTH: STARTING / READY / BLOCKED` directly on the chart;
+- show whether execution is merely preflight-ready or has actually been observed via a
+  natural open/closed V69 trade.
+
+This changes observability/execution preflight only. Frozen V69 signal state ordering and
+actual strategy order-send token count remain protected by regression tests.
 
 ## Current classification
 
-`V50_EXECUTION_PIPELINE=PASS`
+`V69_RESEARCH=FROZEN`
 
-`V51_HIGHER_FREQUENCY=KEEP_BREADTH4`
+`V69_HISTORICAL_REPLAY=DEVELOPMENT_ONLY_NOT_INDEPENDENT`
 
-`V52_SOURCE_AWARE=INVALID_DATA_CONTAMINATION`
+`V69_FORWARD_DIRECTION=LONG_ONLY`
 
-`V52R_REAL_TICK_REPRO=PASS`
+`V69_FORWARD_DEMO_ONLY=1`
 
-`RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
+`V69_FORWARD_REAL_MONEY_AUTHORIZED=0`
 
-`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
+`V69_FORWARD_SHORT_ENABLED=0`
 
-`V53_NATURAL_MAPPING=NOT_OBSERVED`
+`V69_RUNTIME_HEARTBEAT=OBSERVED`
 
-`V54_PRODUCTION_READINESS=IMPLEMENTED`
+`V69_LOT_0_01_BROKER_SPEC=VALID`
 
-`V55_ACCOUNT_AGNOSTIC_RUNTIME=IMPLEMENTED_PENDING_CI_WINDOWS_COMPILE`
+`V69_BROKER_HEALTH_FIX=IMPLEMENTED_PENDING_EXACT_HEAD_CI_AND_WINDOWS_RERUN`
+
+`REAL_DEPLOYMENT=NOT_AUTHORIZED`
 
 ## Next gate
 
-1. require green GitHub CI on current HEAD;
-2. run V55 on the currently logged DEMO/trial account using the default launcher;
-3. require MetaEditor `0 errors, 0 warnings`, READY status and immutable startup ZIP;
-4. exercise restart/reconciliation/notification fault paths;
-5. retain `V53_NATURAL_MAPPING=NOT_OBSERVED` until a natural selected-candidate mapping
-   is actually observed;
-6. later REAL deployment uses the same V55 source/EX5 with explicit REAL arming, not a
-   second strategy fork.
+1. require current exact remote HEAD CI to be green after the latest broker-health and
+   documentation changes;
+2. close MT5/MetaEditor once and rerun only the canonical V69 one-shot;
+3. require Windows MetaEditor `0 errors, 0 warnings`;
+4. require two consecutive independent broker checks to produce `SYSTEM HEALTH: READY`;
+5. if not READY, use the newly captured account flags + `_LastError` + server
+   `retcode/comment` to diagnose the exact blocker rather than guessing;
+6. after READY, leave the system running for the short smoke target (2 closed strategy
+   trades or 48-hour cap);
+7. review the final ZIP before any later real-money implementation decision.
 
-Do not reopen alpha research unless a real implementation defect invalidates the
-selected candidate or its evidence.
+Do not reopen a long historical backtest campaign merely because the forward harness had
+a broker/observability defect.
