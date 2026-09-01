@@ -77,7 +77,8 @@ jobs:
           grep -Fq 'BROKER: READY' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'broker_ready=' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py' runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
-          grep -Fq 'BROKER PREFLIGHT BLOCKED before any strategy signal' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
+          grep -Fq 'BROKER HEALTH BLOCKED after two independent checks' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
+          grep -Fq 'V69_BROKER_PREFLIGHT_STABLE_CHECKS=2' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
           ! grep -Fq 'DASHBOARD_SOURCE_SHA256 =' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
       - name: Prospective one-shot safety contract
         run: |
