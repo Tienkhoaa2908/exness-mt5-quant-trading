@@ -111,6 +111,29 @@ Prefer deterministic startup configuration:
 
 Do not make manual attach the normal workflow.
 
+## Historical recovery invariants retained after handover cleanup
+
+The canonical handover must preserve the useful lessons from V38/V42/V44/V45 even though
+obsolete per-version recovery files are removed.
+
+- **immutable V38** means accepted evidence/source identity is never silently mutated just
+  to make a later harness pass.
+- The Windows **CP1252** incident requires explicit UTF-8 I/O.
+- An inherited Bash **ERR trap** can still fire after `set +e`; prefer tracked Python
+  orchestration rather than a fragile **runtime shell patcher**.
+- A MetaEditor process return code is not a valid **compile artifact** verdict by itself.
+- Git Bash / **MSYS** path conversion and Windows-native path semantics must be treated
+  explicitly at process boundaries.
+- The V44 **recovery ladder** is stage-local: recover the failed stage and use
+  **package-only** recovery when packaging alone failed; **do not rerun MT5** for that.
+- V45 **cold-start** and **look-ahead** validation preserved distinct historical windows,
+  including 2025 and 2022 evidence, instead of tuning against only the latest sample.
+- Historical completion markers such as `MT5_DONE.json` and `DONE.txt` are acceptance
+  evidence. When those markers and required artifacts prove the MT5 phase completed,
+  **MT5 must not rerun** merely because a downstream analysis/package step failed.
+
+These are historical engineering invariants, not the current V69 runtime entrypoint.
+
 ## Historical Windows rules still preserved
 
 ### Explicit UTF-8
