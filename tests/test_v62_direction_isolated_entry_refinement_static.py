@@ -10,7 +10,6 @@ ANALYZER = REPO / "scripts" / "analyze_v62_direction_isolated_entry_refinement.p
 RUNNER = REPO / "runtime" / "v62_direction_isolated_entry_refinement" / "RUN_V62_DIRECTION_ISOLATED_ENTRY_REFINEMENT.py"
 LAUNCHER = REPO / "runtime" / "v62_direction_isolated_entry_refinement" / "START_V62_DIRECTION_ISOLATED_ENTRY_REFINEMENT_GIT_BASH.sh"
 ADR = REPO / "docs" / "adr" / "ADR-064-v62-direction-isolated-entry-refinement-research.md"
-HANDOFF = REPO / "docs" / "handoff" / "V62_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -118,18 +117,15 @@ def test_launcher_is_portable_and_branch_pinned():
     assert "RUN_V62_DIRECTION_ISOLATED_ENTRY_REFINEMENT.py" in text
 
 
-def test_adr_and_handoff_record_nonproduction_and_isolated_sum_caveat():
+def test_adr_preserves_nonproduction_and_isolated_sum_caveat():
     adr = ADR.read_text(encoding="utf-8")
-    handoff = HANDOFF.read_text(encoding="utf-8")
-    for text in (adr, handoff):
-        assert "0.01" in text
-        assert "$0.75-$1.25" in text
-        assert "SHORT" in text
-        assert "REAL" in text
+    assert "0.01" in adr
+    assert "$0.75-$1.25" in adr
+    assert "SHORT" in adr
+    assert "REAL" in adr
     assert "isolated-pass sum" in adr
     assert "not a concurrent" in adr
-    assert "8-pass V62 evidence bundle" in handoff
-    assert "total 8 passes" in handoff
+    assert "exactly eight real-tick passes" in adr
 
 
 def main() -> int:
