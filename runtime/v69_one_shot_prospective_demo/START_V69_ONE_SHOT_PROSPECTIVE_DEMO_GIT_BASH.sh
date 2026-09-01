@@ -5,8 +5,8 @@ export PYTHONIOENCODING=utf-8
 
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "$ROOT/../.." && pwd -P)"
-RUNNER="$ROOT/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py"
-STATIC="$REPO_ROOT/tests/test_v69_one_shot_prospective_demo_static.py"
+RUNNER="$ROOT/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py"
+STATIC="$REPO_ROOT/tests/test_v69_one_shot_broker_ready_static.py"
 EXPECTED_BRANCH="agent/v69-one-shot-prospective-demo"
 EXPECTED_HEAD="${V69_ONE_SHOT_EXPECTED_HEAD:-}"
 
@@ -64,9 +64,9 @@ bash -n "$0"
 "${PY_CMD[@]}" -m py_compile "$RUNNER" "$STATIC"
 "${PY_CMD[@]}" "$STATIC"
 
-say "Start V69 frozen prospective DEMO one-shot"
+say "Start V69 broker-ready prospective DEMO one-shot"
 "${PY_CMD[@]}" "$RUNNER"
 
 echo
- echo "V69_ONE_SHOT_LAUNCHER=PASS"
+echo "V69_ONE_SHOT_LAUNCHER=PASS"
 echo "REAL_MONEY_AUTHORIZED=0"
