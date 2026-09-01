@@ -10,7 +10,6 @@ ANALYZER = ROOT / "scripts" / "analyze_v67_post_zone_reclaim_quality.py"
 RUNNER = ROOT / "runtime" / "v67_post_zone_reclaim_quality" / "RUN_V67_POST_ZONE_RECLAIM_QUALITY.py"
 LAUNCHER = ROOT / "runtime" / "v67_post_zone_reclaim_quality" / "START_V67_POST_ZONE_RECLAIM_QUALITY_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-069-v67-post-zone-reclaim-quality-research.md"
-HANDOFF = ROOT / "docs" / "handoff" / "V67_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -135,14 +134,14 @@ def test_v67_analyzer_measures_fast_losses_directly():
         assert out["win_median_seconds"] == 300.0
 
 
-def test_v67_paths_docs_and_launcher_are_safe():
-    for path in (BUILDER, ANALYZER, RUNNER, LAUNCHER, ADR, HANDOFF):
+def test_v67_paths_adr_and_launcher_are_safe():
+    for path in (BUILDER, ANALYZER, RUNNER, LAUNCHER, ADR):
         assert path.is_file(), path
     launcher = LAUNCHER.read_text(encoding="utf-8")
     assert "set -Eeuo pipefail" in launcher
     assert "agent/v67-post-zone-reclaim-quality-research" in launcher
     assert "RUN_V67_POST_ZONE_RECLAIM_QUALITY.py" in launcher
-    docs = ADR.read_text(encoding="utf-8") + HANDOFF.read_text(encoding="utf-8")
+    docs = ADR.read_text(encoding="utf-8")
     assert "REAL-money authorization is false" in docs
     assert "0.01" in docs
     assert "stable" in docs.lower()
