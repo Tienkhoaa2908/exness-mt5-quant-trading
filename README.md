@@ -1,98 +1,70 @@
 # Exness / MetaTrader 5 Quant Trading System
 
-**Mục tiêu: production/live trading trên Exness sau khi technical và operational
-readiness evidence được xác nhận.**
+Current project focus: frozen V69 LONG on `XAUUSDm M15`, short live-market DEMO smoke
+validation, broker/runtime health verification, then review before any later real-money
+deployment decision.
 
-`LIVE_RESEARCH_ALLOWED=1`
+## Current branch
 
-`LIVE_DEPLOYMENT_TARGET=1`
+`agent/v69-one-shot-prospective-demo`
 
-No Martingale, uncontrolled grid or doubling after loss.
+Always fetch the current remote HEAD. Do not recover from stale `main` or old V54/V55
+handover text.
 
-## Current candidate
+## Current safety boundary
 
-Frozen candidate:
+- LONG only;
+- fixed lot `0.01`;
+- DEMO only;
+- SHORT disabled/rejected;
+- REAL authorization false;
+- no automatic REAL promotion;
+- no Martingale, uncontrolled grid or doubling after loss.
 
-`v52_b4_or_b3_trend_bos`
+## Frozen research anchor
 
-Accepted V52R real-tick evidence:
+V69 research HEAD:
 
-- breadth4: 819 trades, PF 1.2894, annualized 21.47%, max DD 16.60%;
-- TREND+BOS: 951 trades (+16.12%), PF 1.2649, annualized 22.17%, max DD 16.10%.
+`0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`
 
-Generated-tick V52 is invalidated by data contamination and is not promotion evidence.
+Accepted V69 evidence ZIP SHA256:
 
-## Current milestone — V54 Production Readiness
+`e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`
 
-Branch:
+Frozen forward parent source SHA256:
 
-`agent/v54-production-readiness-hardening`
+`0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`
 
-V54 inherits the selected V53 candidate and proven V49/V50 broker adapter. It adds
-production safety and operations hardening without retuning alpha:
+V69 LONG development replay: 24 trades, 10W/14L, `+$7.14`, PF `1.462`, max realized
+DD `$3.34`. This replay is development evidence, not an untouched independent holdout.
 
-- `XAUUSDm M15`;
-- owned magic `540054`;
-- max one owned strategy position;
-- stop-based risk cap;
-- daily/session loss and max-drawdown protection;
-- spread, stale tick, stale strategy-state and disconnect guards;
-- repeated broker-reject halt;
-- ownership and SL/TP validation;
-- deterministic restart/reconciliation;
-- request/retcode/deal audit trail;
-- MetaQuotes phone notifications;
-- immutable snapshot evidence ZIP;
-- fail-closed rollback runbook.
+## Current live DEMO smoke
 
-Current activation boundary:
+Canonical launcher:
 
-`PRODUCTION_ACTIVATION=DISABLED_DEMO_SAFE`
+`bash runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh`
 
-`real_money_authorized=0`
+The MT5 chart dashboard must visibly show system health, broker preflight, runtime ticks,
+PnL, positions, closed trades, recent trade details, progress and output status.
 
-V54 retains the DEMO account guard while technical readiness is verified. This is a
-phase-specific build constraint; ADR-049 still defines live deployment as the project
-target.
+Current quick-review horizon is deliberately short: two naturally closed V69 strategy
+trades or a 48-hour hard cap. This step primarily verifies real runtime/execution behavior
+and adds only a small forward economic sample.
 
-## Inherited evidence
+Latest broker log proved that lot `0.01` is broker-valid (`min=0.01`, `step=0.01`) but the
+first dry-run `OrderCheck()` returned generic local error 4756. The first implementation
+then incorrectly failed before a second independent broker check could occur. The active
+branch now adds stateful repeated broker-health checks and complete local/server
+retcode/comment diagnostics. See the canonical handover documents.
 
-`V50_EXECUTION_PIPELINE=PASS`
+## Read first
 
-`V52R_REAL_TICK_REPRO=PASS`
+1. `docs/handover/OPERATING_PROTOCOL.md`
+2. `docs/handover/CURRENT_STATE.md`
+3. `docs/handover/KNOWN_FAILURES.md`
+4. `docs/handover/TURN_SYNC.md`
+5. `docs/handover/RECOVERY_PROMPT.md`
+6. `docs/handover/STATE_SYNC_PROMPT.md`
 
-`RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
-
-`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
-
-`V53_NATURAL_MAPPING=NOT_OBSERVED`
-
-Accepted V52R ZIP SHA256:
-
-`4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c`
-
-Accepted V53 recovered ZIP SHA256:
-
-`602115bc6161e8947835c43033a1899637cc8a288f5192b2631acd6a6dd629db`
-
-## Canonical operator entrypoint
-
-`bash runtime/v54_production_readiness/START_V54_PRODUCTION_READINESS_GIT_BASH.sh`
-
-The runner performs branch/working-tree checks, static test, secret scan, deterministic
-source build, MetaEditor compile verification, controlled MT5 startup, DEMO READY
-verification and automatic immutable startup evidence packaging.
-
-Do not bypass failed preflight checks.
-
-## Authority
-
-Read in this order:
-
-1. `docs/handover/CURRENT_STATE.md`
-2. `docs/handover/RECOVERY_PROMPT.md`
-3. `docs/adr/ADR-056-v54-production-readiness-safety-envelope.md`
-4. `docs/runbooks/V54_PRODUCTION_READINESS_RUNBOOK.md`
-5. `docs/adr/ADR-055-immutable-snapshot-evidence-packaging.md`
-6. `docs/research/v52r_real_tick_results_2026-08-26.md`
-7. `docs/research/v53_timebox_waiver_results_2026-08-28.md`
+Historical ADRs/research reports remain provenance. Superseded per-version recovery-state
+documents are intentionally removed to prevent recovery ambiguity.
