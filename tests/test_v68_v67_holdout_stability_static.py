@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import importlib.util
-import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,7 +10,6 @@ ANALYZER = ROOT / "scripts" / "analyze_v68_v67_holdout_stability.py"
 RUNNER = ROOT / "runtime" / "v68_v67_holdout_stability" / "RUN_V68_V67_HOLDOUT_STABILITY.py"
 LAUNCHER = ROOT / "runtime" / "v68_v67_holdout_stability" / "START_V68_V67_HOLDOUT_STABILITY_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-070-v68-v67-holdout-stability-research.md"
-HANDOFF = ROOT / "docs" / "handoff" / "V68_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -75,15 +73,13 @@ def test_v68_analyzer_tracks_stability_and_fast_losses():
         assert token in text
 
 
-def test_v68_docs_state_validation_only_objective():
-    for p in (ADR, HANDOFF):
-        text = p.read_text(encoding="utf-8")
-        assert "V67" in text
-        assert "holdout" in text.lower()
-        assert "REAL" in text
-    handoff = HANDOFF.read_text(encoding="utf-8")
-    assert "no strategy threshold change" in handoff.lower()
-    assert "18 Model=4" in handoff
+def test_v68_adr_states_validation_only_objective():
+    text = ADR.read_text(encoding="utf-8")
+    assert "V67" in text
+    assert "holdout" in text.lower()
+    assert "REAL" in text
+    assert "no strategy threshold change" in text.lower()
+    assert "18 Model=4 passes" in text
 
 
 def main() -> int:
@@ -92,7 +88,7 @@ def main() -> int:
         test_v68_runner_uses_calendar_holdout_without_pnl_selection,
         test_v68_launcher_is_direct_python_and_safe,
         test_v68_analyzer_tracks_stability_and_fast_losses,
-        test_v68_docs_state_validation_only_objective,
+        test_v68_adr_states_validation_only_objective,
     ]
     for fn in tests:
         fn()
