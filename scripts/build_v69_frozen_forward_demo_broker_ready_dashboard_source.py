@@ -46,43 +46,71 @@ BROKER_HELPERS = r'''
 // Strategy entry/exit logic remains byte-identical to the frozen parent.
 // -----------------------------------------------------------------------------
 datetime g_v69d_broker_checked_at=0;
+long g_v69d_broker_check_seq=0;
 bool g_v69d_broker_ready=false;
+bool g_v69d_broker_fatal=false;
 string g_v69d_broker_detail="not_checked";
 double g_v69d_volume_min=0.0;
 double g_v69d_volume_max=0.0;
 double g_v69d_volume_step=0.0;
 long g_v69d_trade_mode=0;
 long g_v69d_filling_mode=0;
+long g_v69d_execution_mode=0;
+long g_v69d_ordercheck_last_error=0;
 long g_v69d_ordercheck_retcode=0;
+string g_v69d_ordercheck_comment="";
+bool g_v69d_terminal_connected=false;
+bool g_v69d_account_trade_allowed=false;
+bool g_v69d_account_trade_expert=false;
+bool g_v69d_symbol_synchronized=false;
 
-bool V69DBrokerCapabilityRaw(string &detail,double &vmin,double &vmax,double &vstep,
-                             long &trade_mode,long &filling_mode,long &retcode)
+bool V69DBrokerCapabilityRaw(string &detail,bool &fatal,double &vmin,double &vmax,double &vstep,
+                             long &trade_mode,long &filling_mode,long &execution_mode,
+                             long &last_error,long &server_retcode,string &server_comment,
+                             bool &terminal_connected,bool &account_trade_allowed,
+                             bool &account_trade_expert,bool &symbol_synchronized)
 {
    detail="";
-   retcode=0;
+   fatal=false;
+   last_error=0;
+   server_retcode=0;
+   server_comment="";
    vmin=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MIN);
    vmax=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_MAX);
    vstep=SymbolInfoDouble(_Symbol,SYMBOL_VOLUME_STEP);
    trade_mode=SymbolInfoInteger(_Symbol,SYMBOL_TRADE_MODE);
    filling_mode=SymbolInfoInteger(_Symbol,SYMBOL_FILLING_MODE);
+   execution_mode=SymbolInfoInteger(_Symbol,SYMBOL_TRADE_EXEMODE);
+   terminal_connected=(bool)TerminalInfoInteger(TERMINAL_CONNECTED);
+   account_trade_allowed=(bool)AccountInfoInteger(ACCOUNT_TRADE_ALLOWED);
+   account_trade_expert=(bool)AccountInfoInteger(ACCOUNT_TRADE_EXPERT);
+   symbol_synchronized=SymbolIsSynchronized(_Symbol);
 
    if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)
-   { detail="account_not_demo"; return false; }
+   { detail="account_not_demo"; fatal=true; return false; }
+   if(!terminal_connected)
+   { detail="terminal_not_connected"; return false; }
+   if(!account_trade_allowed)
+   { detail="account_trade_disabled"; fatal=true; return false; }
+   if(!account_trade_expert)
+   { detail="account_expert_trade_disabled"; fatal=true; return false; }
    if(!TerminalInfoInteger(TERMINAL_TRADE_ALLOWED))
-   { detail="terminal_trade_disabled"; return false; }
+   { detail="terminal_trade_disabled"; fatal=true; return false; }
    if(!MQLInfoInteger(MQL_TRADE_ALLOWED))
-   { detail="ea_trade_disabled"; return false; }
+   { detail="ea_trade_disabled"; fatal=true; return false; }
+   if(!symbol_synchronized)
+   { detail="symbol_not_synchronized"; return false; }
    if(trade_mode!=SYMBOL_TRADE_MODE_FULL && trade_mode!=SYMBOL_TRADE_MODE_LONGONLY)
-   { detail="symbol_long_not_allowed_"+IntegerToString((int)trade_mode); return false; }
+   { detail="symbol_long_not_allowed_"+IntegerToString((int)trade_mode); fatal=true; return false; }
    if(vmin<=0.0 || vmax<=0.0 || vstep<=0.0)
-   { detail="volume_spec_invalid"; return false; }
+   { detail="volume_spec_invalid"; fatal=true; return false; }
 
    double lot=InpV64FixedLot;
    if(lot<vmin-1e-9 || lot>vmax+1e-9)
-   { detail="lot_out_of_range"; return false; }
+   { detail="lot_out_of_range"; fatal=true; return false; }
    double steps=(lot-vmin)/vstep;
    if(MathAbs(steps-MathRound(steps))>1e-6)
-   { detail="lot_not_on_step"; return false; }
+   { detail="lot_not_on_step"; fatal=true; return false; }
 
    MqlTick tick;
    if(!SymbolInfoTick(_Symbol,tick) || tick.ask<=0.0 || tick.bid<=0.0)
@@ -95,22 +123,39 @@ bool V69DBrokerCapabilityRaw(string &detail,double &vmin,double &vmax,double &vs
    req.symbol=_Symbol;
    req.volume=lot;
    req.type=ORDER_TYPE_BUY;
-   req.price=tick.ask;
-   req.deviation=50;
-   req.type_time=ORDER_TIME_GTC;
+
+   // Market/Exchange execution does not require a client-specified market price.
+   // Request/Instant execution does. Keep the dry-run request aligned with MT5 docs.
+   if(execution_mode==SYMBOL_TRADE_EXECUTION_REQUEST || execution_mode==SYMBOL_TRADE_EXECUTION_INSTANT)
+   {
+      req.price=tick.ask;
+      req.deviation=50;
+   }
 
    if((filling_mode & SYMBOL_FILLING_FOK)==SYMBOL_FILLING_FOK) req.type_filling=ORDER_FILLING_FOK;
    else if((filling_mode & SYMBOL_FILLING_IOC)==SYMBOL_FILLING_IOC) req.type_filling=ORDER_FILLING_IOC;
-   else req.type_filling=ORDER_FILLING_RETURN;
+   else if(execution_mode!=SYMBOL_TRADE_EXECUTION_MARKET) req.type_filling=ORDER_FILLING_RETURN;
+   else
+   { detail="market_execution_has_no_supported_filling"; fatal=true; return false; }
 
    ResetLastError();
-   if(!OrderCheck(req,chk))
+   bool ok=OrderCheck(req,chk);
+   last_error=(long)GetLastError();
+   server_retcode=(long)chk.retcode;
+   server_comment=chk.comment;
+   if(!ok)
    {
-      retcode=(long)GetLastError();
-      detail="ordercheck_call_failed_"+IntegerToString((int)retcode);
+      // 4756 is generic transport/send failure. Do not classify one startup sample
+      // as a permanent broker block. The runner requires repeated independent checks.
+      if(last_error==4756 && server_retcode==0)
+      {
+         detail="ordercheck_transport_transient_4756";
+         return false;
+      }
+      detail="ordercheck_call_failed_last_"+IntegerToString((int)last_error)+
+             "_srv_"+IntegerToString((int)server_retcode)+"_"+server_comment;
       return false;
    }
-   retcode=(long)chk.retcode;
    if(chk.retcode!=0 && chk.retcode!=TRADE_RETCODE_DONE && chk.retcode!=TRADE_RETCODE_PLACED)
    {
       detail="ordercheck_"+IntegerToString((int)chk.retcode)+"_"+chk.comment;
@@ -123,11 +168,16 @@ bool V69DBrokerCapabilityRaw(string &detail,double &vmin,double &vmax,double &vs
 void V69DRefreshBrokerCapability()
 {
    datetime now=TimeCurrent();
-   if(g_v69d_broker_checked_at>0 && now-g_v69d_broker_checked_at<30) return;
+   if(g_v69d_broker_checked_at>0 && now-g_v69d_broker_checked_at<5) return;
    g_v69d_broker_checked_at=now;
+   g_v69d_broker_check_seq++;
    g_v69d_broker_ready=V69DBrokerCapabilityRaw(
-      g_v69d_broker_detail,g_v69d_volume_min,g_v69d_volume_max,g_v69d_volume_step,
-      g_v69d_trade_mode,g_v69d_filling_mode,g_v69d_ordercheck_retcode);
+      g_v69d_broker_detail,g_v69d_broker_fatal,
+      g_v69d_volume_min,g_v69d_volume_max,g_v69d_volume_step,
+      g_v69d_trade_mode,g_v69d_filling_mode,g_v69d_execution_mode,
+      g_v69d_ordercheck_last_error,g_v69d_ordercheck_retcode,g_v69d_ordercheck_comment,
+      g_v69d_terminal_connected,g_v69d_account_trade_allowed,g_v69d_account_trade_expert,
+      g_v69d_symbol_synchronized);
 }
 '''
 
@@ -152,13 +202,22 @@ def transform() -> str:
         '   FileWriteString(h,"real_money_authorized=0\\r\\n");',
         '   FileWriteString(h,"mql_trade_allowed="+IntegerToString((int)MQLInfoInteger(MQL_TRADE_ALLOWED))+"\\r\\n");\n'
         '   FileWriteString(h,"broker_ready="+IntegerToString((int)g_v69d_broker_ready)+"\\r\\n");\n'
+        '   FileWriteString(h,"broker_fatal="+IntegerToString((int)g_v69d_broker_fatal)+"\\r\\n");\n'
+        '   FileWriteString(h,"broker_check_seq="+IntegerToString((int)g_v69d_broker_check_seq)+"\\r\\n");\n'
         '   FileWriteString(h,"broker_detail="+g_v69d_broker_detail+"\\r\\n");\n'
         '   FileWriteString(h,"volume_min="+DoubleToString(g_v69d_volume_min,4)+"\\r\\n");\n'
         '   FileWriteString(h,"volume_max="+DoubleToString(g_v69d_volume_max,4)+"\\r\\n");\n'
         '   FileWriteString(h,"volume_step="+DoubleToString(g_v69d_volume_step,4)+"\\r\\n");\n'
         '   FileWriteString(h,"symbol_trade_mode="+IntegerToString((int)g_v69d_trade_mode)+"\\r\\n");\n'
         '   FileWriteString(h,"symbol_filling_mode="+IntegerToString((int)g_v69d_filling_mode)+"\\r\\n");\n'
+        '   FileWriteString(h,"symbol_execution_mode="+IntegerToString((int)g_v69d_execution_mode)+"\\r\\n");\n'
+        '   FileWriteString(h,"terminal_connected="+IntegerToString((int)g_v69d_terminal_connected)+"\\r\\n");\n'
+        '   FileWriteString(h,"account_trade_allowed="+IntegerToString((int)g_v69d_account_trade_allowed)+"\\r\\n");\n'
+        '   FileWriteString(h,"account_trade_expert="+IntegerToString((int)g_v69d_account_trade_expert)+"\\r\\n");\n'
+        '   FileWriteString(h,"symbol_synchronized="+IntegerToString((int)g_v69d_symbol_synchronized)+"\\r\\n");\n'
+        '   FileWriteString(h,"broker_ordercheck_last_error="+IntegerToString((int)g_v69d_ordercheck_last_error)+"\\r\\n");\n'
         '   FileWriteString(h,"broker_ordercheck_retcode="+IntegerToString((int)g_v69d_ordercheck_retcode)+"\\r\\n");\n'
+        '   FileWriteString(h,"broker_ordercheck_comment="+g_v69d_ordercheck_comment+"\\r\\n");\n'
         '   FileWriteString(h,"real_money_authorized=0\\r\\n");',
         "heartbeat broker fields",
     )
@@ -168,17 +227,22 @@ def transform() -> str:
         "   V69DPanelBase();\n   V69DRefreshBrokerCapability();\n   int closed=0,wins=0,losses=0;double realized=0.0;",
         "panel broker refresh",
     )
-    text = replace_once(text, "OBJPROP_YSIZE,330", "OBJPROP_YSIZE,365", "panel height")
+    text = replace_once(text, "OBJPROP_YSIZE,330", "OBJPROP_YSIZE,395", "panel height")
     text = replace_once(
         text,
         '   V69DLabel("14","Quick gate: runtime health + 2 closed trades | hard review cap: 48h",292,8,clrSilver);',
-        '   string broker_line=(g_v69d_broker_ready ? "BROKER: READY" : "BROKER: BLOCKED")+\n'
-        '      " | "+g_v69d_broker_detail+" | lot "+DoubleToString(InpV64FixedLot,2)+\n'
-        '      " min "+DoubleToString(g_v69d_volume_min,2)+" step "+DoubleToString(g_v69d_volume_step,2)+\n'
-        '      " | check "+IntegerToString((int)g_v69d_ordercheck_retcode);\n'
-        '   V69DLabel("15",broker_line,292,8,(g_v69d_broker_ready?clrLime:clrTomato));\n'
-        '   V69DLabel("14","Quick gate: broker READY + runtime health + 2 closed trades | hard review cap: 48h",320,8,clrSilver);',
-        "panel broker row",
+        '   string health_state=(g_v69d_broker_ready ? "READY" : (g_v69d_broker_fatal ? "BLOCKED" : "STARTING"));\n'
+        '   string execution_state=((open || closed>0) ? "EXECUTION VERIFIED" : "awaiting first natural fill");\n'
+        '   string health_line="SYSTEM HEALTH: "+health_state+" | "+execution_state+" | "+g_v69d_broker_detail;\n'
+        '   color health_color=(g_v69d_broker_ready ? clrLime : (g_v69d_broker_fatal ? clrTomato : clrYellow));\n'
+        '   V69DLabel("16",health_line,292,9,health_color);\n'
+        '   string broker_line=(g_v69d_broker_ready ? "BROKER PREFLIGHT: READY" : "BROKER PREFLIGHT: CHECKING/BLOCKED")+\n'
+        '      " | lot "+DoubleToString(InpV64FixedLot,2)+" min "+DoubleToString(g_v69d_volume_min,2)+\n'
+        '      " step "+DoubleToString(g_v69d_volume_step,2)+" | last "+IntegerToString((int)g_v69d_ordercheck_last_error)+\n'
+        '      " srv "+IntegerToString((int)g_v69d_ordercheck_retcode);\n'
+        '   V69DLabel("15",broker_line,316,8,(g_v69d_broker_ready?clrLime:(g_v69d_broker_fatal?clrTomato:clrYellow)));\n'
+        '   V69DLabel("14","Quick gate: stable health + runtime ticks + 2 closed trades | hard review cap: 48h",346,8,clrSilver);',
+        "panel health rows",
     )
 
     validate(text, base)
@@ -189,17 +253,27 @@ def validate(text: str, base: str) -> None:
     required = (
         "V69DBrokerCapabilityRaw",
         "V69DRefreshBrokerCapability",
+        "SYSTEM HEALTH:",
+        "BROKER PREFLIGHT: READY",
         "SYMBOL_VOLUME_MIN",
         "SYMBOL_VOLUME_MAX",
         "SYMBOL_VOLUME_STEP",
         "SYMBOL_TRADE_MODE",
         "SYMBOL_FILLING_MODE",
+        "SYMBOL_TRADE_EXEMODE",
+        "ACCOUNT_TRADE_ALLOWED",
+        "ACCOUNT_TRADE_EXPERT",
+        "TERMINAL_CONNECTED",
+        "SymbolIsSynchronized",
         "OrderCheck(req,chk)",
         "broker_ready=",
+        "broker_fatal=",
+        "broker_check_seq=",
         "broker_detail=",
+        "broker_ordercheck_last_error=",
         "broker_ordercheck_retcode=",
-        "BROKER: READY",
-        "BROKER: BLOCKED",
+        "broker_ordercheck_comment=",
+        "ordercheck_transport_transient_4756",
         "lot_out_of_range",
         "lot_not_on_step",
         "terminal_trade_disabled",
