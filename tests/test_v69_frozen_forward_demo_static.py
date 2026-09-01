@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER = ROOT / "scripts" / "build_v69_frozen_forward_demo_source.py"
 PARENT = ROOT / "scripts" / "build_v69_confirm_separation_retest_source.py"
-HANDOFF = ROOT / "docs" / "handoff" / "V69_FORWARD_RECOVERY_STATE.md"
+CURRENT = ROOT / "docs" / "handover" / "CURRENT_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -73,12 +73,14 @@ def test_forward_uses_isolated_common_root() -> None:
     assert m.V69_RESEARCH_ROOT not in s
 
 
-def test_forward_recovery_doc_exists() -> None:
-    assert HANDOFF.is_file()
-    t = HANDOFF.read_text(encoding="utf-8")
+def test_forward_recovery_contract_is_canonical() -> None:
+    assert CURRENT.is_file()
+    t = CURRENT.read_text(encoding="utf-8")
     assert "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1" in t
-    assert "SHORT tiếp tục **vô hiệu hóa / rejected**" in t
-    assert "REAL-money authorization tiếp tục là **false**" in t
+    assert "SHORT rejected/disabled" in t or "SHORT disabled" in t
+    assert "REAL authorization false" in t
+    assert "LONG only" in t
+    assert "DEMO only" in t
 
 
 def main() -> int:
