@@ -75,7 +75,6 @@ def test_runner_has_no_redundant_generated_dashboard_hash_pin() -> None:
     text = RUNNER.read_text(encoding="utf-8")
     assert "broker dashboard deterministic build mismatch" in text
     assert "V69_BROKER_PREFLIGHT_READY=1" in text
-    assert 'hb.get("broker_ready") == "1"' not in text  # explicit bool variable instead
     assert 'broker_ready = hb.get("broker_ready") == "1"' in text
     assert "BROKER PREFLIGHT BLOCKED before any strategy signal" in text
     assert "DASHBOARD_SOURCE_SHA256 =" not in text
