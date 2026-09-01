@@ -29,12 +29,7 @@ base = load(BASE_RUNNER, "v69_one_shot_base_for_broker_ready")
 
 
 def build_compile_install(runner, data: Path, expert_dir: Path):
-    """Deterministic build without a redundant stale dashboard hash pin.
-
-    Exact Git HEAD + frozen-parent pins + A/B deterministic generation are the
-    source-of-truth gates. This avoids the prior source-changed/hash-not-updated
-    harness failure while preserving byte verification through compile/install.
-    """
+    """Deterministic build without a redundant stale dashboard hash pin."""
     base.OUT.mkdir(parents=True, exist_ok=True)
     source_a = base.OUT / f"{base.EXPERT_NAME}.base.a.mq5"
     source_b = base.OUT / f"{base.EXPERT_NAME}.base.b.mq5"
@@ -75,8 +70,11 @@ def wait_ready(runner, root: Path, proc: subprocess.Popen) -> dict[str, str]:
     status_path = root / "V64_STATUS.txt"
     heartbeat_path = root / "V69_DASHBOARD_HEARTBEAT.txt"
     deadline = time.time() + 180
-    blocked_since = None
-    blocked_detail = ""
+    last_seq = -1
+    consecutive_ready = 0
+    fatal_detail = ""
+    fatal_confirmations = 0
+    first_transient_at: float | None = None
 
     while time.time() < deadline:
         s = base.parse_kv(status_path)
@@ -85,9 +83,15 @@ def wait_ready(runner, root: Path, proc: subprocess.Popen) -> dict[str, str]:
             state = s.get("state", "")
             ticks = int(hb.get("tick_count", "0") or 0)
             broker_ready = hb.get("broker_ready") == "1"
+            broker_fatal = hb.get("broker_fatal") == "1"
+            seq = int(hb.get("broker_check_seq", "0") or 0)
             transport_ready = (
                 hb.get("terminal_trade_allowed") == "1"
                 and hb.get("mql_trade_allowed") == "1"
+                and hb.get("terminal_connected") == "1"
+                and hb.get("account_trade_allowed") == "1"
+                and hb.get("account_trade_expert") == "1"
+                and hb.get("symbol_synchronized") == "1"
             )
             identity_ready = (
                 state == "READY"
@@ -99,38 +103,74 @@ def wait_ready(runner, root: Path, proc: subprocess.Popen) -> dict[str, str]:
                 and hb.get("real_money_authorized") == "0"
                 and ticks > 0
             )
-            if identity_ready and transport_ready and broker_ready:
+
+            # Only count independent broker checks. The previous implementation
+            # failed after 12s although the EA refreshed OrderCheck every 30s,
+            # so a single startup result could be misclassified as permanent.
+            if seq > 0 and seq != last_seq:
+                last_seq = seq
+                detail = hb.get("broker_detail", "broker_not_ready")
+                print(
+                    "V69_HEALTH_CHECK="
+                    f"seq={seq} ready={int(broker_ready)} fatal={int(broker_fatal)} "
+                    f"detail={detail} last_error={hb.get('broker_ordercheck_last_error','?')} "
+                    f"server_retcode={hb.get('broker_ordercheck_retcode','?')} "
+                    f"server_comment={hb.get('broker_ordercheck_comment','')}"
+                )
+
+                if identity_ready and transport_ready and broker_ready:
+                    consecutive_ready += 1
+                    fatal_confirmations = 0
+                    fatal_detail = ""
+                    first_transient_at = None
+                else:
+                    consecutive_ready = 0
+                    if broker_fatal:
+                        if detail == fatal_detail:
+                            fatal_confirmations += 1
+                        else:
+                            fatal_detail = detail
+                            fatal_confirmations = 1
+                        if fatal_confirmations >= 2:
+                            raise RuntimeError(
+                                "BROKER HEALTH BLOCKED after two independent checks: "
+                                f"detail={detail} lot=0.01 min={hb.get('volume_min','?')} "
+                                f"step={hb.get('volume_step','?')} max={hb.get('volume_max','?')} "
+                                f"trade_mode={hb.get('symbol_trade_mode','?')} "
+                                f"execution_mode={hb.get('symbol_execution_mode','?')} "
+                                f"filling={hb.get('symbol_filling_mode','?')} "
+                                f"last_error={hb.get('broker_ordercheck_last_error','?')} "
+                                f"server_retcode={hb.get('broker_ordercheck_retcode','?')} "
+                                f"server_comment={hb.get('broker_ordercheck_comment','')}"
+                            )
+                    else:
+                        fatal_confirmations = 0
+                        fatal_detail = ""
+                        if first_transient_at is None:
+                            first_transient_at = time.time()
+                        elif time.time() - first_transient_at >= 90:
+                            raise RuntimeError(
+                                "BROKER HEALTH never stabilized after 90s of independent retries: "
+                                f"detail={detail} last_error={hb.get('broker_ordercheck_last_error','?')} "
+                                f"server_retcode={hb.get('broker_ordercheck_retcode','?')} "
+                                f"server_comment={hb.get('broker_ordercheck_comment','')}"
+                            )
+
+            if identity_ready and transport_ready and consecutive_ready >= 2:
                 print(f"V69_FORWARD_DEMO_READY=1 ticks={ticks}")
-                print(f"V69_BROKER_PREFLIGHT_READY=1 detail={hb.get('broker_detail','READY')}")
+                print("V69_SYSTEM_HEALTH=READY")
+                print("V69_BROKER_PREFLIGHT_READY=1")
+                print("V69_BROKER_PREFLIGHT_STABLE_CHECKS=2")
                 print(
                     "V69_BROKER_VOLUME="
                     f"lot=0.01 min={hb.get('volume_min','?')} "
                     f"step={hb.get('volume_step','?')} max={hb.get('volume_max','?')}"
                 )
+                print(f"V69_BROKER_ORDERCHECK_LAST_ERROR={hb.get('broker_ordercheck_last_error','?')}")
                 print(f"V69_BROKER_ORDERCHECK_RETCODE={hb.get('broker_ordercheck_retcode','?')}")
+                print(f"V69_BROKER_ORDERCHECK_COMMENT={hb.get('broker_ordercheck_comment','')}")
                 print("V69_RUNTIME_SMOKE_VERIFIED=1")
                 return {"status": s, "heartbeat": hb}
-
-            if identity_ready and not broker_ready:
-                detail = hb.get("broker_detail", "broker_not_ready")
-                if detail != blocked_detail:
-                    blocked_detail = detail
-                    blocked_since = time.time()
-                    print(
-                        "V69_BROKER_PREFLIGHT_WAIT="
-                        f"{detail} lot=0.01 min={hb.get('volume_min','?')} "
-                        f"step={hb.get('volume_step','?')} max={hb.get('volume_max','?')} "
-                        f"retcode={hb.get('broker_ordercheck_retcode','?')}"
-                    )
-                elif blocked_since is not None and time.time() - blocked_since >= 12:
-                    raise RuntimeError(
-                        "BROKER PREFLIGHT BLOCKED before any strategy signal: "
-                        f"detail={detail} lot=0.01 min={hb.get('volume_min','?')} "
-                        f"step={hb.get('volume_step','?')} max={hb.get('volume_max','?')} "
-                        f"trade_mode={hb.get('symbol_trade_mode','?')} "
-                        f"filling={hb.get('symbol_filling_mode','?')} "
-                        f"ordercheck_retcode={hb.get('broker_ordercheck_retcode','?')}"
-                    )
 
             if state == "STOPPED":
                 raise RuntimeError(f"V69 stopped during startup detail={s.get('detail','')}")
@@ -141,9 +181,11 @@ def wait_ready(runner, root: Path, proc: subprocess.Popen) -> dict[str, str]:
 
     hb = base.parse_kv(heartbeat_path)
     raise RuntimeError(
-        "timeout waiting for V69 broker-ready DEMO heartbeat "
+        "timeout waiting for stable V69 broker health + DEMO heartbeat "
         f"detail={hb.get('broker_detail','missing_heartbeat')} "
-        f"retcode={hb.get('broker_ordercheck_retcode','?')}"
+        f"last_error={hb.get('broker_ordercheck_last_error','?')} "
+        f"server_retcode={hb.get('broker_ordercheck_retcode','?')} "
+        f"server_comment={hb.get('broker_ordercheck_comment','')}"
     )
 
 
@@ -169,8 +211,6 @@ def start_supervisor(session_path: Path) -> int:
 
 
 def main() -> int:
-    # Monkeypatch only orchestration/UI gates. The strategy source still comes from
-    # the frozen V69 parent underneath the broker-ready dashboard builder.
     base.BUILDER = BROKER_BUILDER
     base.DASHBOARD_STATIC = BROKER_STATIC
     base.build_compile_install = build_compile_install
