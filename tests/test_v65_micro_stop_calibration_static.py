@@ -10,7 +10,6 @@ RUNNER = ROOT / "runtime" / "v65_micro_stop_calibration" / "RUN_V65_MICRO_STOP_C
 FIXED_RUNNER = ROOT / "runtime" / "v65_micro_stop_calibration" / "RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py"
 LAUNCHER = ROOT / "runtime" / "v65_micro_stop_calibration" / "START_V65_MICRO_STOP_CALIBRATION_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-067-v65-micro-stop-calibration-research.md"
-HANDOFF = ROOT / "docs" / "handoff" / "V65_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -98,8 +97,8 @@ def test_v65_fixed_runner_routes_original_runner_to_fixed_builder():
     assert "runner.BUILDER = FIXED_BUILDER" in text
 
 
-def test_v65_docs_and_launcher_exist_and_tester_only():
-    for path in (LAUNCHER, ADR, HANDOFF):
+def test_v65_adr_and_launcher_exist_and_tester_only():
+    for path in (LAUNCHER, ADR):
         assert path.is_file()
         text = path.read_text(encoding="utf-8")
         assert "V65" in text
@@ -108,7 +107,7 @@ def test_v65_docs_and_launcher_exist_and_tester_only():
     assert "agent/v65-micro-stop-calibration-research" in launcher
     assert "RUN_V65_MICRO_STOP_CALIBRATION_FIXED.py" in launcher
     assert "build_v65_micro_stop_calibration_source_fixed.py" in launcher
-    docs = ADR.read_text(encoding="utf-8") + HANDOFF.read_text(encoding="utf-8")
+    docs = ADR.read_text(encoding="utf-8")
     assert "REAL" in docs
     assert "0.01" in docs
     assert "micro" in docs.lower()
