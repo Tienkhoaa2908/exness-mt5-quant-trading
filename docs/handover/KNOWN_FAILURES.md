@@ -1,43 +1,48 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-01
+Updated: 2026-09-01 22:30 (+07)
 
 Read this before modifying Windows/MT5 runtime code.
 
-## Current unresolved / active investigation
+## Current unresolved / maintenance follow-up
 
-### KF-2026-09-01-01 — first broker dry-run returned generic 4756
+### KM-2026-09-01-01 — repeated server `10019 No money` should fail fast and expose account funds
 
-Observed on Exness DEMO `XAUUSDm M15`:
+The broker-health layer currently permits transient stabilization for up to 90 seconds. During the 2026-09-01 DEMO run it captured repeated:
+
+- local `_LastError=4756`;
+- server `retcode=10019`;
+- server comment `No money`.
+
+This was deterministic insufficient DEMO funds/free margin, not a transient transport event. After DEMO funds/free margin were restored, the same 0.01 preflight produced two consecutive `READY / retcode 0 / Done` checks and runtime became healthy.
+
+Maintenance improvement for a future non-disruptive harness revision:
+
+- classify repeated server retcode `10019` as deterministic insufficient-funds BLOCKED after independent confirmation;
+- display/account-log `ACCOUNT_BALANCE`, `ACCOUNT_EQUITY`, `ACCOUNT_MARGIN`, and `ACCOUNT_MARGIN_FREE` so the reason is visible immediately;
+- do not spend the full 90-second transient window on a confirmed `10019`;
+- do not change V69 strategy/order semantics to solve this observability issue.
+
+Do **not** interrupt the currently healthy smoke run just to add this enhancement.
+
+## Resolved broker/harness incidents
+
+### KF-2026-09-01-01 — generic 4756 was hiding broker `10019 No money`
+
+Initial observation on Exness DEMO `XAUUSDm M15`:
 
 - fixed lot `0.01`;
 - broker min `0.0100`, step `0.0100`, max `200.0000`;
 - symbol trade mode `4`;
 - filling flags `3`;
-- `OrderCheck()` returned false;
-- `_LastError=4756` (`ERR_TRADE_SEND_FAILED`).
+- `OrderCheck()` false;
+- `_LastError=4756`.
 
-This was **not a minimum-lot/lot-step failure**. The broker volume specification accepts `0.01`.
+First harness revision fixed two instrumentation defects: it stopped concluding permanent failure from one startup sample and began recording `MqlTradeCheckResult.retcode/comment`. The next Windows run then exposed the actual deterministic broker result on repeated independent checks: `retcode=10019`, comment `No money`.
 
-The failed implementation discarded `MqlTradeCheckResult.retcode/comment`. It also refreshed broker preflight every 30 seconds while the Python runner could permanently fail after 12 seconds, so one startup result could be misclassified before a second independent check.
+After sufficient DEMO funds/free margin were restored, the exact same health layer returned two consecutive READY checks with local error `0`, server retcode `0`, comment `Done`, and `V69_RUNTIME_SMOKE_VERIFIED=1`.
 
-Current fix contract:
-
-- broker refresh every 5 seconds;
-- monotonic `broker_check_seq`;
-- terminal connection + account trade + account EA + terminal/MQL permissions + symbol synchronization checks;
-- execution-mode-aware dry-run request;
-- volume/trade/filling/execution diagnostics;
-- capture local `_LastError` and server `retcode/comment`;
-- bare 4756/no server detail initially transient;
-- two independent consecutive READY checks required;
-- repeated independent deterministic failure required before fatal BLOCKED;
-- transient stabilization allowed up to 90 seconds;
-- visible chart `SYSTEM HEALTH` state.
-
-Do not mark this broker incident resolved until the Windows rerun compiles the current exact source and produces either stable `SYSTEM HEALTH: READY` or a more specific deterministic server/account blocker.
-
-## Resolved harness incidents
+Conclusion: lot `0.01` is broker-valid; the incident was insufficient funds/free margin. Never interpret local 4756 alone when server retcode/comment is available.
 
 ### KF-02 — broken Python launcher candidate
 
@@ -65,9 +70,7 @@ Normal workflow is deterministic compile -> exact byte verification -> startup c
 
 ### KF-08 — CI semantic contract drifted behind runtime health wording
 
-After the broker-health implementation changed from a one-shot `BROKER: READY/BLOCKED` concept to stable multi-check `SYSTEM HEALTH` + `BROKER PREFLIGHT`, the actual broker-ready static tests passed but `v69-forward-quality` still failed because the workflow grepped obsolete literal strings.
-
-Fix: the workflow now asserts the current semantic contract (`BROKER PREFLIGHT: READY`, `SYSTEM HEALTH:`, two independent stable checks) rather than superseded wording. Do not interpret stale CI literals as strategy failure; inspect the failing step/log before changing runtime or alpha logic.
+After broker-health semantics changed from one-shot `BROKER: READY/BLOCKED` to stable multi-check `SYSTEM HEALTH` + `BROKER PREFLIGHT`, the broker-ready tests passed but `v69-forward-quality` initially failed because workflow grep assertions still expected obsolete literal strings. Inspect failing CI steps before changing runtime or alpha logic.
 
 ## Trading-system lessons that must not be lost
 
@@ -98,6 +101,9 @@ Current lineage arms protection around +$2 and attempts to lock about +$1. Do no
 - Use explicit UTF-8 on Windows.
 - MetaEditor process rc alone is not compile acceptance; require exact source identity + `0 errors, 0 warnings` + current non-empty EX5.
 - Terminal process state alone is not runtime health; require telemetry/heartbeat.
+- Interpret `_LastError` together with broker `MqlTradeCheckResult.retcode/comment`.
+- Server retcode `10019 / No money` means insufficient funds/free margin; do not relabel it as lot-size failure.
+- A dry-run READY proves order-request readiness, not an actual future fill. Actual execution requires a natural DEMO fill or separately authorized DEMO probe.
 - Resume only the failed layer; do not rerun historical MT5 merely for packaging/harness failures.
 - Keep strategy, broker transport and harness failures separate.
 - Do not change strategy thresholds to mask tooling/broker defects.

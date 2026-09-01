@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-01 (+07)
+Updated: 2026-09-01 22:30 (+07)
 
 ## Authority
 
@@ -12,7 +12,7 @@ Always resolve the current remote HEAD before giving an operator command. Read `
 
 ## Current objective
 
-Run a short live-market **DEMO smoke validation** of frozen V69 LONG on Exness MT5, prove runtime/broker order-path readiness, collect a small natural forward sample, then review before any later deployment decision.
+Run a short live-market **DEMO smoke validation** of frozen V69 LONG on Exness MT5. Historical replay already supplies the bulk of development research; this live step is primarily execution/runtime verification plus a small natural forward sample.
 
 Safety boundary remains:
 
@@ -55,7 +55,7 @@ V68 LONG: `28 trades / 10W / 18L / +$2.87 / PF ~1.146 / max DD $6.04`.
 
 V69 LONG: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / max DD $3.34`.
 
-V69 retained all 10 V68 winners while removing four losers. However, `10/14` V69 losers closed within 60 seconds. Monthly V69 LONG replay is highly regime-concentrated: Sep `-$1.84`, Oct `+$9.15`, Nov `+$1.24`, Dec `-$2.28`, Jan `+$0.87`, Feb-May flat; excluding October the total is `-$2.01`.
+V69 retained all 10 V68 winners while removing four losers. `10/14` V69 losers closed within 60 seconds. Monthly V69 LONG replay is regime-concentrated: Sep `-$1.84`, Oct `+$9.15`, Nov `+$1.24`, Dec `-$2.28`, Jan `+$0.87`, Feb-May flat; excluding October the total is `-$2.01`.
 
 V69 was designed after V68 was inspected. The Sep 2025-May 2026 V69 replay is **development evidence, not an independent holdout**.
 
@@ -69,45 +69,55 @@ Canonical launcher:
 
 Chart EA: `V69FrozenForwardSmokeDashboardLong`
 
-The one-shot performs exact Git-state validation, working-Python probing, static gates, deterministic source generation, MetaEditor compile, exact MQ5/EX5 byte verification, MT5 startup on `XAUUSDm M15`, live heartbeat verification, broker dry-run preflight, silent supervisor startup, and forward evidence collection.
+The one-shot performs exact Git-state validation, working-Python probing, static gates, deterministic source generation, MetaEditor compile, exact MQ5/EX5 verification, MT5 startup on `XAUUSDm M15`, live heartbeat verification, broker dry-run preflight, silent supervisor startup and forward evidence collection.
 
-Smoke review target: 2 naturally closed strategy trades or a 48-hour hard cap. Two trades are operational/forward sanity evidence, not statistical proof of profitability.
+Smoke review target: **2 naturally closed strategy trades or a 48-hour hard cap**. Two trades are operational/forward sanity evidence, not statistical proof of profitability.
 
-## Broker-health incident and implemented fix
+## Latest Windows runtime — HEALTHY
 
-The previous live DEMO run showed:
+Operator reran exact branch checkpoint `9143c0ece7bd73af01f31e2c37a571941c53edae` at 2026-09-01 22:29 (+07) after restoring sufficient DEMO funds/free margin.
 
-- lot `0.01`;
-- broker min `0.0100`, step `0.0100`, max `200.0000`;
-- trade mode `4`;
-- filling flags `3`;
-- first `OrderCheck()` false with local error `4756`.
+Observed results:
 
-This is **not a lot-size failure**. The old harness checked broker state every 30 seconds but could fail after 12 seconds, allowing one generic startup result to be treated as permanent. It also lost the server `retcode/comment`.
+- Python 3.12.10 selected after broken `py.exe -3` was rejected;
+- all local frozen-forward/dashboard/broker-ready/one-shot static gates passed;
+- MetaEditor compile: `0 errors, 0 warnings`;
+- broker-ready dashboard source SHA256: `1597f966175b15e0509a12ed7d0469c34615d08b8140bf43bc29dbe8627588f7`;
+- EX5 SHA256: `ba682c26c04edd15c9489d1301d9bef3f08d9460e98c7ae8461766fca9480378`;
+- startup expert copy passed;
+- broker health check seq 1: `ready=1`, `detail=READY`, local error `0`, server retcode `0`, comment `Done`;
+- broker health check seq 2: same READY result;
+- `V69_FORWARD_DEMO_READY=1`;
+- `V69_SYSTEM_HEALTH=READY`;
+- `V69_BROKER_PREFLIGHT_READY=1`;
+- `V69_BROKER_PREFLIGHT_STABLE_CHECKS=2`;
+- broker volume contract: lot `0.01`, min `0.0100`, step `0.0100`, max `200.0000`;
+- `V69_RUNTIME_SMOKE_VERIFIED=1`;
+- silent supervisor started PID `3412`;
+- `V69_BACKGROUND_CONSOLE_WINDOWS=DISABLED`;
+- `V69_CHART_DASHBOARD_PINNED=1`;
+- current chart status: `SYSTEM HEALTH: READY`, `BROKER PREFLIGHT: READY`, `Closed 0`, awaiting first natural strategy fill.
 
-The current health layer now:
+This proves runtime + broker dry-run order-path readiness. It does **not** yet prove an actual natural strategy fill; `EXECUTION VERIFIED` remains pending until a real DEMO V69 order/fill occurs.
 
-- refreshes broker preflight every 5 seconds;
-- publishes monotonic `broker_check_seq`;
-- checks terminal connection, account trade permission, account EA permission, terminal/MQL permissions, symbol synchronization, trade mode, volume contract, execution mode and filling mode;
-- builds the dry-run request according to execution mode;
-- records both local `_LastError` and server `retcode/comment`;
-- treats bare `4756` with no server retcode as transient initially;
-- requires two independent consecutive READY checks;
-- requires repeated independent fatal confirmation before permanent BLOCKED;
-- permits transient stabilization up to 90 seconds;
-- displays `SYSTEM HEALTH: STARTING / READY / BLOCKED` and `BROKER PREFLIGHT` directly on chart;
-- distinguishes `awaiting first natural fill` from `EXECUTION VERIFIED`.
+## No-money incident — resolved operationally
 
-The dry-run health layer does not add an order-send path and does not change V69 signal semantics.
+The preceding run captured the specific broker result that the earlier generic `4756` was hiding:
+
+- local `_LastError=4756`;
+- server `retcode=10019`;
+- server comment `No money`;
+- lot `0.01` itself was valid against min/step/max.
+
+After sufficient DEMO funds/free margin were restored, the exact same 0.01 preflight returned two consecutive `READY / retcode 0 / Done` checks. Therefore the incident was insufficient DEMO funds/free margin, not a lot-step defect and not a V69 strategy defect.
+
+Future harness maintenance should classify repeated server retcode `10019` as a deterministic insufficient-funds blocker and display balance/equity/free-margin diagnostics rather than spending the full transient retry window. Do not interrupt the currently healthy smoke run solely for this observability improvement.
 
 ## CI state
 
-The V69 forward runtime/static suite passed on code/CI checkpoint `9c2161b937bd7c16e1293c1de295181d18b419df` (`v69-forward-quality` run `33522581398`). All frozen-forward, dashboard, broker-ready, parent-regression, trade-quality and one-shot tests passed.
+Before the successful Windows run, exact checkpoint `9143c0ece7bd73af01f31e2c37a571941c53edae` had `v69-forward-quality`, `v69-quality`, `v68-quality`, and full `quality` all green.
 
-Two stale workflow literals were corrected during this gate: the workflow had asserted old broker-panel/error wording after the runtime health semantics were intentionally upgraded. This was a CI contract drift, not a strategy defect.
-
-After this state-sync commit, re-check `v69-forward-quality` on the new exact HEAD before operator execution.
+This current state-sync is documentation only; strategy/runtime source is unchanged. The active MT5 process remains pinned to the successfully compiled source from checkpoint `9143c0e...`.
 
 ## Classification
 
@@ -127,17 +137,22 @@ After this state-sync commit, re-check `v69-forward-quality` on the new exact HE
 
 `V69_LOT_0_01_BROKER_SPEC=VALID`
 
-`V69_BROKER_HEALTH_FIX=IMPLEMENTED_CI_PASS_PENDING_WINDOWS_RERUN`
+`V69_BROKER_PREFLIGHT=READY_STABLE_2_CHECKS`
+
+`V69_RUNTIME_SMOKE_VERIFIED=1`
+
+`V69_ACTUAL_EXECUTION_VERIFIED=0_AWAITING_NATURAL_FILL`
+
+`V69_CLOSED_FORWARD_TRADES=0`
 
 `REAL_DEPLOYMENT=NOT_AUTHORIZED`
 
 ## Next gate
 
-1. Verify relevant CI is green on the exact post-sync remote HEAD.
-2. Operator closes MT5 and MetaEditor once.
-3. Fetch/checkout that exact clean HEAD and run only the canonical one-shot.
-4. Require MetaEditor `0 errors, 0 warnings`.
-5. Require two independent broker checks and chart `SYSTEM HEALTH: READY`.
-6. If blocked, use the newly captured account flags + local error + server retcode/comment; do not guess and do not retune strategy.
-7. If READY, leave the DEMO smoke running until 2 natural closed strategy trades or the 48-hour cap.
-8. Review the final evidence before any later REAL-money decision.
+1. **Do not rerun or restart the healthy smoke merely because closed trades are still zero.**
+2. Leave MT5 running while `SYSTEM HEALTH: READY` and `BROKER PREFLIGHT: READY` remain green.
+3. Wait for the first natural V69 fill; that changes execution state from `awaiting first natural fill` to `EXECUTION VERIFIED`.
+4. End the short smoke review after 2 natural closed strategy trades or the 48-hour hard cap.
+5. Supervisor should export the final smoke evidence automatically.
+6. Review execution + trade evidence before any strategy change or later REAL-money decision.
+7. REAL remains fail-closed until a separate explicit deployment/risk decision.
