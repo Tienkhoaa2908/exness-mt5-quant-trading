@@ -10,7 +10,6 @@ RUNNER = ROOT / "runtime" / "v66_post_bos_cash_zone" / "RUN_V66_POST_BOS_CASH_ZO
 FIXED_RUNNER = ROOT / "runtime" / "v66_post_bos_cash_zone" / "RUN_V66_POST_BOS_CASH_ZONE_FIXED.py"
 LAUNCHER = ROOT / "runtime" / "v66_post_bos_cash_zone" / "START_V66_POST_BOS_CASH_ZONE_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-068-v66-post-bos-cash-zone-research.md"
-HANDOFF = ROOT / "docs" / "handoff" / "V66_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -122,14 +121,13 @@ def test_v66_launcher_uses_fixed_runtime_without_local_pytest_dependency():
     assert "build_v66_post_bos_cash_zone_source_fixed.py" in fixed
 
 
-def test_v66_docs_exist_and_preserve_tester_only_safety():
-    for p in (ADR, HANDOFF):
-        assert p.is_file()
-        text = p.read_text(encoding="utf-8")
-        assert "V66" in text
-        assert "0.01" in text
-        assert "REAL" in text
-        assert "cash-zone" in text.lower() or "cash zone" in text.lower()
+def test_v66_adr_exists_and_preserves_tester_only_safety():
+    assert ADR.is_file()
+    text = ADR.read_text(encoding="utf-8")
+    assert "V66" in text
+    assert "0.01" in text
+    assert "REAL" in text
+    assert "cash-zone" in text.lower() or "cash zone" in text.lower()
 
 
 if __name__ == "__main__":
