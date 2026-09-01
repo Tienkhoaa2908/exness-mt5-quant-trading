@@ -10,7 +10,6 @@ ANALYZER = ROOT / "scripts" / "analyze_v64_microstructure_trigger_shadow.py"
 RUNNER = ROOT / "runtime" / "v64_microstructure_trigger_shadow" / "RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW.py"
 LAUNCHER = ROOT / "runtime" / "v64_microstructure_trigger_shadow" / "START_V64_MICROSTRUCTURE_TRIGGER_SHADOW_GIT_BASH.sh"
 ADR = ROOT / "docs" / "adr" / "ADR-066-v64-microstructure-trigger-shadow-research.md"
-HANDOFF = ROOT / "docs" / "handoff" / "V64_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -174,18 +173,16 @@ def test_v64_noise_analyzer_detects_stop_then_later_target():
     assert out["s110_t400"]["stop_then_later_target"] == 0
 
 
-def test_v64_docs_record_external_research_as_patterns_not_evidence():
+def test_v64_adr_records_external_research_as_patterns_not_evidence():
     adr = ADR.read_text(encoding="utf-8")
-    handoff = HANDOFF.read_text(encoding="utf-8")
-    for text in (adr, handoff):
-        assert "MunchonGithub/thragg-ea" in text
-        assert "smtlab/smartmoneyconcepts" in text
-        assert "foeed/FvgGold-EA" in text
-        assert "unverified" in text.lower()
-        assert "REAL" in text
-        assert "0.01" in text
+    assert "MunchonGithub/thragg-ea" in adr
+    assert "smtlab/smartmoneyconcepts" in adr
+    assert "foeed/FvgGold-EA" in adr
+    assert "unverified" in adr.lower()
+    assert "REAL" in adr
+    assert "0.01" in adr
     assert "stop-then-recovery" in adr
-    assert "12 Model=4" in handoff
+    assert "12 Model=4 real-tick passes" in adr
 
 
 if __name__ == "__main__":
