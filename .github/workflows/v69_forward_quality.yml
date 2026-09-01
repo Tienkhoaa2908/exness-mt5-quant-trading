@@ -74,7 +74,8 @@ jobs:
           grep -Fq 'PARENT_DASHBOARD_SHA256 = "5d00901309c949deafbd7c89164257ca2779fdbddc0e570a09cd82a8272875a0"' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'V69_BROKER_PREFLIGHT_ORDER_SEND=0' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'OrderCheck(req,chk)' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
-          grep -Fq 'BROKER: READY' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
+          grep -Fq 'BROKER PREFLIGHT: READY' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
+          grep -Fq 'SYSTEM HEALTH:' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'broker_ready=' scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py
           grep -Fq 'RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py' runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
           grep -Fq 'BROKER HEALTH BLOCKED after two independent checks' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
