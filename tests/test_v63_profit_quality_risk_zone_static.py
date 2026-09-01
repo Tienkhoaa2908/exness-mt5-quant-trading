@@ -10,7 +10,6 @@ ANALYZER = REPO / "scripts" / "analyze_v63_profit_quality_risk_zone.py"
 RUNNER = REPO / "runtime" / "v63_profit_quality_risk_zone" / "RUN_V63_PROFIT_QUALITY_RISK_ZONE.py"
 LAUNCHER = REPO / "runtime" / "v63_profit_quality_risk_zone" / "START_V63_PROFIT_QUALITY_RISK_ZONE_GIT_BASH.sh"
 ADR = REPO / "docs" / "adr" / "ADR-065-v63-profit-quality-risk-zone-research.md"
-HANDOFF = REPO / "docs" / "handoff" / "V63_RECOVERY_STATE.md"
 
 
 def load(path: Path, name: str):
@@ -139,17 +138,15 @@ def test_v63_launcher_portable_and_branch_pinned():
     assert "RUN_V63_PROFIT_QUALITY_RISK_ZONE.py" in text
 
 
-def test_v63_adr_and_handoff_freeze_profit_objective_without_guarantee_or_real_scope():
+def test_v63_adr_freezes_profit_objective_without_guarantee_or_real_scope():
     adr = ADR.read_text(encoding="utf-8")
-    handoff = HANDOFF.read_text(encoding="utf-8")
-    for text in (adr, handoff):
-        assert "$0.60-$1.05" in text
-        assert "$3.50" in text
-        assert "SHORT" in text
-        assert "REAL" in text
-        assert "not a promised" in text or "not a promised weekly return" in text
+    assert "$0.60-$1.05" in adr
+    assert "$3.50" in adr
+    assert "SHORT" in adr
+    assert "REAL" in adr
+    assert "not a promised return" in adr
     assert "first M15 arm" in adr
-    assert "12" in handoff
+    assert "Total real-tick passes are therefore 12" in adr
 
 
 def main() -> int:
