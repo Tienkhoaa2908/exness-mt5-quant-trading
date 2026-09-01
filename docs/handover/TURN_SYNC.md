@@ -1,162 +1,77 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-01 (+07)
+Updated: 2026-09-01 21:56 (+07)
 
 ## User request
 
-The user reported the current MT5 dashboard showing:
+User said: `rồi ok đưa code sửa cái kia đi` — provide the corrected one-shot command/code for the broker-health/runtime issue so the Windows DEMO smoke can be rerun.
 
-`BROKER: BLOCKED | ordercheck_call_failed_4756`
+## Mandatory pre-work state read
 
-and asked to:
-
-- verify whether the system can actually enter orders;
-- add an obvious on-chart health layer so healthy/broken runtime is visible immediately;
-- save the latest project state, failures, do/do-not-repeat rules and progress to GitHub;
-- remove stale recovery documents that could confuse a future chat;
-- establish a mandatory protocol that every project-related turn reads current GitHub
-  state first and synchronizes state back to GitHub before the final answer;
-- provide a professional recovery prompt and a professional GitHub state-sync prompt.
-
-## Evidence inspected
-
-Latest Windows one-shot log showed:
-
-- branch was `agent/v69-one-shot-prospective-demo`;
-- Python 3.12.10 selected after broken `py.exe -3` was rejected;
-- static tests passed;
-- MetaEditor compiled `V69FrozenForwardSmokeDashboardLong` with `0 errors, 0 warnings`;
-- fixed lot `0.01`;
-- broker min `0.0100`, step `0.0100`, max `200.0000`;
-- symbol trade mode `4`;
-- filling flags `3`;
-- first broker `OrderCheck()` returned false with local error `4756`;
-- the runner failed the startup gate.
-
-MQL5 reference research confirmed:
-
-- error 4756 is the generic `ERR_TRADE_SEND_FAILED`;
-- `OrderCheck()` should be interpreted using both local error and
-  `MqlTradeCheckResult.retcode/comment`;
-- account-level `ACCOUNT_TRADE_ALLOWED` and `ACCOUNT_TRADE_EXPERT` are separate required
-  permissions;
-- Market/Exchange execution requests do not require a client-specified market price,
-  unlike Request/Instant execution.
-
-## Root-cause finding in the harness
-
-The first broker-ready implementation refreshed its EA broker check every 30 seconds,
-but the Python runner permanently failed after 12 seconds when the same blocked detail
-remained. Therefore the runner could fail from a single startup `OrderCheck` result
-before a second independent broker check ever occurred.
-
-The implementation also discarded the server `retcode/comment` when `OrderCheck()`
-returned false, leaving only generic 4756.
-
-The latest observed broker volume contract proves this incident is **not a 0.01 lot-size
-failure**.
-
-## Code changes made this turn
-
-Updated `scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py` to:
-
-- refresh broker preflight every 5 seconds;
-- publish `broker_check_seq`;
-- classify fatal vs transient health failures;
-- check terminal connection;
-- check account trade permission;
-- check account Expert Advisor permission;
-- check terminal/MQL permissions;
-- check symbol synchronization;
-- capture trade/filling/execution modes;
-- build the dry-run request according to execution mode;
-- capture local `_LastError` plus server `retcode/comment`;
-- initially treat bare 4756 with no server detail as transient;
-- add a visible `SYSTEM HEALTH: STARTING / READY / BLOCKED` chart row;
-- display preflight state and whether actual natural execution has been observed.
-
-Updated `runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py` to:
-
-- count only independent broker checks by sequence;
-- require two consecutive independent READY checks before startup PASS;
-- require repeated independent fatal confirmation before permanent BLOCKED;
-- allow transient health checks up to 90 seconds to stabilize;
-- print full local/server broker diagnostics.
-
-Updated `tests/test_v69_one_shot_broker_ready_static.py` with regressions for:
-
-- health fields;
-- account/connection checks;
-- execution-mode-aware request construction;
-- stable independent checks;
-- the prior 30-second-refresh / 12-second-failure bug;
-- no new order-send path in the overlay;
-- no background console flashing.
-
-## Documentation changes made this turn
-
-Created canonical docs:
+Resolved active remote branch and read:
 
 - `docs/handover/OPERATING_PROTOCOL.md`;
-- `docs/handover/KNOWN_FAILURES.md`;
-- `docs/handover/STATE_SYNC_PROMPT.md`;
-- this `docs/handover/TURN_SYNC.md`.
-
-Replaced stale content in:
-
 - `docs/handover/CURRENT_STATE.md`;
-- `docs/handover/RECOVERY_PROMPT.md`.
+- `docs/handover/KNOWN_FAILURES.md`;
+- previous `docs/handover/TURN_SYNC.md`;
+- exact-HEAD GitHub Actions;
+- `RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py`;
+- `build_v69_frozen_forward_demo_broker_ready_dashboard_source.py`;
+- canonical Git Bash launcher.
 
-Removed superseded recovery-state duplicates:
+## CI investigation this turn
 
-- `docs/handoff/V61_RECOVERY_STATE.md`;
-- `docs/handoff/V62_RECOVERY_STATE.md`;
-- `docs/handoff/V63_RECOVERY_STATE.md`;
-- `docs/handoff/V64_RECOVERY_STATE.md`;
-- `docs/handoff/V64_RECOVERY_STATE_LOCATOR_FIX.md`;
-- `docs/handoff/V65_RECOVERY_STATE.md`;
-- `docs/handoff/V66_RECOVERY_STATE.md`;
-- `docs/handoff/V67_RECOVERY_STATE.md`;
-- `docs/handoff/V68_RECOVERY_STATE.md`;
-- `docs/handoff/V69_FORWARD_RECOVERY_STATE.md`;
-- `docs/handoff/V69_RECOVERY_STATE.md`;
-- `docs/handover/RECOVERY_V31_1_EXACT_MT5.md`;
-- `docs/handover/V31_1_READY_TO_RUN.md`.
+Starting remote HEAD was `34b755657968cba1c16483de13aef7b0c1255d13`.
 
-Historical ADR/research evidence remains because it is provenance, not current recovery
-state.
+On that head, all actual V69 broker-ready/static Python tests passed, but `v69-forward-quality` failed at the shell `Dashboard strategy isolation contract`. The failure was a stale workflow assertion: CI still expected old broker wording after runtime semantics had changed to stable multi-check health.
 
-## Safety / strategy status
+First CI alignment commit: `0fcdaf931a49033488d48ead785527cc8cc78bb7`.
 
-No V69 signal threshold, direction, stop, target or order-send path was intentionally
-changed by the new health overlay.
+That run still failed the same shell-contract step. Inspection showed a second stale literal: workflow expected `BROKER: READY`, while the current builder intentionally renders `BROKER PREFLIGHT: READY` plus `SYSTEM HEALTH:`.
 
-Current boundary remains:
+Second CI alignment commit: `9c2161b937bd7c16e1293c1de295181d18b419df`.
 
-- LONG only;
+`v69-forward-quality` run `33522581398` on `9c2161b...` completed **SUCCESS**. Its frozen-forward source tests, dashboard tests, broker-ready smoke tests, parent regressions, trade-quality tests, runtime-isolation tests and prospective one-shot tests all passed.
+
+This was CI contract maintenance only. No V69 entry/exit/risk/order-send semantics were changed.
+
+## Runtime health implementation being handed to operator
+
+Current broker-health layer:
+
+- refreshes every 5 seconds;
+- counts independent checks via `broker_check_seq`;
+- requires two consecutive independent READY checks;
+- confirms deterministic fatal states on repeated independent checks;
+- allows transient failures, including bare local 4756/no server detail, to stabilize for up to 90 seconds;
+- records account/terminal/symbol permissions and local + server OrderCheck diagnostics;
+- shows `SYSTEM HEALTH: STARTING / READY / BLOCKED` and `BROKER PREFLIGHT` on chart;
+- distinguishes awaiting first natural fill from `EXECUTION VERIFIED`;
+- does not add a broker order-send path to the preflight layer.
+
+## Safety status
+
+Unchanged:
+
 - XAUUSDm M15;
+- LONG only;
 - fixed lot 0.01;
 - DEMO only;
-- SHORT disabled;
+- SHORT disabled/rejected;
 - REAL authorization false.
 
-## Unresolved blocker
+## State-sync action
 
-The new health implementation still needs exact-HEAD CI verification and a Windows rerun.
-The previous 4756 incident is not considered resolved until the new build either:
-
-- reaches two stable independent READY checks, or
-- captures a more specific deterministic account/server blocker via the new diagnostics.
+This turn updates canonical `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, and `TURN_SYNC.md` together after the successful code/CI checkpoint. The resulting exact remote HEAD must receive a final relevant CI verification before the user is instructed to run it.
 
 ## Next operator action
 
-After exact-HEAD CI is green:
+Once `v69-forward-quality` is green on the exact post-sync HEAD:
 
-1. close MT5 and MetaEditor once;
-2. rerun the canonical one-shot only;
-3. require `0 errors, 0 warnings`;
-4. require `SYSTEM HEALTH: READY` / two stable broker checks;
-5. if READY, leave the short smoke running for 2 natural closed strategy trades or the
-   48-hour cap;
-6. if not READY, use the newly exposed account flags + local error + server
-   retcode/comment; do not guess and do not retune strategy.
+1. close MT5 and MetaEditor;
+2. ensure local repo worktree is clean (do not `git clean`, do not `stash pop`);
+3. fetch and fast-forward/checkout the exact active branch HEAD;
+4. export `V69_ONE_SHOT_EXPECTED_HEAD` to that exact SHA;
+5. run the canonical one-shot launcher once;
+6. require MetaEditor `0 errors, 0 warnings` and two stable broker READY checks;
+7. if blocked, return the `V69_HEALTH_CHECK=` lines or chart screenshot so local error + server retcode/comment can be diagnosed directly.

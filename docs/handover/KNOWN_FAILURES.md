@@ -8,146 +8,97 @@ Read this before modifying Windows/MT5 runtime code.
 
 ### KF-2026-09-01-01 — first broker dry-run returned generic 4756
 
-Observed on Exness DEMO `XAUUSDm M15` during V69 broker-ready smoke:
+Observed on Exness DEMO `XAUUSDm M15`:
 
-- fixed lot: `0.01`;
-- broker volume min: `0.0100`;
-- broker volume step: `0.0100`;
-- broker volume max: `200.0000`;
-- symbol trade mode: `4` (full trading);
-- filling flags: `3` (FOK + IOC available);
-- `OrderCheck()` call returned false;
+- fixed lot `0.01`;
+- broker min `0.0100`, step `0.0100`, max `200.0000`;
+- symbol trade mode `4`;
+- filling flags `3`;
+- `OrderCheck()` returned false;
 - `_LastError=4756` (`ERR_TRADE_SEND_FAILED`).
 
-Important conclusion: **this was not a minimum-lot/lot-step failure**. The broker's own
-volume specification accepts `0.01`.
+This was **not a minimum-lot/lot-step failure**. The broker volume specification accepts `0.01`.
 
-The failed implementation discarded `MqlTradeCheckResult.retcode/comment`, so the
-server-side reason was not captured. It also refreshed broker preflight every 30 seconds
-but the Python runner permanently failed after 12 seconds with the same result. This
-meant one startup check could be misclassified as a permanent broker block before a
-second independent `OrderCheck` ever occurred.
+The failed implementation discarded `MqlTradeCheckResult.retcode/comment`. It also refreshed broker preflight every 30 seconds while the Python runner could permanently fail after 12 seconds, so one startup result could be misclassified before a second independent check.
 
-Fix contract now implemented on the active branch:
+Current fix contract:
 
-- refresh broker check every 5 seconds;
-- expose a monotonic `broker_check_seq`;
-- check terminal connection, account trade permission, account EA permission, EA/local
-  permissions and symbol synchronization;
-- capture both local `_LastError` and server `retcode/comment`;
-- construct dry-run request according to `SYMBOL_TRADE_EXEMODE`;
-- treat bare 4756 with no server retcode as transient initially;
-- require two independent consecutive READY checks before `SYSTEM HEALTH=READY`;
-- require repeated independent confirmation before deterministic fatal classification;
-- allow transient transport checks up to 90 seconds to stabilize;
-- show `SYSTEM HEALTH` directly on the MT5 panel.
+- broker refresh every 5 seconds;
+- monotonic `broker_check_seq`;
+- terminal connection + account trade + account EA + terminal/MQL permissions + symbol synchronization checks;
+- execution-mode-aware dry-run request;
+- volume/trade/filling/execution diagnostics;
+- capture local `_LastError` and server `retcode/comment`;
+- bare 4756/no server detail initially transient;
+- two independent consecutive READY checks required;
+- repeated independent deterministic failure required before fatal BLOCKED;
+- transient stabilization allowed up to 90 seconds;
+- visible chart `SYSTEM HEALTH` state.
 
-Do not claim this incident resolved until Windows MetaEditor compiles the new source and
-the new live DEMO run produces stable `SYSTEM HEALTH: READY` or a more specific captured
-server retcode/comment.
+Do not mark this broker incident resolved until the Windows rerun compiles the current exact source and produces either stable `SYSTEM HEALTH: READY` or a more specific deterministic server/account blocker.
 
 ## Resolved harness incidents
 
-### KF-01 — Python launcher selected a broken `py.exe -3`
+### KF-02 — broken Python launcher candidate
 
-Symptom: launcher found `py.exe` but execution failed later.
+Finding an executable path is insufficient. Probe it by actually executing Python and require 3.10+. Print rejected candidates. This prevents a broken `py.exe -3` from being selected merely because it exists.
 
-Rule: every launcher must execute a real probe and require Python 3.10+. Current
-preferred fallback on this machine has been Python 3.12.10 at the user's local Python
-installation. Print `PYTHON_REJECTED=` for failed candidates and `PYTHON_SELECTED=` only
-for a candidate that actually executes.
+### KF-03 — unsupported MQL helper `LongToString`
 
-### KF-02 — dashboard used unsupported `LongToString`
+MetaEditor rejected a generated dashboard even though Python static tests passed. Use MQL5-supported conversions such as `IntegerToString(long)` and maintain generated-source compile/API regressions.
 
-Symptom: MetaEditor compile failure after static Python tests passed.
+### KF-04 — generated dashboard hash-pin drift
 
-Fix: use MQL5-supported `IntegerToString(long)` and regression-test generated source.
-Also check `OrderCalcProfit` return values to avoid compiler warnings.
+A valid deterministic builder output changed after a dashboard fix while a runner retained an older duplicated generated-source hash. Freeze true parent strategy identity, but verify generated UI via deterministic A/B generation and exact installed bytes instead of redundant ephemeral pins.
 
-### KF-03 — generated dashboard hash pin drift
+### KF-05 — background helpers flashed console windows
 
-Symptom: deterministic builder generated a new valid source hash but runner still pinned
-an older hardcoded generated hash and failed with `dashboard source drift`.
+Periodic `tasklist.exe` / PowerShell children could create visible windows. Background Windows helpers must use `pythonw.exe` and/or `CREATE_NO_WINDOW`, hidden PowerShell and redirected handles. Static tests guard this.
 
-Rule: do not maintain redundant generated-source hash pins in multiple places. Freeze
-true parent strategy identity; verify A/B deterministic generation and exact installed
-bytes instead.
+### KF-06 — zero forward telemetry is stronger than zero trades
 
-### KF-04 — background supervisor flashed Terminal/console windows
+Successful inherited `OnInit()` creates status/header telemetry. Zero telemetry after attempted startup means the intended EA did not initialize/attach correctly; do not simply wait for a trade.
 
-Cause: periodic `tasklist.exe` and notification PowerShell helpers spawned visible
-console processes.
+### KF-07 — manual EA attachment is avoidable operator risk
 
-Fix: use `pythonw.exe`, `CREATE_NO_WINDOW`, hidden PowerShell and redirected standard
-handles for background helpers. Regression tests must enforce this.
+Normal workflow is deterministic compile -> exact byte verification -> startup config -> `XAUUSDm M15` launch -> heartbeat. Do not require manual attach when automation can pin the exact expert/chart.
 
-### KF-05 — `FORWARD_SNAPSHOT_FILES=0` was wrongly easy to interpret as "no trades"
+### KF-08 — CI semantic contract drifted behind runtime health wording
 
-The inherited EA creates headers/status during successful `OnInit()`. Therefore zero
-forward telemetry files after an attempted attach means the exact EA did not initialize,
-was not attached, or was attached to the wrong environment. It is stronger evidence than
-"no trade yet".
+After the broker-health implementation changed from a one-shot `BROKER: READY/BLOCKED` concept to stable multi-check `SYSTEM HEALTH` + `BROKER PREFLIGHT`, the actual broker-ready static tests passed but `v69-forward-quality` still failed because the workflow grepped obsolete literal strings.
 
-Current one-shot avoids manual attach by compiling/copying the exact EA and launching MT5
-with a startup config pinned to `XAUUSDm M15`.
+Fix: the workflow now asserts the current semantic contract (`BROKER PREFLIGHT: READY`, `SYSTEM HEALTH:`, two independent stable checks) rather than superseded wording. Do not interpret stale CI literals as strategy failure; inspect the failing step/log before changing runtime or alpha logic.
 
-### KF-06 — manual MT5 attachment is an avoidable source of operator error
+## Trading-system lessons that must not be lost
 
-Do not require the user to manually locate/attach the EA when deterministic startup config
-can do it. The one-shot launcher owns compile -> byte verification -> startup config ->
-MT5 launch -> heartbeat verification.
+### KL-01 — surviving V69 losers are fast-loss dominated
 
-## Research / trading-system lessons that must not be lost
+V68 LONG: 28 trades, 10W/18L, +$2.87, PF ~1.146, max DD $6.04.
 
-### KL-01 — V68/V69 surviving losers are heavily fast-loss dominated
+V69 LONG: 24 trades, 10W/14L, +$7.14, PF 1.462, max DD $3.34.
 
-Accepted comparison:
+V69 retained all 10 V68 winners while removing four losers, but 10/14 V69 losers closed within 60 seconds. Entry/regime quality remains the first verified research priority.
 
-- V68 LONG: 28 trades, 10W/18L, +$2.87, PF ~1.146, max DD $6.04;
-- V69 LONG: 24 trades, 10W/14L, +$7.14, PF 1.462, max DD $3.34;
-- V69 retained the 10 V68 winners while removing four losers;
-- 10/14 V69 losers closed within 60 seconds (71.4%).
+### KL-02 — October concentration indicates regime sensitivity
 
-Implication: current verified priority is entry/regime quality first; same-setup re-entry
-suppression second; harvest remains architecturally plausible but requires MFE evidence
-before being promoted to the primary failure mode.
+V69 monthly LONG: Sep -$1.84; Oct +$9.15; Nov +$1.24; Dec -$2.28; Jan +$0.87; Feb-May flat. Excluding October: -$2.01.
 
-### KL-02 — October concentration means V69 edge is regime-sensitive
+### KL-03 — V69 historical replay is development-only
 
-V69 monthly LONG replay:
+V69 was designed after V68 was inspected. Sep 2025-May 2026 is not an untouched V69 holdout. Do not tune on it again and call the result independent.
 
-- Sep 2025 -$1.84;
-- Oct +$9.15;
-- Nov +$1.24;
-- Dec -$2.28;
-- Jan +$0.87;
-- Feb-May flat;
-- total +$7.14;
-- excluding October: -$2.01.
+### KL-04 — existing profit ratchet has a theoretical sub-$2 harvest gap
 
-Do not tune repeatedly on the same historical months and call the result independent.
+Current lineage arms protection around +$2 and attempts to lock about +$1. Do not lower it blindly. Inspect MFE/capture/giveback first; near-zero-MFE fast losers cannot be fixed by earlier profit protection.
 
-### KL-03 — V69 historical replay is development evidence, not untouched holdout
-
-V69 was designed after inspecting V68. The Sep 2025-May 2026 V69 replay is development
-replay. The first independent evidence is prospective/live DEMO after the V69 freeze.
-
-### KL-04 — existing profit ratchet leaves a sub-$2 theoretical harvest gap
-
-Current lineage arms protection around +$2 and attempts to lock about +$1. Positive
-trades that never reach +$2 can theoretically round-trip. Do not lower the threshold
-blindly; first inspect MFE/capture/giveback diagnostics to determine whether this gap is
-actually material.
-
-## Permanent Windows/runtime rules
+## Permanent rules
 
 - Never `git clean`.
-- Do not `stash pop` during active evidence/runtime work.
-- Explicit UTF-8 text I/O on Windows.
-- MetaEditor rc alone is not compile success; require exact source identity + final
-  `0 errors, 0 warnings` + non-empty current EX5.
-- Terminal process exit/launch alone is not runtime success; require telemetry/heartbeat.
-- Resume the failed stage; do not rerun expensive historical MT5 work just to package.
-- Strategy thresholds must not be changed to mask harness/broker defects.
-- REAL money must remain fail-closed until explicitly authorized in a later deployment
-  decision.
+- Do not `stash pop` during active runtime/evidence work.
+- Use explicit UTF-8 on Windows.
+- MetaEditor process rc alone is not compile acceptance; require exact source identity + `0 errors, 0 warnings` + current non-empty EX5.
+- Terminal process state alone is not runtime health; require telemetry/heartbeat.
+- Resume only the failed layer; do not rerun historical MT5 merely for packaging/harness failures.
+- Keep strategy, broker transport and harness failures separate.
+- Do not change strategy thresholds to mask tooling/broker defects.
+- REAL money remains fail-closed until a later explicit decision.
