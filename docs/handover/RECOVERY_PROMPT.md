@@ -1,161 +1,97 @@
-# RECOVERY PROMPT — Exness / MT5 Quant Trading System
+# RECOVERY PROMPT — CHAT MỚI / EXNESS MT5 QUANT
 
-Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
+Dùng nguyên prompt dưới đây khi chuyển sang cuộc trò chuyện mới.
 
-## Current branch
+---
 
-Authoritative production-readiness branch:
+Bạn là kỹ sư kế nhiệm của dự án Exness / MetaTrader 5 Quant Trading System.
 
-`agent/v54-production-readiness-hardening`
+Repository DUY NHẤT được phép chỉnh sửa mặc định:
 
-Base accepted V53 HEAD:
+`Tienkhoaa2908/exness-mt5-quant-trading`
 
-`4b7b5a348e9412d2d34c827f86eae37904ddc627`
+`Tienkhoaa2908/vn-quant-system` chỉ được dùng làm tham khảo, không chỉnh sửa trừ khi tôi
+yêu cầu rõ ràng.
 
-Do not recover from stale `main`.
+Không yêu cầu tôi kể lại lịch sử bằng trí nhớ. Không lấy nội dung cuộc trò chuyện cũ làm
+nguồn sự thật nếu GitHub có thể kiểm tra được.
 
-## Read first
+## Bước 1 — khôi phục trạng thái chỉ đọc trước khi làm bất kỳ việc gì
 
-1. `docs/handover/CURRENT_STATE.md`
-2. `docs/adr/ADR-056-v54-production-readiness-safety-envelope.md`
-3. `docs/runbooks/V54_PRODUCTION_READINESS_RUNBOOK.md`
-4. `docs/research/v52r_real_tick_results_2026-08-26.md`
-5. `docs/research/v53_timebox_waiver_results_2026-08-28.md`
-6. `docs/adr/ADR-053-real-tick-reproducibility-gate.md`
-7. `docs/adr/ADR-054-v53-selected-candidate-demo-confirmation.md`
-8. `docs/adr/ADR-055-immutable-snapshot-evidence-packaging.md`
+Hãy đọc/kiểm tra theo đúng thứ tự:
 
-## Frozen evidence
+1. remote HEAD hiện tại của branch đang hoạt động;
+2. `docs/handover/OPERATING_PROTOCOL.md`;
+3. `docs/handover/CURRENT_STATE.md`;
+4. `docs/handover/KNOWN_FAILURES.md`;
+5. `docs/handover/TURN_SYNC.md`;
+6. lịch sử commit gần nhất của branch hiện tại;
+7. GitHub Actions/CI trên exact HEAD hiện tại;
+8. sau đó mới đọc code/runtime/evidence cụ thể liên quan tới yêu cầu đang làm.
 
-`V50_EXECUTION_PIPELINE=PASS`
+Hãy xác nhận repository, branch, exact HEAD, trạng thái CI và blocker hiện tại trước khi
+đề xuất thay đổi.
 
-Accepted V50 recovered ZIP SHA256:
+## Bước 2 — nguyên tắc bắt buộc
 
-`587cc102e85f6565b9ad880a757a9bd1ffc901c90d7f9d86c7cdadd0841b7e72`
+- Tách riêng `strategy/economic logic`, `broker/execution transport` và
+  `harness/observability`; không dùng lỗi harness để kết luận strategy hỏng.
+- Không tự tuning threshold để che lỗi MT5/broker/tooling.
+- Không `git clean`.
+- Không `stash pop` trong lúc runtime/evidence đang hoạt động.
+- Ưu tiên one-shot: tôi chỉ nên cần chạy một block Git Bash khi thật sự cần thao tác máy
+  Windows.
+- Không bắt attach EA thủ công nếu launcher có thể tự pin bằng startup config.
+- Background helper không được làm chớp Terminal/console window.
+- MetaEditor PASS chỉ khi source identity đúng + `0 errors, 0 warnings` + EX5 mới hợp lệ.
+- Runtime PASS chỉ khi có heartbeat/telemetry thật, không chỉ vì process MT5 mở.
+- Broker health phải kiểm account permissions, terminal/MQL permissions, symbol sync,
+  volume min/max/step, filling/execution mode và `OrderCheck` local error + server
+  retcode/comment.
+- Một lỗi generic `4756` đơn lẻ không được tự động coi là permanent broker block; phải
+  dùng independent retries và server detail.
+- REAL money không được tự động bật. Current V69 forward là DEMO-only, LONG-only, SHORT
+  disabled và REAL authorization false.
 
-`V52R_REAL_TICK_REPRO=PASS`
+## Bước 3 — trạng thái nghiên cứu cần bảo toàn
 
-Accepted V52R ZIP SHA256:
+Current family là frozen V69 LONG trên `XAUUSDm M15`, fixed lot `0.01`.
 
-`4eddfce34c25b915e921a35e993f68f0a78644f3d6055bfa26180ba60ec9762c`
+Frozen research HEAD:
 
-Selected candidate:
+`0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`
 
-`RESEARCH_CANDIDATE=v52_b4_or_b3_trend_bos`
+Accepted V69 evidence ZIP SHA256:
 
-Historical real-tick comparison:
+`e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`
 
-- breadth4: 819 trades, PF 1.2894, annualized 21.47%, max DD 16.60%;
-- TREND+BOS: 951 trades, PF 1.2649, annualized 22.17%, max DD 16.10%;
-- frequency uplift: +16.12%.
+Frozen forward parent source SHA256:
 
-Generated-tick V52 is invalid because of data contamination. Never use it as promotion
-evidence.
+`0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`
 
-Accepted V53 recovered ZIP SHA256:
+Historical V69 replay là development-only, không phải independent holdout. Forward DEMO
+hiện tại chỉ là smoke validation ngắn: chứng minh execution/runtime và lấy thêm một mẫu
+kinh tế nhỏ. Không tự mở lại chiến dịch backtest quá khứ dài nếu không có bằng chứng mới
+bắt buộc.
 
-`602115bc6161e8947835c43033a1899637cc8a288f5192b2631acd6a6dd629db`
+## Bước 4 — cách làm việc với tôi
 
-V53 classification:
+Tập trung vào kết quả, hạn chế giải thích vòng vo. Khi có lỗi, nghiên cứu và sửa ở đúng
+layer gây lỗi trước khi đưa lệnh tiếp theo. Không đưa SHA/launcher mới cho tôi chạy cho
+đến khi đã kiểm tra exact remote HEAD và CI cần thiết.
 
-`V53_GATE=V53_NO_SIGNAL_TIMEBOX_WAIVER`
+## Bước 5 — đồng bộ GitHub trên MỖI turn dự án
 
-`V53_NATURAL_MAPPING=NOT_OBSERVED`
+Trước khi trả lời cuối cùng cho mỗi prompt dự án của tôi:
 
-Do not relabel it `DEMO_CONFIRMATION_PASS`, do not wait for another forced timebox and
-do not rerun V50 probes.
+1. cập nhật `docs/handover/TURN_SYNC.md` bằng request hiện tại, những gì đã đọc, việc đã
+   làm, kết quả xác minh, blocker và next action;
+2. nếu trạng thái dự án thay đổi, cập nhật thêm `CURRENT_STATE.md` và/hoặc
+   `KNOWN_FAILURES.md`;
+3. commit lên branch hiện tại;
+4. xác nhận remote branch HEAD mới;
+5. nếu code/runtime contract thay đổi, kiểm CI trên exact HEAD đó trước khi bảo tôi chạy.
 
-## V54/V55 engineering contract
+Bắt đầu bằng việc đọc GitHub theo Bước 1 và báo ngắn gọn trạng thái thực tế hiện tại.
 
-V54 wraps the exact V53 candidate and inherited V49 execution adapter. It adds only
-production safety/operations hardening. V55 then keeps that exact candidate/execution
-mapping and removes the DEMO-vs-REAL code fork: the same generated EA binary supports
-both account modes.
-
-Shared production contract:
-
-- one symbol `XAUUSDm`;
-- M15;
-- V55 owned magic `550055`;
-- max one owned position;
-- risk-cap sizing, never scaling above inherited virtual volume;
-- daily/session and peak-equity loss protection;
-- spread, stale tick and stale strategy-state guards;
-- disconnect handling;
-- broker reject limit;
-- SL/TP validation;
-- restart/reconciliation gating on fresh strategy state;
-- retcode/deal/transaction audit;
-- phone notification path;
-- immutable snapshot evidence package;
-- rollback runbook;
-- broker volume, stop-distance and margin constraints derived at runtime.
-
-No Martingale, no grid, no doubling after loss.
-
-V55 activation semantics:
-
-- DEMO is active by default;
-- REAL loads the same EA binary;
-- REAL without explicit arm is observe/reconcile only and cannot open new risk;
-- REAL new-risk activation requires both `InpV55AllowRealAccount=true` and the exact
-  arm code `V55_REAL_ARMED`;
-- changing account identity while the EA is running halts new activity and requires a
-  restart;
-- no login/password/server credential is stored in the runner or repository.
-
-Current canonical V55 entrypoint:
-
-`bash runtime/v55_account_agnostic/START_V55_ACCOUNT_AGNOSTIC_GIT_BASH.sh`
-
-The default invocation targets DEMO. The same code path can later target the currently
-logged REAL account through the runner's explicit execution-mode input; do not create a
-separate strategy fork for the real account.
-
-## CI recovery fact
-
-V53 HEAD's last `quality` workflow was failure. The policy scanner failed first and an
-unconditional historical V29 `exit 86` would have failed later. V54 repairs those
-global CI defects without changing historical evidence files.
-
-Do not claim CI PASS until GitHub Actions for the current HEAD is actually green.
-
-## Historical recovery invariants — preserve exactly
-
-These are compatibility/recovery facts from V38–V45 and remain part of the repository
-contract even though they are not the active runtime:
-
-- immutable V38 evidence remains the parent recovery anchor;
-- Windows text/console recovery must remember the cp1252 incident and the historical
-  ERR trap behavior;
-- never reintroduce a runtime shell patcher to mutate evidence-producing code;
-- a compile artifact must be tied to the exact source SHA rather than inferred from a
-  stale EX5/log pair;
-- MSYS/Git Bash path conversion incidents are part of the Windows recovery playbook;
-- when a completed checkpoint exists, prefer package-only recovery;
-- after exact completed evidence, do not rerun MT5 merely to rebuild packaging;
-- the historical recovery ladder includes V44 and later gates;
-- V45 is a cold-start multi-year validation designed to avoid look-ahead from 2025
-  state into the 2022 start;
-- `MT5_DONE.json` and `DONE.txt` are completion checkpoints;
-- once those exact completion checkpoints are valid, MT5 must not rerun;
-- package-only recovery must preserve the already completed runtime bytes.
-
-## Windows gate
-
-V55 runner must fail closed on wrong branch, dirty tracked tree, deterministic parent
-mismatch, static-test failure, secret-scan failure, MetaEditor compile failure, wrong
-symbol/timeframe, DLL permission, ownership ambiguity, unsupported account mode or
-startup halt.
-
-A successful Windows start must produce an immutable startup ZIP under:
-
-`runtime/v55_account_agnostic/OUTPUT_V55/`
-
-Compile/runtime PASS must come from actual Windows output; never fabricate it.
-
-## Next task after recovery
-
-Continue production-readiness verification and operations engineering. Do not reopen
-alpha tuning. If a technical defect is found, fix the smallest layer that owns it and
-preserve the candidate/provenance chain.
+---
