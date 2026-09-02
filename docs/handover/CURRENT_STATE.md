@@ -12,13 +12,13 @@ Always resolve current remote HEAD and read `OPERATING_PROTOCOL.md`, `CURRENT_ST
 
 ## Current objective
 
-Passive waiting for a natural V69 trade is no longer the next diagnostic. After roughly one day of healthy DEMO runtime with zero natural fills, the project has switched to **immediate execution diagnosis**:
+Passive waiting for a natural V69 trade is no longer the next diagnostic. After roughly one day of healthy DEMO runtime with zero natural fills, the project switched to immediate execution diagnosis:
 
-1. snapshot the already-collected live V69 telemetry;
+1. snapshot already-collected live V69 telemetry;
 2. determine the furthest signal/state-machine stage actually reached;
 3. run one isolated DEMO-only 0.01 XAUUSDm actual open/close probe;
 4. automatically relaunch frozen V69;
-5. use those results to decide whether the no-trade condition is strategy gating or an order-path integration defect;
+5. distinguish upstream strategy gating from an order-path integration defect;
 6. progress toward a separate REAL-readiness package only after this diagnostic is resolved.
 
 REAL money remains unauthorized.
@@ -58,11 +58,11 @@ V69 LONG: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / max DD $3.34`.
 
 V69 retained all ten V68 winners while removing four losers, but `10/14` surviving V69 losers closed within 60 seconds. Monthly V69 replay is regime-concentrated: Sep `-$1.84`, Oct `+$9.15`, Nov `+$1.24`, Dec `-$2.28`, Jan `+$0.87`, Feb-May flat; excluding October total is `-$2.01`.
 
-The V69 Sep 2025-May 2026 replay is development evidence, **not an independent holdout**.
+The V69 Sep 2025-May 2026 replay is development evidence, not an independent holdout.
 
 ## Verified live runtime before immediate diagnostic
 
-Windows DEMO run compiled `V69FrozenForwardSmokeDashboardLong` with `0 errors, 0 warnings` and achieved:
+The previous Windows DEMO run compiled `V69FrozenForwardSmokeDashboardLong` with `0 errors, 0 warnings` and achieved:
 
 - live tick heartbeat;
 - telemetry active;
@@ -71,10 +71,9 @@ Windows DEMO run compiled `V69FrozenForwardSmokeDashboardLong` with `0 errors, 0
 - local OrderCheck error `0`;
 - server retcode `0`, comment `Done`;
 - `V69_RUNTIME_SMOKE_VERIFIED=1`;
-- silent supervisor/background console suppression;
 - chart `SYSTEM HEALTH: READY` and `BROKER PREFLIGHT: READY`.
 
-This proves attachment/runtime and dry-run broker readiness. It does **not** prove the actual V69 `g_trade.Buy()` integration path.
+This proves attachment/runtime and dry-run broker readiness. It does not prove the actual V69 integrated `g_trade.Buy()` path.
 
 ## Immediate real-readiness execution probe
 
@@ -82,17 +81,13 @@ Canonical launcher:
 
 `bash runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh`
 
-New components:
+Components:
 
-- `scripts/analyze_v69_live_signal_path.py` — reads existing `V64_EVENTS.csv` / `V64_DEALS.csv` and counts:
-  - `POST_ZONE_REVERSAL_CONFIRM`;
-  - `POST_CONFIRM_SEPARATION`;
-  - `POST_CONFIRM_RETEST_READY`;
-  - `POST_CONFIRM_ENTRY_READY`.
-- `scripts/build_v69_demo_execution_probe_source.py` — builds isolated `V69DemoExecutionProbe`.
-- `runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py` — snapshots telemetry, runs actual DEMO probe, records result, then relaunches frozen V69.
-- `tests/test_v69_real_readiness_probe_static.py` — safety/isolation/funnel tests.
-- `docs/handover/IMMEDIATE_REAL_READINESS_PLAN.md` — operational interpretation.
+- `scripts/analyze_v69_live_signal_path.py` — signal/state funnel;
+- `scripts/build_v69_demo_execution_probe_source.py` — isolated `V69DemoExecutionProbe`;
+- `runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py` — snapshot, actual DEMO probe, evidence, frozen-V69 relaunch;
+- `tests/test_v69_real_readiness_probe_static.py` — safety/isolation/funnel/launcher-contract regressions;
+- `docs/handover/IMMEDIATE_REAL_READINESS_PLAN.md` — interpretation.
 
 Probe contract:
 
@@ -102,35 +97,54 @@ Probe contract:
 - unique magic `699901`;
 - dry-run `OrderCheck` then one actual DEMO BUY;
 - closes only the probe-owned position immediately;
-- writes local/server open/close diagnostics and free margin;
-- gracefully closes probe MT5 using `TerminalClose()`;
-- automatically relaunches frozen V69;
-- does not authorize REAL money.
+- records open/close retcode, comment, price and free margin;
+- gracefully closes the probe MT5 using `TerminalClose()`;
+- automatically relaunches frozen V69 after PASS;
+- never authorizes REAL money.
 
 Interpretation:
 
-- probe PASS + no `POST_CONFIRM_ENTRY_READY`: MT5/broker execution works; V69's upstream gates prevented entry;
-- probe PASS + `POST_CONFIRM_ENTRY_READY > 0` but no natural V69 deal: escalate directly to V69 preflight/send tracing; likely strategy-order-path integration defect;
-- probe FAIL: diagnose exact actual order retcode immediately rather than waiting for a natural signal.
+- probe PASS + no `POST_CONFIRM_ENTRY_READY`: upstream V69 gating/state selectivity prevented entry;
+- probe PASS + `POST_CONFIRM_ENTRY_READY > 0` but no natural V69 deal: inspect V69 preflight/send integration immediately;
+- probe FAIL: diagnose the actual broker execution retcode instead of waiting for a natural signal.
+
+## First Windows probe attempt — harness failure before MT5 execution
+
+Operator ran exact checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e` at approximately 2026-09-03 00:56 (+07).
+
+Observed:
+
+- repository exact-state preflight PASS;
+- Python 3.12.10 selected after broken `py.exe -3` was rejected;
+- all six then-existing real-readiness static tests PASS;
+- secret scan PASS;
+- runner failed immediately at its first inherited repository guard with:
+  `RuntimeError: V69_ONE_SHOT_EXPECTED_HEAD is required`.
+
+Root cause is deterministic harness contract mismatch:
+
+- canonical new launcher accepted/exported `V69_REAL_READINESS_EXPECTED_HEAD`;
+- reused `forward.base.ensure_repo()` still required `V69_ONE_SHOT_EXPECTED_HEAD`;
+- the old static launcher test did not assert the cross-module environment bridge.
+
+This failure happened before `configure_runtime()`, before signal snapshot, before MetaEditor compile and before any MT5 execution probe was launched. It is therefore **not broker evidence and not strategy evidence**. Because MT5 had been closed for the diagnostic and the runner failed before its automatic relaunch stage, frozen V69 should be treated as not currently relaunched until the corrected probe run completes.
+
+## Harness fix after first Windows attempt
+
+The active branch now bridges the canonical probe expected HEAD into the inherited one-shot contract in two places:
+
+1. Git Bash launcher exports `V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"` after exact-state validation;
+2. Python runner `bridge_expected_head()` normalizes both environment names before calling the inherited `ensure_repo()` and before the later `forward.main()` relaunch.
+
+A regression test now requires both bridges explicitly. Strategy logic, probe lot, symbol, magic, DEMO guard and REAL fail-closed semantics are unchanged.
+
+Windows rerun of the corrected HEAD is still required before classifying the actual execution layer.
 
 ## Session-volatility successor research
 
-`docs/research/SESSION_VOLATILITY_RESEARCH.md` now defines a separate development track inspired by public volatility tools such as MarketMilk.
+`docs/research/SESSION_VOLATILITY_RESEARCH.md` defines a separate development track inspired by public volatility tools such as MarketMilk.
 
-Research goal: learn symbol/session-specific volatility, spread efficiency and continuation expectancy from our own MT5 history. Candidate labels include London open, London/New York overlap, New York open/core, Asia and rollover/low-liquidity. Timing must be DST-aware.
-
-This is a successor research feature, not a modification to frozen V69 and not a claim that New York always has positive expectancy.
-
-## CI checkpoint
-
-Code checkpoint `89370fcd37493f478d3fb50b218dabeea9544320` passed:
-
-- `v69-forward-quality` run `33662678974`;
-- `v69-quality`;
-- `v68-quality`;
-- full `quality` run `33662678989`.
-
-The exact post-documentation HEAD must be checked again before giving the operator command.
+Research goal: learn symbol/session-specific volatility, spread efficiency and continuation expectancy from our own MT5 history with DST-aware London/New York labels. This is successor research, not a modification to frozen V69 and not a claim that New York always has positive expectancy.
 
 ## Current classification
 
@@ -138,15 +152,17 @@ The exact post-documentation HEAD must be checked again before giving the operat
 
 `V69_HISTORICAL_REPLAY=DEVELOPMENT_ONLY_NOT_INDEPENDENT`
 
-`V69_BROKER_PREFLIGHT=READY_STABLE_2_CHECKS`
+`V69_BROKER_PREFLIGHT=READY_STABLE_2_CHECKS_FROM_PREVIOUS_HEALTHY_RUN`
 
-`V69_RUNTIME_SMOKE_VERIFIED=1`
+`V69_RUNTIME_SMOKE_VERIFIED=1_FROM_PREVIOUS_HEALTHY_RUN`
 
 `V69_NATURAL_FILL_AFTER_APPROX_1_DAY=0`
 
-`V69_IMMEDIATE_EXECUTION_DIAGNOSIS=READY_TO_RUN_AFTER_EXACT_HEAD_CI`
+`V69_FIRST_REAL_READINESS_WINDOWS_ATTEMPT=HARNESS_FAIL_BEFORE_RUNTIME`
 
-`V69_ACTUAL_DEMO_EXECUTION_PROBE=NOT_YET_RUN_ON_WINDOWS`
+`V69_ACTUAL_DEMO_EXECUTION_PROBE=NOT_YET_EXECUTED`
+
+`V69_EXPECTED_HEAD_BRIDGE_FIX=CODED_AWAITING_EXACT_HEAD_CI_AND_WINDOWS_RERUN`
 
 `V69_FORWARD_REAL_MONEY_AUTHORIZED=0`
 
@@ -156,12 +172,13 @@ The exact post-documentation HEAD must be checked again before giving the operat
 
 ## Next gate
 
-1. Verify CI on the exact current post-sync remote HEAD.
-2. Operator closes MT5 and MetaEditor once.
-3. Fetch/fast-forward to that exact HEAD.
+1. Verify CI on the exact corrected remote HEAD.
+2. Keep MT5 and MetaEditor closed for the retry.
+3. Fast-forward only to the exact corrected HEAD.
 4. Run only `START_V69_REAL_READINESS_PROBE_GIT_BASH.sh`.
-5. Require MetaEditor `0 errors, 0 warnings` for the execution-probe EA.
-6. Require actual DEMO BUY + immediate probe-owned close PASS.
-7. Read the pre-probe signal funnel and distinguish gating vs order-path integration failure.
-8. Frozen V69 is automatically relaunched after probe PASS.
-9. Use the result to build the next REAL-readiness/risk package; do not auto-enable REAL.
+5. Require the new marker `V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=` before the runner enters runtime setup.
+6. Require MetaEditor `0 errors, 0 warnings` for the execution-probe EA.
+7. Require actual DEMO BUY + immediate probe-owned close PASS or capture the first exact broker failure.
+8. Read the pre-probe signal funnel and classify gating vs order-path integration.
+9. Frozen V69 is automatically relaunched only after the probe PASS path.
+10. REAL remains a separate fail-closed deployment/risk decision.
