@@ -4,7 +4,28 @@ Updated: 2026-09-03 (+07)
 
 Read this before modifying Windows/MT5 runtime code.
 
-## Active diagnostic lesson
+## Active diagnostic lessons
+
+### KD-2026-09-03-03 — frozen dashboard still displays obsolete `2 trades / 48h` wait gate
+
+After the project switched from passive forward waiting to immediate real-readiness diagnosis, the frozen smoke dashboard still visibly displayed:
+
+- `Closed 0/2`;
+- `NEED: 2 more closed trade(s), or wait until 48h cap`;
+- `Quick gate: ... 2 closed trades`.
+
+This UI is now stale relative to the current project gate and can mislead the operator into waiting again even though the canonical plan already says not to wait for natural fills.
+
+Do not use those dashboard lines as the current go/no-go criterion.
+
+Current canonical gate is:
+
+1. live signal funnel from already-collected V69 telemetry;
+2. isolated actual DEMO 0.01 open/close execution probe;
+3. interpret gating vs V69 order-path integration;
+4. proceed to separate REAL-readiness work only after that diagnostic.
+
+Future dashboard revision should replace the legacy wait text with the real-readiness/probe state or clearly mark the natural-trade counter as informational only. Do not restart a healthy runtime solely to fix this cosmetic/stale status text before the current execution diagnostic is completed.
 
 ### KD-2026-09-03-01 — broker READY + live ticks + zero trades does not locate the fault
 
@@ -41,7 +62,7 @@ An isolated DEMO execution probe can prove that the account, symbol, lot, fillin
 
 Never convert probe PASS directly into automatic REAL authorization.
 
-## Active harness regression — code fixed, Windows rerun pending
+## Active harness regression — code fixed, Windows rerun/result pending verification
 
 ### KH-2026-09-03-01 — real-readiness expected-HEAD variable was not bridged into inherited V69 one-shot guard
 
@@ -68,13 +89,13 @@ Impact classification:
 
 Fix contract:
 
-- launcher must export `V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"` after exact Git validation;
-- runner must normalize both head-variable names before calling inherited code;
-- regression tests must explicitly assert both bridges;
+- launcher exports `V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"` after exact Git validation;
+- runner normalizes both head-variable names before calling inherited code;
+- regression tests explicitly assert both bridges;
 - keep the bridge alive through the final `forward.main()` relaunch path;
 - do not work around this by weakening exact-HEAD checks.
 
-The corrected code still requires one Windows rerun before this item can be moved to fully resolved.
+Corrected checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` passed `v69-forward-quality`, `v69-quality`, `v68-quality`, and full `quality`. Latest screenshot shows frozen V69 running again, but the corrected execution-probe terminal output/result has not yet been supplied in chat, so probe PASS/FAIL remains unverified.
 
 ## Maintenance follow-up
 
@@ -159,6 +180,7 @@ See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 - Server retcode `10019 / No money` means insufficient funds/free margin; do not relabel it as lot-size failure.
 - Dry-run READY proves request readiness, not an actual fill.
 - After prolonged no-trade runtime, use signal-funnel + isolated actual DEMO probe instead of waiting blindly.
+- Ignore the stale dashboard `2 trades / 48h` gate as a current project gate; it is informational legacy UI until revised.
 - Keep strategy, broker transport and harness failures separate.
 - Do not change strategy thresholds to mask tooling/broker defects.
 - Exact-HEAD contracts reused across nested runtimes must be bridged and regression-tested end-to-end.
