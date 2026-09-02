@@ -1,0 +1,40 @@
+name: v70-exit-harvest-quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  v70-exit-harvest-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python compile
+        run: |
+          python -m py_compile \
+            scripts/build_v70_exit_harvest_shadow_source.py \
+            scripts/analyze_v70_exit_harvest_shadow.py \
+            runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py \
+            tests/test_v70_exit_harvest_research.py
+      - name: Shell syntax
+        run: bash -n runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh
+      - name: V70 exit-harvest tests
+        run: python tests/test_v70_exit_harvest_research.py
+      - name: Safety and methodology contract
+        run: |
+          grep -Fq 'V70_ENTRY_SEMANTICS_CHANGED=0' scripts/build_v70_exit_harvest_shadow_source.py
+          grep -Fq 'V70_REAL_EXIT_SEMANTICS_CHANGED=0' scripts/build_v70_exit_harvest_shadow_source.py
+          grep -Fq 'V70_EXIT_COUNTERFACTUAL_SHADOW_ONLY=1' scripts/build_v70_exit_harvest_shadow_source.py
+          grep -Fq 'V64_NOISE_SHADOW' tests/test_v70_exit_harvest_research.py
+          grep -Fq 'MetaTrader 5 must be closed for the one-pass V70 tester replay' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py
+          grep -Fq 'V70_EXIT_HARVEST_EXPECTED_HEAD is required' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh
+          grep -Fq 'V70_SHORT_ENABLED=0' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py
+          grep -Fq 'REAL_MONEY_AUTHORIZED=0' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py
+      - name: Secret scan
+        run: python scripts/secret_scan.py .
