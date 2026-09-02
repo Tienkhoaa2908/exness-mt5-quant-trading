@@ -21,18 +21,24 @@ jobs:
             scripts/analyze_v69_upstream_signal_funnel.py \
             scripts/analyze_v69_pre_pending_eval.py \
             scripts/analyze_v69_selector_coverage_recovery.py \
+            scripts/analyze_v69_downstream_long_funnel.py \
             runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py \
             runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py \
+            runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py \
             tests/test_v69_upstream_signal_diag.py \
-            tests/test_v69_selector_coverage_recovery.py
+            tests/test_v69_selector_coverage_recovery.py \
+            tests/test_v69_downstream_long_funnel.py
       - name: Shell syntax
         run: |
           bash -n runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh
           bash -n runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh
+          bash -n runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY_GIT_BASH.sh
       - name: Upstream signal diagnostic tests
         run: python tests/test_v69_upstream_signal_diag.py
       - name: Selector coverage recovery tests
         run: python tests/test_v69_selector_coverage_recovery.py
+      - name: Downstream LONG funnel recovery tests
+        run: python tests/test_v69_downstream_long_funnel.py
       - name: Read-only safety contract
         run: |
           grep -Fq 'V69_UPSTREAM_MT5_CAN_REMAIN_RUNNING=1' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
@@ -43,6 +49,10 @@ jobs:
           grep -Fq 'V69_SELECTOR_COVERAGE_MT5_CAN_REMAIN_RUNNING=1' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py
           grep -Fq 'V69_SELECTOR_COVERAGE_ORDERS_SENT=0' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py
           grep -Fq 'V69_SELECTOR_COVERAGE_EXPECTED_HEAD is required' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh
+          grep -Fq 'V69_DOWNSTREAM_MT5_CAN_REMAIN_RUNNING=1' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          grep -Fq 'V69_DOWNSTREAM_ORDERS_SENT=0' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          grep -Fq 'V69_DOWNSTREAM_STRATEGY_CHANGED=0' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          grep -Fq 'V69_DOWNSTREAM_FUNNEL_EXPECTED_HEAD is required' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY_GIT_BASH.sh
           ! grep -Fiq 'terminal64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'OrderSend(' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
@@ -53,5 +63,10 @@ jobs:
           ! grep -Fiq 'OrderSend(' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py
           ! grep -Fiq '.Buy(' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py
           ! grep -Fiq '.Sell(' runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py
+          ! grep -Fiq 'terminal64.exe' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          ! grep -Fiq 'metaeditor64.exe' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          ! grep -Fiq 'OrderSend(' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          ! grep -Fiq '.Buy(' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
+          ! grep -Fiq '.Sell(' runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py
       - name: Secret scan
         run: python scripts/secret_scan.py .
