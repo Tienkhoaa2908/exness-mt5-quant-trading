@@ -126,13 +126,16 @@ def test_full_analyze_requires_all_nine_months_and_counts_deals() -> None:
         assert out["deals"]["trades"] == 0
 
 
-def test_runtime_is_read_only() -> None:
+def test_runtime_is_read_only_and_identity_guarded() -> None:
     runner = RUNNER.read_text(encoding="utf-8")
     launcher = LAUNCHER.read_text(encoding="utf-8")
     assert "V69_DOWNSTREAM_FUNNEL_EXPECTED_HEAD is required" in runner
     assert "V69_DOWNSTREAM_MT5_CAN_REMAIN_RUNNING=1" in runner
     assert "V69_DOWNSTREAM_ORDERS_SENT=0" in runner
     assert "V69_DOWNSTREAM_STRATEGY_CHANGED=0" in runner
+    assert "V69_DOWNSTREAM_ACCEPTED_DEVELOPMENT_IDENTITY=PASS" in runner
+    assert 'EXPECTED_V69_DEALS = {"trades": 24, "wins": 10, "losses": 14, "net_usd": 7.14}' in runner
+    assert "e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb" in runner
     assert "V69_DOWNSTREAM_FUNNEL_EXPECTED_HEAD is required" in launcher
     forbidden = ("terminal64.exe", "metaeditor64.exe", "OrderSend(", ".Buy(", ".Sell(")
     for token in forbidden:
