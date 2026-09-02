@@ -18,7 +18,7 @@ const string V69ProbeRoot="mt5_quant\\v69_demo_execution_probe";
 const string V69ProbeFile="mt5_quant\\v69_demo_execution_probe\\V69_DEMO_EXECUTION_PROBE.txt";
 
 CTrade g_probe;
-int g_state=0; // 0=open pending, 1=close pending, 2=pass, -1=fail
+int g_state=0;
 ulong g_ticket=0;
 datetime g_started=0;
 datetime g_opened_at=0;
@@ -141,22 +141,19 @@ bool V69ProbePreflight(string &detail)
    return true;
 }
 
-void V69ProbeFail(const string detail)
+void V69ProbeFinish(const string state,const string detail,const int terminal_code)
 {
-   g_state=-1;
-   V69ProbeWrite("FAIL",detail);
-   Print("V69 DEMO EXECUTION PROBE FAIL: ",detail);
-   ExpertRemove();
+   g_state=(state=="PASS" ? 2 : -1);
+   V69ProbeWrite(state,detail);
+   Print("V69 DEMO EXECUTION PROBE ",state,": ",detail,
+         " open_retcode=",g_open_retcode," close_retcode=",g_close_retcode," ticket=",g_ticket);
+   bool accepted=TerminalClose(terminal_code);
+   Print("V69 DEMO EXECUTION PROBE TerminalClose accepted=",accepted);
+   return;
 }
 
-void V69ProbePass()
-{
-   g_state=2;
-   V69ProbeWrite("PASS","actual_demo_open_and_close_verified");
-   Print("V69 DEMO EXECUTION PROBE PASS open_retcode=",g_open_retcode,
-         " close_retcode=",g_close_retcode," ticket=",g_ticket);
-   ExpertRemove();
-}
+void V69ProbeFail(const string detail){ V69ProbeFinish("FAIL",detail,92); }
+void V69ProbePass(){ V69ProbeFinish("PASS","actual_demo_open_and_close_verified",0); }
 
 void V69ProbeProcess()
 {
@@ -224,6 +221,7 @@ void V69ProbeProcess()
          return;
       }
       V69ProbePass();
+      return;
    }
 }
 
@@ -233,11 +231,13 @@ int OnInit()
    if((ENUM_ACCOUNT_TRADE_MODE)AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO)
    {
       V69ProbeWrite("FAIL","DEMO_ACCOUNT_REQUIRED");
+      TerminalClose(93);
       return INIT_FAILED;
    }
    if(_Symbol!="XAUUSDm")
    {
       V69ProbeWrite("FAIL","XAUUSDm_REQUIRED");
+      TerminalClose(94);
       return INIT_FAILED;
    }
    EventSetTimer(1);
@@ -245,11 +245,7 @@ int OnInit()
    return INIT_SUCCEEDED;
 }
 
-void OnDeinit(const int reason)
-{
-   EventKillTimer();
-}
-
+void OnDeinit(const int reason){ EventKillTimer(); }
 void OnTimer(){ V69ProbeProcess(); }
 void OnTick(){ V69ProbeProcess(); }
 '''
@@ -278,6 +274,7 @@ def validate() -> None:
         "g_probe.PositionClose(ticket,50)",
         "actual_demo_open_and_close_verified",
         "V69ProbeRealMoneyAuthorized=false",
+        "TerminalClose(terminal_code)",
     )
     for token in required:
         if token not in SOURCE:
