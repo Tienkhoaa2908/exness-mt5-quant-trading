@@ -8,6 +8,8 @@ REPO = Path(__file__).resolve().parents[1]
 ANALYZER = REPO / "scripts" / "analyze_v69_selector_coverage_recovery.py"
 RUNNER = REPO / "runtime" / "v69_selector_coverage_recovery" / "RUN_V69_SELECTOR_COVERAGE_RECOVERY.py"
 LAUNCHER = REPO / "runtime" / "v69_selector_coverage_recovery" / "RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh"
+V64_SCREEN_BUILDER = REPO / "scripts" / "build_v64_microstructure_trigger_shadow_screen_source.py"
+V69_BUILDER = REPO / "scripts" / "build_v69_confirm_separation_retest_source.py"
 
 HEADER = [
     "time","h4_trend","h1_trend","m15_trend","structure_dir","bos_choch_dir","fvg_dir",
@@ -96,6 +98,16 @@ int V64SelectDirection(){return 0;}
     diff2 = mod.compare_directional_core(template, threshold)
     assert diff2["exact_directional_core_match"] is False
     assert "InpV64MinScoreEdge" in diff2["threshold_mismatches"]
+
+
+def test_repo_v64_all_bar_screen_matches_frozen_v69_directional_core() -> None:
+    analyzer = load(ANALYZER, "v69_cov_repo_identity")
+    v64_screen = load(V64_SCREEN_BUILDER, "v64_screen_for_v69_coverage_identity")
+    v69 = load(V69_BUILDER, "v69_for_coverage_identity")
+    identity = analyzer.compare_directional_core(v64_screen.transform(), v69.transform(1))
+    assert identity["exact_directional_core_match"] is True, identity
+    assert identity["function_mismatches"] == []
+    assert identity["threshold_mismatches"] == []
 
 
 def test_runtime_is_read_only_and_reuses_existing_screen_evidence() -> None:
