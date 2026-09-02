@@ -1,10 +1,30 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 03:21 (+07)
+Updated: 2026-09-03 04:21 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
+
+### KD-2026-09-03-12 — MFE alone cannot simulate an honest trailing-stop counterfactual
+
+`V64_NOISE_SHADOW.max_pnl` gives peak price-PnL excursion and `min_pnl` gives adverse excursion. Those values are sufficient for MFE/MAE, giveback, capture-ratio, threshold-reach and ratchet-eligibility diagnostics.
+
+They are **not** sufficient to reconstruct the chronological path after the peak. Do not infer a trailing-stop exit from peak MFE alone. A genuine trailing-rule counterfactual requires intra-trade path/tick ordering or a replay that preserves it.
+
+### KD-2026-09-03-11 — next-cycle rearm PnL is not same-setup counterfactual edge
+
+Cycle-economics recovery found positive next-cycle net after context-quality (`+$6.90`) and TTL (`+$2.46`) rejections, while hard-structural next cycles were `-$2.22`.
+
+Do not conclude that relaxing the rejected gate would have captured those profits. The recovery explicitly proves only chronological next-cycle association. `same archetype != same setup identity`, and cross-month rearms were not linked.
+
+To change a gate, measure the rejected cycle's own subsequent price path or run a correctly paired shadow/replay.
+
+### KD-2026-09-03-10 — high PF from two trades is not an archetype promotion signal
+
+`PULLBACK_SWEEP_BOS` produced `1W / 1L`, net `+$2.38`, PF `3.125`, but only `2` sent trades out of `219` cycles. This is an extremely small execution sample and must not be promoted over the main engine.
+
+`BREAKOUT_RETEST_BOS` produced `22/24` V69 trades and is the economically relevant engine for current diagnostics.
 
 ### KD-2026-09-03-09 — selector bars are not independent setups and must not be divided directly by trade count
 
@@ -22,26 +42,26 @@ Use cycle-based `PENDING_ARM` telemetry to localize contraction. Only after a ga
 
 A downstream diagnostic that silently reads stale or different V69 run folders can produce a plausible but scientifically wrong funnel.
 
-The V69 downstream funnel runner therefore requires accepted development economics to match:
+Accepted V69 development identity is:
 
 - `24 trades`;
 - `10 wins`;
 - `14 losses`;
 - about `+$7.14` net.
 
-If it must recover from the V69 research ZIP, the ZIP SHA256 must be exactly:
+If ZIP recovery is used, accepted SHA256 is:
 
 `e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`.
 
-Do not override identity failure and do not rerun MT5 tester merely to make the diagnostic pass.
+Do not override identity failure and do not rerun MT5 tester merely to make a diagnostic pass.
 
 ### KD-2026-09-03-07 — candidate ENTRY_EVAL rows cannot measure all-bar opportunity coverage
 
-The aggregate live diagnostic found `83/83` preserved directional evaluations were `short_edge`, selected `-1`, rejected as `direction_isolated_out`, and occurred in selector-defined `SHORT_HTF_REGIME`.
+Aggregate live diagnostics found `83/83` preserved directional evaluations were `short_edge`, selected `-1`, rejected as `direction_isolated_out`, and occurred in selector-defined SHORT HTF regime.
 
-That does not mean every closed M15 bar was SHORT-eligible because inherited `EvaluateBar` returns before ENTRY_EVAL when feature building fails or selector direction is neutral.
+That does not mean every closed M15 bar was SHORT-eligible because inherited evaluation returns before ENTRY_EVAL on neutral or feature-fail paths.
 
-The all-bar recovery subsequently proved:
+All-bar recovery subsequently proved:
 
 - `23,526` M15 rows;
 - `3,576` LONG selected (`15.2002%`);
@@ -49,9 +69,7 @@ The all-bar recovery subsequently proved:
 - `18,206` neutral (`77.3867%`);
 - LONG share of directional selections `67.218%`.
 
-Thus the hypothesis that the V69 LONG selector is globally starved is rejected. Opportunity availability is regime-dependent, not uniformly absent.
-
-Reuse historical all-bar screen evidence only after exact directional-core and score-threshold identity validation against frozen V69.
+Thus global LONG-selector starvation is rejected. Reuse all-bar evidence only after exact directional-core and score-threshold identity validation against frozen V69.
 
 ### KD-2026-09-03-06 — `direction_isolated_out + short_edge` is regime abstention, not permission to enable SHORT
 
@@ -59,9 +77,9 @@ Final aggregate live evidence:
 
 - unique rows `83`;
 - `short_edge` `83/83`;
-- `selected_direction=-1` `83/83`;
+- selected direction `-1` `83/83`;
 - `direction_isolated_out` `83/83`;
-- `SHORT_HTF_REGIME` `83/83`;
+- SHORT HTF regime `83/83`;
 - H1/H4 `-1` `83/83`;
 - short score higher `83/83`.
 
@@ -149,7 +167,7 @@ V68 LONG: `28 trades / 10W / 18L / +$2.87 / PF ~1.146 / max DD $6.04`.
 
 V69 LONG: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / max DD $3.34`.
 
-V69 kept all ten V68 winners while removing four losers, but `10/14` surviving V69 losers closed within 60 seconds. Entry/regime quality remains a verified economic priority.
+V69 kept all ten V68 winners while removing four losers, but `10/14` surviving V69 losers closed within 60 seconds.
 
 ### KL-02 — October concentration indicates regime sensitivity
 
@@ -159,15 +177,29 @@ All-bar direction coverage independently reinforces regime variation: LONG selec
 
 ### KL-03 — V69 historical replay is development-only
 
-V69 was designed after V68 inspection. Sep 2025-May 2026 is not an untouched holdout. Funnel analysis on these months can localize mechanics but cannot create independent edge evidence.
+V69 was designed after V68 inspection. Sep 2025-May 2026 is not an untouched holdout. Funnel, cycle-economics and MFE/giveback analysis on these months can localize mechanics but cannot create independent edge evidence.
 
 ### KL-04 — profit ratchet has a theoretical sub-$2 harvest gap
 
-Current lineage arms around +$2 and attempts to lock about +$1. Do not lower it blindly. Inspect MFE/capture/giveback first; near-zero-MFE fast losers cannot be rescued by earlier protection.
+Current lineage arms around `+$2` and attempts to lock about `+$1`. Do not lower it blindly. Inspect MFE/capture/giveback first; near-zero-MFE fast losers cannot be rescued by earlier protection.
 
 ### KL-05 — session volatility is conditioning, not a trading rule
 
 Use DST-aware past-only statistics and expectancy/MFE/MAE by session. Session labels alone are not an edge.
+
+### KL-06 — downstream attrition is mostly structural, not V69 separation
+
+Accepted development funnel: `460 PENDING_ARM -> 404 micro-arm -> 167 touch -> 95 penetration -> 51 reversal confirm -> 49 separation -> 24 retest/entry -> 24 deals`.
+
+Terminal-family recovery classified `235/460` cycles as hard structural failures. V69 separation retained `49/51` reversal-confirm cycles, so it is not the primary contraction layer. Do not remove separation to manufacture turnover.
+
+### KL-07 — breakout-retest is the current economic engine
+
+`BREAKOUT_RETEST_BOS`: `241` cycles, `22` trades, `9W/13L`, net `+$4.76`, PF `1.332402`.
+
+`PULLBACK_SWEEP_BOS`: `219` cycles, only `2` trades, `1W/1L`, net `+$2.38`, PF `3.125`.
+
+The pullback headline PF is sample-starved; do not promote it without new independent evidence.
 
 ## Permanent rules
 
@@ -190,5 +222,8 @@ Use DST-aware past-only statistics and expectancy/MFE/MAE by session. Session la
 - Keep strategy, broker transport, telemetry and harness failures separate.
 - Do not change strategy thresholds to mask tooling/broker defects or observability gaps.
 - Do not loosen a gate from funnel volume alone; measure rejected-cycle counterfactual outcomes first.
+- Next-cycle association is not same-setup counterfactual proof.
+- Do not promote an archetype from a two-trade PF.
+- Do not simulate a trailing exit from MFE peak alone; require path ordering.
 - Exact-HEAD contracts reused across nested runtimes must be bridged and regression-tested end-to-end.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
