@@ -1,88 +1,83 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 06:45 (+07)
+Updated: 2026-09-03 06:50 (+07)
 
 ## User input
 
-Operator reran the V70 one-pass exit-harvest research after closing MT5/MetaEditor, pinned to exact checkpoint:
+Operator supplied the complete first nine-month V70 Windows replay from checkpoint `6d4095f1903f15077fdf805fda1f4485f4ffd314`.
 
-`6d4095f1903f15077fdf805fda1f4485f4ffd314`
+The campaign itself succeeded through source generation, MetaEditor compile (`0 errors, 0 warnings`), and all nine Sep 2025-May 2026 real-tick tester months. Raw evidence directories were written for every month.
 
-The run passed Python/static/secret-scan gates, compiled `V70ExitHarvestShadowLong` with `0 errors, 0 warnings`, completed all nine real-tick Strategy Tester months Sep 2025-May 2026, then analyzed the evidence and failed closed at baseline identity.
+The first Python post-processing printed 24 trades, economic round-trip net `+$6.44`, all-zero `TRUE_EXCURSION`, policy lines, then failed closed against the legacy accepted `+$7.14` headline.
 
-Generated source SHA256:
+## Classification
 
-`b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`
+Do not use any policy number from that first analyzer output. The apparent `EARLY_100_025` delta is invalid.
 
-EX5 SHA256:
+Source audit identified two analyzer/harness defects, not a strategy/broker/tester failure:
 
-`af321cdfe2f91b672443ad57aa7f33606d8e41d5660607cc3f74f6bf3f6a3f5f`
+1. Real `V64_EVENTS.csv` numeric fields are `value1/value2/value3`; V70 read `v1/v2/v3`, so excursion and policy trigger numeric values became zero.
+2. The accepted V69 headline and full economic round-trip PnL use different cost accounting conventions. The accepted identity is 24/10/14/~+$7.14 under legacy exit-row accounting; honest policy economics use entry+exit explicit costs and produced `+$6.44` on this cohort.
 
-## First analyzer output — INVALID FOR POLICY SELECTION
+## Fixes completed
 
-The analyzer printed 24 trades and economic round-trip net `+$6.44`, then all-zero `TRUE_EXCURSION` and four `POLICY_*` summaries, and finally stopped with:
+V70 now:
 
-`FATAL: RuntimeError: V70 baseline net identity mismatch expected=7.14+/-0.05 actual=6.44000000`
+- parses real `value1/value2/value3` event columns;
+- tests the real telemetry schema;
+- reports `legacy_accepted_identity` separately from `economic_roundtrip_actual`;
+- gates accepted V69 identity using legacy 24/10/14/~+$7.14;
+- compares policy economics consistently against the full round-trip baseline;
+- fails closed if true excursion/policy telemetry remains all-zero.
 
-Do not use any first-run `POLICY_*` number. In particular, do not promote `EARLY_100_025` from its apparent +$0.15 delta. The numeric shadow event path was parsed incorrectly.
+## Fast-path improvement
 
-## Source audit
+A second full nine-month tester campaign is no longer the primary recovery path because the raw tester evidence already exists and the defects were in post-processing.
 
-Two harness/analyzer defects were identified.
+V70 now supports:
 
-### A. Event schema mismatch
+`V70_REANALYZE_EXISTING=1`
 
-Actual `V64_EVENTS.csv` numeric fields are `value1`, `value2`, `value3`.
+This mode:
 
-V70 analyzer read `v1`, `v2`, `v3`, and its synthetic regression test used those same invented keys. Therefore all true excursion and shadow trigger numeric values became zero.
+- SHA-pins local `OUTPUT_V70/V70ExitHarvestShadowLong.mq5` against the current builder output;
+- requires all nine existing monthly run directories;
+- requires non-empty `V64_DEALS.csv` and `V64_EVENTS.csv` in each;
+- requires `V70_EXIT_SHADOW_START` and `V70_EXIT_SHADOW_END` lifecycle markers;
+- runs only the corrected analyzer and fail-closed guards;
+- skips MT5 locator/process gate, MetaEditor compile and Strategy Tester launch.
 
-This explains the all-zero `TRUE_EXCURSION` and invalidates every policy counterfactual from the first full replay.
+Expected fast-path markers:
 
-### B. Baseline accounting mismatch
-
-`analyze_v69_forward_trade_quality.parse_deals()` calculates full economic round-trip PnL as exit profit + entry explicit costs + exit explicit costs. On the 24-trade V70 replay this was `+$6.44`.
-
-The accepted V68/V69 headline analyzer calculates legacy headline PnL from exit rows only: exit profit + exit-row commission/swap/fee. That convention underlies the accepted V69 `+$7.14` headline.
-
-The difference is an accounting-definition mismatch, not sufficient evidence of strategy drift.
-
-## Patch implemented
-
-Active branch remains:
-
-`agent/v70-exit-harvest-research`
-
-Code checkpoint before this handover synchronization:
-
-`6d8138490b7413aed5b38e273275bd60380460d4`
-
-Changes:
-
-- V70 parses canonical `value1/value2/value3` event fields, with aliases only as fallback;
-- tests now use the real event schema;
-- analyzer reports `legacy_accepted_identity` and `economic_roundtrip_actual` separately;
-- accepted 24/10/14/~+$7.14 identity gate uses legacy accounting only;
-- policy deltas use economic round-trip accounting consistently;
-- runtime fails closed if excursion/policy telemetry is still all-zero;
-- static tests no longer print a misleading accepted-baseline PASS fixture during normal test execution.
-
-No entry semantics, actual exit semantics, LONG-only boundary, SHORT state, or REAL authorization changed.
-
-## CI
-
-The dedicated `v70-exit-harvest-quality` workflow on code checkpoint `6d8138490b7413aed5b38e273275bd60380460d4` completed successfully. No failure was observed in the initial exact-head workflow inspection before handover sync.
-
-Because handover commits change the branch HEAD, resolve the new final remote HEAD and require all six workflows completed/success before operator rerun.
-
-## Decision
-
-The first full Windows replay proved the compile/tester/evidence campaign works, but its policy economics are invalid because of analyzer bugs. This is a harness correction, not a new strategy tuning cycle.
-
-Run the corrected V70 campaign one more time only. Interpret policies only after both markers pass:
-
+- `V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS`
+- `V70_EXISTING_EVIDENCE_MONTHS=PASS count=9`
 - `V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS`
 - `V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS`
+- `V70_EXISTING_EVIDENCE_REANALYSIS=1`
+- `V70_EXIT_HARVEST_RESEARCH=PASS`
 
-Then make the exit-harvest decision immediately: promote at most one candidate if economics justify it; otherwise close exit-harvest research and move to entry/re-entry quality.
+If source/evidence integrity fails, only then run the full nine-month tester fallback.
 
-SHORT remains disabled. REAL money remains unauthorized.
+## Current code state
+
+Active branch: `agent/v70-exit-harvest-research`.
+
+Existing-evidence reanalysis code/test checkpoint before this handover synchronization:
+
+`a30ed2b77ec38fa82a2d184cd1db39002c1ea205`
+
+All six exact-head checks on that checkpoint completed successfully, including full `quality`, V70 exit-harvest static, V69 forward/static, V68 static and upstream read-only.
+
+No strategy semantics changed. SHORT remains disabled. REAL authorization remains false.
+
+## Next operator action
+
+After resolving the final branch HEAD created by this handover sync and verifying all six exact-head workflows are green:
+
+1. fast-forward to the exact final HEAD;
+2. export `V70_EXIT_HARVEST_EXPECTED_HEAD` to that SHA;
+3. export `V70_REANALYZE_EXISTING=1`;
+4. run `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh` once;
+5. return the two evidence-integrity markers, legacy/economic baseline lines, `TRUE_EXCURSION`, four corrected `POLICY_*` lines, both PASS guards and final V70 PASS.
+
+This should be a seconds-scale reanalysis, not another tester campaign. MT5/MetaEditor state is irrelevant to this reanalysis path.
