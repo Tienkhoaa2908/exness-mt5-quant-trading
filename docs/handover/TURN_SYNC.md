@@ -4,74 +4,160 @@ Updated: 2026-09-03 (+07)
 
 ## User input
 
-Operator supplied a current MT5 screenshot and asked how much longer to wait.
+Operator supplied the complete corrected real-readiness terminal run from code checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca`.
 
-Visible dashboard state:
-
-- `V69FrozenForwardSmokeDashboardLong` on `XAUUSDm M15`;
-- `SYSTEM HEALTH: READY`;
-- `BROKER PREFLIGHT: READY`;
-- position FLAT;
-- live tick heartbeat active;
-- `Closed 0 / 2`;
-- legacy dashboard text still says to wait for `2 closed trades` or a `48h cap`.
+This supersedes the previous state where probe completion was unknown.
 
 ## Mandatory state inspection
 
-Before answering, re-resolved active remote branch HEAD and re-read:
+This turn re-resolved the active remote branch and re-read:
 
-- `docs/handover/CURRENT_STATE.md`;
-- `docs/handover/KNOWN_FAILURES.md`;
-- previous `docs/handover/TURN_SYNC.md`;
-- exact corrected-head CI evidence already associated with checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca`.
+- `OPERATING_PROTOCOL.md`;
+- `CURRENT_STATE.md`;
+- `KNOWN_FAILURES.md`;
+- prior `TURN_SYNC.md`;
+- current signal-path analyzer;
+- V67/V69 upstream event architecture;
+- active CI/runtime contracts.
 
-## Key conclusion
+## Strongest new evidence
 
-The operator should **not wait any longer for the legacy `2 trades / 48h` smoke gate**.
+### Signal funnel before probe
 
-That text is stale relative to the current project plan. After approximately one day of healthy runtime with zero natural fills, the project explicitly replaced passive waiting with:
+The already-collected live V69 telemetry reported:
 
-1. signal-path funnel from existing V69 telemetry;
-2. isolated actual DEMO 0.01 BUY/open-close execution probe;
-3. classification of upstream V69 gating versus integrated order-path failure.
+- `V69_PRE_PROBE_SIGNAL_PATH_CLASSIFICATION=NO_V69_RECLAIM_CONFIRM_OBSERVED`;
+- `POST_ZONE_REVERSAL_CONFIRM=0`;
+- `POST_CONFIRM_SEPARATION=0`;
+- `POST_CONFIRM_RETEST_READY=0`;
+- `POST_CONFIRM_ENTRY_READY=0`;
+- natural closed deals `0`.
 
-Therefore the correct wait time for the old natural-trade gate is effectively zero.
+Conclusion: during the observed no-trade window, V69 never reached reclaim confirmation. Therefore V69 separation/retest/entry-ready/order-send code was not exercised by a natural setup.
 
-The latest chart proves current frozen-dashboard runtime and broker dry-run health are READY, but it does not prove that the corrected real-readiness probe completed. The chat still lacks the corrected probe terminal output or `V69_REAL_READINESS_PROBE_RESULT.json`.
+### Actual DEMO transport probe
 
-Do not infer probe PASS from the screenshot alone. The frozen dashboard can be relaunched separately and the legacy progress text is not authoritative.
+`V69DemoExecutionProbe` compiled with `0 errors, 0 warnings`.
 
-## Documentation updates this turn
+Identity:
 
-Updated `CURRENT_STATE.md` to record:
-
-- latest frozen-dashboard runtime is visibly READY again;
-- `2 trades / 48h` is obsolete as the current project gate;
-- corrected probe result remains unverified in chat.
-
-Updated `KNOWN_FAILURES.md` with a new lesson:
-
-- stale dashboard `2 trades / 48h` text can mislead the operator into waiting after the project has already switched to immediate real-readiness diagnosis;
-- future dashboard revision should show real-readiness/probe state or label the natural-trade counter informational only.
-
-No strategy/runtime code was changed this turn. No REAL authorization changed.
-
-## Current action
-
-- If corrected real-readiness probe at/after checkpoint `614d68e...` has **not** run to completion: do not wait; close MT5/MetaEditor once and run the corrected probe launcher now.
-- If it **did** run and the current frozen dashboard is the automatic relaunch after probe PASS: do not wait; return the terminal output/result immediately so the signal funnel and execution result can be interpreted.
-
-## Safety
-
-Unchanged:
-
-- V69 frozen LONG only;
-- XAUUSDm M15;
+- source SHA256 `150131300630fdf23d14c273494a9190a340bf05e1ffea8376d0a56fc160b278`;
+- EX5 SHA256 `25bbde5a813e7e5fa6c046a1dc1374a728253e127709079594c10daf44fad3be`;
+- magic `699901`;
+- XAUUSDm;
 - 0.01 lot;
-- current execution diagnostic DEMO only;
+- DEMO only.
+
+Execution:
+
+- actual BUY open PASS;
+- open retcode `10009`, comment `done`, price `4377.736`;
+- immediate close of the probe-owned position PASS;
+- close retcode `10009`, comment `done`, price `4377.476`;
+- free margin `$39.74`;
+- probe terminal closed gracefully `rc=0`;
+- `V69_ACTUAL_DEMO_EXECUTION_VERIFIED=1`.
+
+Conclusion: MT5 <-> broker actual market transport for `0.01 XAUUSDm` is proven. Generic deployment/lot/broker-fill capability is not the current no-trade blocker.
+
+### Frozen V69 relaunch after probe
+
+Automatic relaunch succeeded:
+
+- broker health READY twice;
+- `V69_SYSTEM_HEALTH=READY`;
+- `V69_BROKER_PREFLIGHT_READY=1`;
+- `V69_RUNTIME_SMOKE_VERIFIED=1`;
+- background console disabled;
+- dashboard pinned;
+- strategy unchanged;
+- LONG only;
 - SHORT disabled;
 - REAL authorization false.
 
-## Next gate
+Pre-probe forward telemetry was archived to:
 
-The next evidence required is **probe/funnel output**, not a natural closed trade and not expiration of the old 48-hour counter.
+`Common\Files\mt5_quant\_v69_forward_previous_20260902_182142_999701Z`
+
+This archive is now the preferred source for deeper upstream diagnosis because it contains the older no-trade observation window.
+
+## Diagnostic conclusion
+
+Do **not** wait for the dashboard's obsolete `2 trades / 48h` gate.
+
+Do **not** rerun the forced execution probe; its transport purpose is complete.
+
+Current blocker classification:
+
+`UPSTREAM_SIGNAL_OR_STATE_GATING_BEFORE_POST_ZONE_REVERSAL_CONFIRM`
+
+The next question is not whether MT5 can send an order. The next question is which earlier gate rejected the market opportunities the operator visually expected to qualify.
+
+## Code added this turn
+
+A read-only upstream signal diagnostic was added:
+
+- `scripts/analyze_v69_upstream_signal_funnel.py`;
+- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py`;
+- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh`;
+- `tests/test_v69_upstream_signal_diag.py`;
+- `.github/workflows/v69_upstream_diag_quality.yml`.
+
+It auto-discovers current and `_v69_forward_previous_*` telemetry roots and selects the richest event stream.
+
+It counts the upstream funnel:
+
+`PENDING_ARM -> MICRO_ENTRY_ARM -> MICRO_ENTRY_ZONE_TOUCH -> MICRO_ENTRY_PENETRATION -> POST_ZONE_CONFIRM_WAIT -> POST_ZONE_REVERSAL_CONFIRM -> POST_CONFIRM_SEPARATION -> POST_CONFIRM_RETEST_READY -> POST_CONFIRM_ENTRY_READY`
+
+It also reports:
+
+- invalidation/expiry events;
+- confirm-wait reason counts;
+- dominant blocker;
+- next diagnostic/action;
+- top raw event counts.
+
+Safety contract:
+
+- strictly read-only;
+- MT5 may remain running;
+- no MetaEditor;
+- no terminal restart;
+- no order functions;
+- no REAL authorization.
+
+## Documentation changes
+
+`CURRENT_STATE.md` now records actual execution PASS and moves the blocker upstream.
+
+`KNOWN_FAILURES.md` now records:
+
+- actual transport PASS + zero reclaim-confirm as the decisive localization lesson;
+- expected-HEAD bridge incident as resolved;
+- do not rerun forced transport probes without new contradictory evidence.
+
+## Strategy status
+
+Frozen V69 has not been changed.
+
+Historical V69 replay remains development-only, regime-concentrated evidence.
+
+Session-volatility/New York research remains a separate successor research track; it must not be used as a hard-coded session-open trade rule.
+
+## Safety status
+
+- current live runtime DEMO only;
+- LONG only;
+- SHORT disabled;
+- REAL authorization false;
+- actual probe PASS does not authorize REAL.
+
+## Next operator action
+
+After the final code/documentation HEAD passes exact-head CI:
+
+1. leave MT5 running;
+2. fast-forward only to the exact final HEAD;
+3. run one Git Bash launcher: `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh`;
+4. return the markers from `V69_UPSTREAM_SOURCE_ROOT=` through `V69_UPSTREAM_DIAGNOSTIC=PASS` or the first `FATAL`;
+5. do not wait for another natural trade before interpreting the result.
