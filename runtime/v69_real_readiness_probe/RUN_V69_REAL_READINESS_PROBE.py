@@ -167,7 +167,20 @@ def wait_terminal_close(proc: subprocess.Popen) -> None:
     raise RuntimeError("probe PASS was written but TerminalClose did not complete within 30s; do not force-kill MT5")
 
 
+def bridge_expected_head() -> str:
+    expected_head = os.environ.get("V69_REAL_READINESS_EXPECTED_HEAD", "").strip()
+    if not expected_head:
+        expected_head = os.environ.get("V69_ONE_SHOT_EXPECTED_HEAD", "").strip()
+    if not expected_head:
+        raise RuntimeError("V69_REAL_READINESS_EXPECTED_HEAD is required")
+    os.environ["V69_REAL_READINESS_EXPECTED_HEAD"] = expected_head
+    os.environ["V69_ONE_SHOT_EXPECTED_HEAD"] = expected_head
+    print(f"V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED={expected_head}")
+    return expected_head
+
+
 def main() -> int:
+    bridge_expected_head()
     branch, head = forward.base.ensure_repo()
     run([sys.executable, "-m", "py_compile", PROBE_BUILDER, SIGNAL_ANALYZER, Path(__file__)])
     run([sys.executable, SECRET_SCAN, REPO])
