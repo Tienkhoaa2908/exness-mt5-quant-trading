@@ -45,25 +45,49 @@ def write_events(root: Path, events: list[tuple[str, str]], *, partial_tail: boo
         w.writerow(["time", "entry", "price"])
 
 
-def write_eval(root: Path, reject_reason: str, *, decision_reason: str = "long_edge", selected_direction: int = 1) -> None:
-    root.mkdir(parents=True, exist_ok=True)
+def make_eval_row(
+    *,
+    time: str = "2026.09.02 12:00:00",
+    reject_reason: str = "no_complete_archetype",
+    decision_reason: str = "long_edge",
+    selected_direction: int = 1,
+    h4_trend: int = 0,
+    h1_trend: int = 1,
+    m15_trend: int = 1,
+    bos_choch_dir: int = 1,
+    long_score: int = 10,
+    short_score: int = 2,
+) -> dict[str, str]:
     row = {name: "0" for name in EVAL_HEADER}
     row.update({
-        "time": "2026.09.02 12:00:00",
-        "h4_trend": "1",
-        "h1_trend": "1",
-        "m15_trend": "1",
-        "long_score": "10",
-        "short_score": "2",
+        "time": time,
+        "h4_trend": str(h4_trend),
+        "h1_trend": str(h1_trend),
+        "m15_trend": str(m15_trend),
+        "bos_choch_dir": str(bos_choch_dir),
+        "long_score": str(long_score),
+        "short_score": str(short_score),
         "selected_direction": str(selected_direction),
         "decision_reason": decision_reason,
         "reject_reason": reject_reason,
         "stop_source": "none",
     })
+    return row
+
+
+def write_eval_rows(root: Path, rows: list[dict[str, str]]) -> None:
+    root.mkdir(parents=True, exist_ok=True)
     with (root / "V64_ENTRY_EVAL.csv").open("w", encoding="utf-8", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=EVAL_HEADER)
         w.writeheader()
-        w.writerow(row)
+        w.writerows(rows)
+
+
+def write_eval(root: Path, reject_reason: str, *, decision_reason: str = "long_edge", selected_direction: int = 1) -> None:
+    write_eval_rows(
+        root,
+        [make_eval_row(reject_reason=reject_reason, decision_reason=decision_reason, selected_direction=selected_direction)],
+    )
 
 
 def test_confirm_wait_reason_localizes_upstream_block() -> None:
@@ -140,6 +164,9 @@ def test_pre_pending_eval_localizes_no_complete_archetype() -> None:
         assert out["classification"] == "ARCHETYPE_COMPLETION_BLOCK_BEFORE_PENDING_ARM"
         assert out["dominant_blocker"] == "no_complete_archetype"
         assert out["decision_reason_counts"]["long_edge"] == 1
+        assert out["htf_regime_counts"]["LONG_HTF_REGIME"] == 1
+        assert out["trigger_state_counts"]["LONG_TRIGGER_ONLY"] == 1
+        assert out["score_relation_counts"]["LONG_SCORE_HIGHER"] == 1
 
 
 def test_pre_pending_zero_eval_requires_evaluatebar_observability() -> None:
@@ -156,6 +183,93 @@ def test_pre_pending_zero_eval_requires_evaluatebar_observability() -> None:
         assert "EvaluateBar" in out["next_action"]
 
 
+def test_pre_pending_aggregate_deduplicates_rotated_roots() -> None:
+    mod = load(PRE_PENDING_ANALYZER, "v69_pre_pending_aggregate")
+    with tempfile.TemporaryDirectory() as td:
+        base = Path(td)
+        root_a = base / "a"
+        root_b = base / "b"
+        short_a = make_eval_row(
+            time="2026.09.02 12:00:00",
+            reject_reason="direction_isolated_out",
+            decision_reason="short_edge",
+            selected_direction=-1,
+            h4_trend=0,
+            h1_trend=-1,
+            m15_trend=-1,
+            bos_choch_dir=-1,
+            long_score=2,
+            short_score=10,
+        )
+        long_b = make_eval_row(
+            time="2026.09.02 12:15:00",
+            reject_reason="no_complete_archetype",
+            decision_reason="long_edge",
+            selected_direction=1,
+            h4_trend=0,
+            h1_trend=1,
+            m15_trend=1,
+            bos_choch_dir=1,
+            long_score=11,
+            short_score=3,
+        )
+        short_c = make_eval_row(
+            time="2026.09.02 12:30:00",
+            reject_reason="direction_isolated_out",
+            decision_reason="short_edge",
+            selected_direction=-1,
+            h4_trend=-1,
+            h1_trend=-1,
+            m15_trend=-1,
+            bos_choch_dir=-1,
+            long_score=1,
+            short_score=12,
+        )
+        write_eval_rows(root_a, [short_a, long_b])
+        write_eval_rows(root_b, [short_a, short_c])
+
+        out = mod.aggregate([root_a, root_b])
+        unique = out["unique_summary"]
+        assert out["raw_rows_across_sources"] == 4
+        assert out["unique_rows_across_sources"] == 3
+        assert out["duplicate_rows_removed"] == 1
+        assert unique["selected_direction_counts"] == {"-1": 2, "1": 1}
+        assert unique["htf_regime_counts"] == {"SHORT_HTF_REGIME": 2, "LONG_HTF_REGIME": 1}
+        assert unique["trigger_state_counts"] == {"SHORT_TRIGGER_ONLY": 2, "LONG_TRIGGER_ONLY": 1}
+        assert unique["direction_context_classification"] == "LONG_SELECTOR_CANDIDATES_EXIST_ACROSS_PRESERVED_EVALS"
+        assert len(out["source_summaries"]) == 2
+
+
+def test_all_unique_short_edges_are_classified_as_regime_abstention() -> None:
+    mod = load(PRE_PENDING_ANALYZER, "v69_pre_pending_short_context")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        rows = [
+            make_eval_row(
+                time=f"2026.09.02 12:{minute}:00",
+                reject_reason="direction_isolated_out",
+                decision_reason="short_edge",
+                selected_direction=-1,
+                h4_trend=0 if minute == "00" else -1,
+                h1_trend=-1,
+                m15_trend=-1,
+                bos_choch_dir=-1,
+                long_score=2,
+                short_score=10,
+            )
+            for minute in ("00", "15")
+        ]
+        write_eval_rows(root, rows)
+        out = mod.aggregate([root])["unique_summary"]
+        assert out["rows"] == 2
+        assert out["decision_reason_counts"] == {"short_edge": 2}
+        assert out["selected_direction_counts"] == {"-1": 2}
+        assert out["htf_regime_counts"] == {"SHORT_HTF_REGIME": 2}
+        assert out["score_relation_counts"] == {"SHORT_SCORE_HIGHER": 2}
+        assert out["direction_context_classification"] == "ALL_UNIQUE_EVALS_SHORT_EDGE_IN_SHORT_HTF_REGIME"
+        assert "do not enable SHORT" in out["direction_context_next_action"]
+
+
 def test_runner_accepts_zero_event_rows_and_reads_pre_pending_eval() -> None:
     runner = RUNNER.read_text(encoding="utf-8")
     assert "V69_PRE_PROBE_SIGNAL_PATH.json" in runner
@@ -163,8 +277,14 @@ def test_runner_accepts_zero_event_rows_and_reads_pre_pending_eval() -> None:
     assert "none contain readable V64_EVENTS.csv rows" not in runner
     assert "PRE_PROBE_SIGNAL_PATH_JSON" in runner
     assert "analyze_v69_pre_pending_eval.py" in runner
+    assert "v69_upstream_signal_diagnostic_v4" in runner
     assert "V69_PRE_PENDING_EVAL_ROWS=" in runner
     assert "V69_PRE_PENDING_REJECT_REASONS=" in runner
+    assert "V69_PRE_PENDING_ALL_UNIQUE_ROWS=" in runner
+    assert "V69_PRE_PENDING_ALL_HTF_REGIMES" in runner
+    assert "V69_PRE_PENDING_ALL_TRIGGER_STATES" in runner
+    assert "V69_PRE_PENDING_ALL_SCORE_SUMMARY" in runner
+    assert "V69_PRE_PENDING_ALL_SOURCE_SUMMARY" in runner
     assert "INITIAL_SETUP_OR_PENDING_ARM_BLOCK" in ANALYZER.read_text(encoding="utf-8")
 
 
