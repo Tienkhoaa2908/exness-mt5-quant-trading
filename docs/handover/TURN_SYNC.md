@@ -1,21 +1,22 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 ~02:00 (+07)
+Updated: 2026-09-03 02:25 (+07)
 
 ## User input
 
-Operator ran the corrected read-only upstream signal diagnostic at checkpoint `5f427b7b584539f0bb8dc1652a13c713460cac63` while MT5 remained running.
+Operator ran the enhanced read-only upstream diagnostic at exact checkpoint:
 
-Result was a clean diagnostic PASS, not a harness failure.
+`931caf8949564ecaad65a524a9f55f16f044593d`
+
+MT5 remained running. The diagnostic completed cleanly with no orders and REAL authorization false.
 
 ## Exact operator evidence
 
-The diagnostic examined 8 preserved sources and reported:
+Pending-state/event funnel across preserved sources:
 
-- `V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1`;
-- `V69_UPSTREAM_EVENTS_ROWS=0`;
-- `V69_UPSTREAM_TOTAL_EVENT_ROWS=0`;
-- `V69_UPSTREAM_SOURCES_WITH_EVENT_ROWS=0`;
+- analyzed sources `8`;
+- total `V64_EVENTS.csv` data rows `0`;
+- sources with event rows `0`;
 - `PENDING_ARM=0`;
 - `MICRO_ENTRY_ARM=0`;
 - `MICRO_ENTRY_ZONE_TOUCH=0`;
@@ -25,65 +26,105 @@ The diagnostic examined 8 preserved sources and reported:
 - `POST_CONFIRM_SEPARATION=0`;
 - `POST_CONFIRM_RETEST_READY=0`;
 - `POST_CONFIRM_ENTRY_READY=0`;
-- all auxiliary pending/reclaim event counts `0`;
-- natural closed deals `0`;
-- classification `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`;
-- top blocker `PENDING_ARM`;
-- `V69_UPSTREAM_DIAGNOSTIC=PASS`;
+- natural closed V69 deals `0`;
+- upstream classification `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`.
+
+Pre-pending ENTRY_EVAL:
+
+- richest root: `Common\Files\mt5_quant\_v69_forward_previous_20260901_140447_333776Z`;
+- richest-root rows `46`;
+- raw rows summed across four roots `83`;
+- roots with rows `4`;
+- classification `DIRECTION_ISOLATION_BLOCK_BEFORE_PENDING_ARM`;
+- blocker `direction_isolated_out`;
+- decision reasons `{"short_edge": 46}`;
+- reject reasons `{"direction_isolated_out": 46}`;
+- selected directions `{"-1": 46}`;
+- diagnostic PASS;
 - launcher PASS;
-- read-only, orders sent `0`, REAL authorization `0`.
+- MT5 can remain running `1`;
+- orders sent `0`;
+- REAL authorization `0`.
 
-## Correct interpretation
+## Decisive interpretation
 
-This proves no instrumented pending-state event occurred in the preserved live sources.
+The live no-trade path is now localized more precisely for the richest preserved source.
 
-It does **not** prove that the market produced no candidate or that the user visually misidentified every opportunity.
+Those 46 evaluations did not fail at broker execution, reclaim confirmation, separation or retest. The inherited selector selected direction `-1`; V69's frozen LONG-only isolation then logged `direction_isolated_out` and returned before `PENDING_ARM`.
 
-Code review of the V62->V69 lineage found pre-pending paths that do not write `V64_EVENTS.csv`:
+Code review of inherited V59 selector confirms `short_edge` requires:
 
-1. `BuildFeatures` can fail or `SelectDirection` can return `d==0`; `EvaluateBar` returns before a pending event.
-2. Opposite selected direction can be logged to `V64_ENTRY_EVAL.csv` as `direction_isolated_out`.
-3. `V64ClassifyArchetype` can reject a LONG selector as `no_complete_archetype`, writing only `V64_ENTRY_EVAL.csv`.
-4. Raw M15 structural-stop geometry can reject as `invalid_arm_structural_stop`, writing only `V64_ENTRY_EVAL.csv`.
-5. Only a successful arm emits `PENDING_ARM`.
+- `h1_trend == -1 && h4_trend != 1`;
+- at least one short trigger (BOS/CHOCH, FVG, liquidity sweep, order-block retest, or aligned pullback/M15 trend);
+- short score >= configured minimum;
+- short-minus-long score edge >= configured minimum.
 
-Therefore the prior shorthand `EVENTS=0 -> no signal` is forbidden. The correct next evidence source is `V64_ENTRY_EVAL.csv`.
+Thus `short_edge` is a real selector eligibility result, not a cosmetic label. It does not prove profitable SHORT expectancy and does not authorize SHORT.
 
-## Transport status remains settled
+## Remaining ambiguity
 
-The earlier isolated DEMO execution probe at checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` remains authoritative:
+The raw `83` ENTRY_EVAL rows across four roots cannot yet be treated as 83 unique market evaluations. FILE_COMMON telemetry rotation can preserve copies of the same rows in multiple roots.
 
-- actual BUY `0.01 XAUUSDm` opened successfully;
-- open retcode `10009 / done`;
-- probe-owned close succeeded;
-- close retcode `10009 / done`;
-- terminal exited cleanly.
+The next diagnostic must exact-row deduplicate all roots and answer:
 
-Generic MT5 <-> broker transport is not the current blocker. Do not rerun the forced probe without contradictory transport evidence.
+1. how many unique evaluations exist;
+2. whether any unique LONG selector rows exist outside the richest 46-row source;
+3. whether SHORT selections consistently coincide with the selector-defined short HTF regime and short-trigger state;
+4. how long/short score relations and component directions behave by root/time.
 
-## Code changes this turn
+## Code work this turn
 
-Enhanced read-only pre-pending diagnosis was added on `agent/v69-one-shot-prospective-demo`:
+Diagnostic-only changes were added to `agent/v69-one-shot-prospective-demo`. Frozen V69 strategy semantics were not changed.
 
-- new `scripts/analyze_v69_pre_pending_eval.py`;
-- `RUN_V69_UPSTREAM_SIGNAL_DIAG.py` now reads `V64_ENTRY_EVAL.csv` across current/archive roots in addition to event telemetry;
-- runner emits `V69_PRE_PENDING_*` counts/classification;
-- tests cover `no_complete_archetype`, zero ENTRY_EVAL rows, and read-only contracts;
-- upstream diagnostic workflow and Git Bash launcher compile/test the new analyzer.
+### Analyzer
 
-No V69 strategy threshold, entry state-machine, order path, SHORT policy or REAL authorization was changed.
+`scripts/analyze_v69_pre_pending_eval.py` now:
 
-## Expected next diagnostic outcomes
+- aggregates all current/archive ENTRY_EVAL roots;
+- exact-row deduplicates copied archive rows;
+- mirrors V59 HTF-regime predicates;
+- mirrors V59 trigger predicates from logged fields;
+- reports LONG/SHORT score relation;
+- reports H1/H4 trend distributions;
+- reports direction by HTF regime and trigger state;
+- reports component-direction counts;
+- reports score min/max/mean and long-minus-short margin;
+- reports per-source summaries.
 
-- `no_complete_archetype` dominant -> inspect pullback-sweep / breakout-retest component construction;
-- `invalid_arm_structural_stop` dominant -> inspect M15 swing-stop geometry;
-- `direction_isolated_out` dominant -> market selector favored opposite direction; do not auto-enable SHORT;
-- `pending_*` eval observed without `PENDING_ARM` -> state/telemetry integration bug review;
-- zero ENTRY_EVAL rows across all roots -> observability ends before `d==0`; next build should be an observability-only `EvaluateBar` tracer logging feature readiness, H4/H1 regime, trigger components, scores, edge and selected direction on each closed M15 bar.
+### Runtime
 
-## CI
+`RUN_V69_UPSTREAM_SIGNAL_DIAG.py` protocol advanced to v4 and prints:
 
-Code checkpoint before this documentation sync: `16cf983747fbf826a94724cb32a26a7175d99962`.
+- `V69_PRE_PENDING_ALL_RAW_ROWS`;
+- `V69_PRE_PENDING_ALL_UNIQUE_ROWS`;
+- `V69_PRE_PENDING_ALL_DUPLICATE_ROWS_REMOVED`;
+- `V69_PRE_PENDING_ALL_CONTEXT` and next action;
+- aggregate decision/reject/direction counts;
+- HTF regime, trigger-state and score-relation counts;
+- H1/H4 trends;
+- direction grouped by HTF/trigger;
+- component directions;
+- score summary;
+- per-root source summary.
+
+The runtime remains strictly read-only: no MetaEditor, no MT5 restart, no order calls, no strategy changes.
+
+### Tests and CI incident
+
+New tests cover:
+
+- exact-row dedup across rotated roots;
+- mixed LONG/SHORT aggregate evidence;
+- all-short-edge / short-HTF-regime abstention classification;
+- v4 runtime marker contract.
+
+Checkpoint `85572066021b0f90f30e242d20f5e21c0d239116` had one CI failure caused only by a stale static source-string assertion. All substantive new aggregation tests had already passed.
+
+The assertion was corrected without changing runtime semantics.
+
+Corrected code checkpoint:
+
+`56787feaf6370da4cd766d917ad602bdb40f01fa`
 
 All five workflows on that exact code checkpoint completed successfully:
 
@@ -93,20 +134,38 @@ All five workflows on that exact code checkpoint completed successfully:
 - `v68-quality`;
 - full `quality`.
 
-After this state-sync commit, re-resolve final branch HEAD and verify exact-head CI before operator instructions because code/runtime changed during this turn.
+## Economic direction after the next read-only run
 
-## Project status
+If all deduplicated unique rows are `short_edge` in selector-defined short HTF regime:
+
+- frozen V69 LONG was abstaining consistently with its inherited direction selector;
+- do not loosen LONG merely to manufacture turnover;
+- do not activate the old rejected SHORT implementation;
+- move to economic research on LONG regime availability/quality and, only as a separate research line, a newly validated SHORT/successor architecture.
+
+If any unique LONG selector rows exist:
+
+- inspect their reject reasons and earliest downstream gate;
+- `no_complete_archetype` means candidate/archetype construction is the next bottleneck;
+- `invalid_arm_structural_stop` means M15 stop geometry is the next bottleneck;
+- pending eval without `PENDING_ARM` requires state/telemetry integration review.
+
+## Safety and strategy status
 
 - frozen V69 semantics unchanged;
 - DEMO execution transport PASS;
-- pending-state event count in latest preserved live evidence = 0;
-- absence of pending events is not yet sufficient to identify selector/archetype blocker;
-- next diagnostic is `V64_ENTRY_EVAL` analysis;
-- obsolete `2 trades / 48h` dashboard gate remains ignored;
-- session-volatility/New York work remains separate successor research;
-- SHORT disabled;
-- REAL money unauthorized.
+- LONG only;
+- SHORT disabled/rejected;
+- no automatic REAL promotion;
+- REAL authorization false;
+- no order sent by current diagnostic work.
 
 ## Next operator action
 
-Keep MT5 running. After final exact-head CI is green, fast-forward the branch and rerun the same read-only upstream launcher once. Return the `V69_PRE_PENDING_*` markers. Do not wait for another natural trade and do not rerun the execution probe.
+After this documentation sync resolves to a final exact CI-green branch HEAD:
+
+1. leave MT5 running;
+2. fast-forward only to the exact final HEAD;
+3. run `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh` once;
+4. return the markers from `V69_PRE_PENDING_ALL_RAW_ROWS=` through `V69_PRE_PENDING_ALL_SOURCE_SUMMARY=` plus final PASS/FATAL;
+5. do not wait for another natural trade and do not rerun the execution probe.
