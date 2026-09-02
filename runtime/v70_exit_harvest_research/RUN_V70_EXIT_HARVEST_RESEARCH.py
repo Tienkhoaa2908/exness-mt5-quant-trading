@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -10,6 +11,7 @@ from pathlib import Path
 
 EXPECTED_BRANCH = "agent/v70-exit-harvest-research"
 EXPECTED_HEAD_ENV = "V70_EXIT_HARVEST_EXPECTED_HEAD"
+REANALYZE_ENV = "V70_REANALYZE_EXISTING"
 EXPECTED_BASELINE_TRADES = 24
 EXPECTED_BASELINE_WINS = 10
 EXPECTED_BASELINE_LOSSES = 14
@@ -177,11 +179,70 @@ def require_shadow_integrity(result: dict, *, emit: bool = True) -> None:
         )
 
 
+def existing_run_dirs() -> list[Path]:
+    run_dirs: list[Path] = []
+    for month, _, _ in REPLAY_MONTHS:
+        run_dir = OUT / f"holdout_{month}_long"
+        for filename in ("V64_DEALS.csv", "V64_EVENTS.csv"):
+            path = run_dir / filename
+            if not path.is_file() or path.stat().st_size <= 0:
+                raise RuntimeError(f"V70 existing evidence missing or empty: {path}")
+        events_text = (run_dir / "V64_EVENTS.csv").read_text(
+            encoding="utf-8-sig", errors="replace"
+        )
+        if "V70_EXIT_SHADOW_START" not in events_text or "V70_EXIT_SHADOW_END" not in events_text:
+            raise RuntimeError(f"V70 existing evidence lacks exit-shadow lifecycle: {run_dir}")
+        run_dirs.append(run_dir)
+    return run_dirs
+
+
+def require_existing_source_identity() -> str:
+    source = OUT / f"{EXPERT}.mq5"
+    if not source.is_file() or source.stat().st_size <= 0:
+        raise RuntimeError(f"V70 existing generated source missing: {source}")
+    builder = load(BUILDER, "v70_builder_for_existing_evidence_identity")
+    expected_bytes = builder.transform().encode("utf-8")
+    expected_sha = hashlib.sha256(expected_bytes).hexdigest()
+    actual_sha = hashlib.sha256(source.read_bytes()).hexdigest()
+    if actual_sha != expected_sha:
+        raise RuntimeError(
+            "V70 existing evidence source identity mismatch "
+            f"expected={expected_sha} actual={actual_sha}"
+        )
+    print(f"V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS sha256={actual_sha}")
+    return actual_sha
+
+
+def emit_final(head: str, output: Path, summary: Path, *, reanalyzed: bool) -> None:
+    print(f"V70_EXIT_HARVEST_HEAD={head}")
+    print(f"V70_EXIT_HARVEST_RESULT_JSON={output}")
+    print(f"V70_EXIT_HARVEST_SUMMARY={summary}")
+    print(f"V70_EXISTING_EVIDENCE_REANALYSIS={1 if reanalyzed else 0}")
+    print("V70_BASELINE_ENTRY_SEMANTICS_CHANGED=0")
+    print("V70_BASELINE_REAL_EXIT_SEMANTICS_CHANGED=0")
+    print("V70_COUNTERFACTUAL_EXIT_SHADOW_ONLY=1")
+    print("V70_DEVELOPMENT_ONLY=1")
+    print("V70_SHORT_ENABLED=0")
+    print("REAL_MONEY_AUTHORIZED=0")
+    print("V70_EXIT_HARVEST_RESEARCH=PASS")
+
+
 def main() -> int:
     _, head = ensure_repo()
     run([sys.executable, "-m", "py_compile", BUILDER, ANALYZER, STATIC_TEST, Path(__file__)])
     run([sys.executable, STATIC_TEST])
     run([sys.executable, SECRET_SCAN, REPO])
+
+    reanalyze_existing = (os.environ.get(REANALYZE_ENV) or "").strip() == "1"
+    if reanalyze_existing:
+        require_existing_source_identity()
+        run_dirs = existing_run_dirs()
+        print(f"V70_EXISTING_EVIDENCE_MONTHS=PASS count={len(run_dirs)}")
+        output, summary = analyze(run_dirs)
+        result = require_accepted_baseline(output)
+        require_shadow_integrity(result)
+        emit_final(head, output, summary, reanalyzed=True)
+        return 0
 
     runner = configure_runtime()
     data = runner.base.find_mt5_data_dir()
@@ -207,16 +268,7 @@ def main() -> int:
     output, summary = analyze(run_dirs)
     result = require_accepted_baseline(output)
     require_shadow_integrity(result)
-    print(f"V70_EXIT_HARVEST_HEAD={head}")
-    print(f"V70_EXIT_HARVEST_RESULT_JSON={output}")
-    print(f"V70_EXIT_HARVEST_SUMMARY={summary}")
-    print("V70_BASELINE_ENTRY_SEMANTICS_CHANGED=0")
-    print("V70_BASELINE_REAL_EXIT_SEMANTICS_CHANGED=0")
-    print("V70_COUNTERFACTUAL_EXIT_SHADOW_ONLY=1")
-    print("V70_DEVELOPMENT_ONLY=1")
-    print("V70_SHORT_ENABLED=0")
-    print("REAL_MONEY_AUTHORIZED=0")
-    print("V70_EXIT_HARVEST_RESEARCH=PASS")
+    emit_final(head, output, summary, reanalyzed=False)
     return 0
 
 
