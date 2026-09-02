@@ -21,7 +21,7 @@ A long wait with zero trades is ambiguous. It can mean either:
 1. frozen V69 never reached its final entry state because its setup/reclaim/separation/retest gates were not all satisfied; or
 2. V69 reached `POST_CONFIRM_ENTRY_READY` but its integrated preflight/send path failed.
 
-Do **not** keep waiting indefinitely and do not infer either explanation from the chart visually.
+Do not keep waiting indefinitely and do not infer either explanation from the chart visually.
 
 Current regression/diagnostic contract:
 
@@ -37,39 +37,58 @@ This is the preferred fast diagnostic before any REAL-readiness decision.
 
 ### KD-2026-09-03-02 — a forced DEMO fill proves transport, not strategy edge
 
-An isolated DEMO execution probe can prove that the account, symbol, lot, filling mode and MT5/broker market-order path can actually open and close. It does **not** prove:
-
-- V69 signal logic is correct;
-- historical edge will persist;
-- live slippage is acceptable across market regimes;
-- a REAL deployment is safe/profitable.
+An isolated DEMO execution probe can prove that the account, symbol, lot, filling mode and MT5/broker market-order path can actually open and close. It does not prove V69 signal correctness, persistent edge, acceptable slippage across regimes, or REAL deployment safety/profitability.
 
 Never convert probe PASS directly into automatic REAL authorization.
+
+## Active harness regression — code fixed, Windows rerun pending
+
+### KH-2026-09-03-01 — real-readiness expected-HEAD variable was not bridged into inherited V69 one-shot guard
+
+First Windows run of checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e` passed repository preflight, Python discovery, six static tests and secret scan, then failed immediately with:
+
+`RuntimeError: V69_ONE_SHOT_EXPECTED_HEAD is required`
+
+Root cause:
+
+- new launcher used canonical `V69_REAL_READINESS_EXPECTED_HEAD`;
+- real-readiness runner reused `forward.base.ensure_repo()` and later `forward.main()` from the existing one-shot runtime;
+- those inherited paths require `V69_ONE_SHOT_EXPECTED_HEAD`;
+- launcher/test contract did not bridge/assert the inherited environment variable.
+
+Impact classification:
+
+- harness-only failure;
+- occurred before `configure_runtime()`;
+- no signal snapshot was produced by this attempt;
+- no MetaEditor compile of the probe occurred;
+- no MT5 probe terminal was launched;
+- no actual DEMO order was sent;
+- no strategy/broker conclusion may be drawn from this failure.
+
+Fix contract:
+
+- launcher must export `V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"` after exact Git validation;
+- runner must normalize both head-variable names before calling inherited code;
+- regression tests must explicitly assert both bridges;
+- keep the bridge alive through the final `forward.main()` relaunch path;
+- do not work around this by weakening exact-HEAD checks.
+
+The corrected code still requires one Windows rerun before this item can be moved to fully resolved.
 
 ## Maintenance follow-up
 
 ### KM-2026-09-01-01 — server `10019 No money` should fail fast and expose account funds
 
-Prior DEMO run captured repeated:
+Prior DEMO run captured repeated local `_LastError=4756` plus server `retcode=10019`, comment `No money`. After DEMO funds/free margin were restored, the same 0.01 preflight produced two consecutive `READY / retcode 0 / Done` checks. Therefore `10019` was deterministic insufficient funds/free margin, not a transient transport event and not a lot-step failure.
 
-- local `_LastError=4756`;
-- server `retcode=10019`;
-- server comment `No money`.
-
-After DEMO funds/free margin were restored, the exact same 0.01 preflight produced two consecutive `READY / retcode 0 / Done` checks. Therefore `10019` was deterministic insufficient funds/free margin, not a transient transport event and not a lot-step failure.
-
-Future non-disruptive harness revision should:
-
-- classify repeated server `10019` as deterministic insufficient-funds BLOCKED after independent confirmation;
-- display/account-log balance, equity, used margin and free margin;
-- avoid spending the entire transient retry window on confirmed `10019`;
-- never change V69 alpha/strategy semantics to mask account-funding defects.
+Future non-disruptive harness revision should classify repeated `10019` as deterministic insufficient-funds BLOCKED, expose balance/equity/used/free margin, avoid the full transient retry window, and never change V69 alpha semantics to mask account-funding defects.
 
 ## Resolved broker/harness incidents
 
 ### KF-2026-09-01-01 — generic 4756 was hiding broker `10019 No money`
 
-Lot `0.01` was valid against broker min `0.01`, step `0.01`, max `200`. Instrumentation was improved to retain `MqlTradeCheckResult.retcode/comment`; this exposed server `10019 / No money`. Restoring DEMO funds resolved the blocker and produced stable broker READY.
+Lot `0.01` was valid against broker min `0.01`, step `0.01`, max `200`. Instrumentation retained `MqlTradeCheckResult.retcode/comment`, exposing server `10019 / No money`. Restoring DEMO funds resolved the blocker and produced stable broker READY.
 
 Never interpret local `4756` alone when server retcode/comment is available.
 
@@ -142,4 +161,5 @@ See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 - After prolonged no-trade runtime, use signal-funnel + isolated actual DEMO probe instead of waiting blindly.
 - Keep strategy, broker transport and harness failures separate.
 - Do not change strategy thresholds to mask tooling/broker defects.
+- Exact-HEAD contracts reused across nested runtimes must be bridged and regression-tested end-to-end.
 - REAL money remains fail-closed until a separate explicit decision and deployment/risk gate.
