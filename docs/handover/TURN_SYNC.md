@@ -1,163 +1,112 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 (+07)
+Updated: 2026-09-03 ~02:00 (+07)
 
 ## User input
 
-Operator supplied the complete corrected real-readiness terminal run from code checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca`.
+Operator ran the corrected read-only upstream signal diagnostic at checkpoint `5f427b7b584539f0bb8dc1652a13c713460cac63` while MT5 remained running.
 
-This supersedes the previous state where probe completion was unknown.
+Result was a clean diagnostic PASS, not a harness failure.
 
-## Mandatory state inspection
+## Exact operator evidence
 
-This turn re-resolved the active remote branch and re-read:
+The diagnostic examined 8 preserved sources and reported:
 
-- `OPERATING_PROTOCOL.md`;
-- `CURRENT_STATE.md`;
-- `KNOWN_FAILURES.md`;
-- prior `TURN_SYNC.md`;
-- current signal-path analyzer;
-- V67/V69 upstream event architecture;
-- active CI/runtime contracts.
-
-## Strongest new evidence
-
-### Signal funnel before probe
-
-The already-collected live V69 telemetry reported:
-
-- `V69_PRE_PROBE_SIGNAL_PATH_CLASSIFICATION=NO_V69_RECLAIM_CONFIRM_OBSERVED`;
+- `V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1`;
+- `V69_UPSTREAM_EVENTS_ROWS=0`;
+- `V69_UPSTREAM_TOTAL_EVENT_ROWS=0`;
+- `V69_UPSTREAM_SOURCES_WITH_EVENT_ROWS=0`;
+- `PENDING_ARM=0`;
+- `MICRO_ENTRY_ARM=0`;
+- `MICRO_ENTRY_ZONE_TOUCH=0`;
+- `MICRO_ENTRY_PENETRATION=0`;
+- `POST_ZONE_CONFIRM_WAIT=0`;
 - `POST_ZONE_REVERSAL_CONFIRM=0`;
 - `POST_CONFIRM_SEPARATION=0`;
 - `POST_CONFIRM_RETEST_READY=0`;
 - `POST_CONFIRM_ENTRY_READY=0`;
-- natural closed deals `0`.
+- all auxiliary pending/reclaim event counts `0`;
+- natural closed deals `0`;
+- classification `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`;
+- top blocker `PENDING_ARM`;
+- `V69_UPSTREAM_DIAGNOSTIC=PASS`;
+- launcher PASS;
+- read-only, orders sent `0`, REAL authorization `0`.
 
-Conclusion: during the observed no-trade window, V69 never reached reclaim confirmation. Therefore V69 separation/retest/entry-ready/order-send code was not exercised by a natural setup.
+## Correct interpretation
 
-### Actual DEMO transport probe
+This proves no instrumented pending-state event occurred in the preserved live sources.
 
-`V69DemoExecutionProbe` compiled with `0 errors, 0 warnings`.
+It does **not** prove that the market produced no candidate or that the user visually misidentified every opportunity.
 
-Identity:
+Code review of the V62->V69 lineage found pre-pending paths that do not write `V64_EVENTS.csv`:
 
-- source SHA256 `150131300630fdf23d14c273494a9190a340bf05e1ffea8376d0a56fc160b278`;
-- EX5 SHA256 `25bbde5a813e7e5fa6c046a1dc1374a728253e127709079594c10daf44fad3be`;
-- magic `699901`;
-- XAUUSDm;
-- 0.01 lot;
-- DEMO only.
+1. `BuildFeatures` can fail or `SelectDirection` can return `d==0`; `EvaluateBar` returns before a pending event.
+2. Opposite selected direction can be logged to `V64_ENTRY_EVAL.csv` as `direction_isolated_out`.
+3. `V64ClassifyArchetype` can reject a LONG selector as `no_complete_archetype`, writing only `V64_ENTRY_EVAL.csv`.
+4. Raw M15 structural-stop geometry can reject as `invalid_arm_structural_stop`, writing only `V64_ENTRY_EVAL.csv`.
+5. Only a successful arm emits `PENDING_ARM`.
 
-Execution:
+Therefore the prior shorthand `EVENTS=0 -> no signal` is forbidden. The correct next evidence source is `V64_ENTRY_EVAL.csv`.
 
-- actual BUY open PASS;
-- open retcode `10009`, comment `done`, price `4377.736`;
-- immediate close of the probe-owned position PASS;
-- close retcode `10009`, comment `done`, price `4377.476`;
-- free margin `$39.74`;
-- probe terminal closed gracefully `rc=0`;
-- `V69_ACTUAL_DEMO_EXECUTION_VERIFIED=1`.
+## Transport status remains settled
 
-Conclusion: MT5 <-> broker actual market transport for `0.01 XAUUSDm` is proven. Generic deployment/lot/broker-fill capability is not the current no-trade blocker.
+The earlier isolated DEMO execution probe at checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` remains authoritative:
 
-### Frozen V69 relaunch after probe
+- actual BUY `0.01 XAUUSDm` opened successfully;
+- open retcode `10009 / done`;
+- probe-owned close succeeded;
+- close retcode `10009 / done`;
+- terminal exited cleanly.
 
-Automatic relaunch succeeded:
+Generic MT5 <-> broker transport is not the current blocker. Do not rerun the forced probe without contradictory transport evidence.
 
-- broker health READY twice;
-- `V69_SYSTEM_HEALTH=READY`;
-- `V69_BROKER_PREFLIGHT_READY=1`;
-- `V69_RUNTIME_SMOKE_VERIFIED=1`;
-- background console disabled;
-- dashboard pinned;
-- strategy unchanged;
-- LONG only;
+## Code changes this turn
+
+Enhanced read-only pre-pending diagnosis was added on `agent/v69-one-shot-prospective-demo`:
+
+- new `scripts/analyze_v69_pre_pending_eval.py`;
+- `RUN_V69_UPSTREAM_SIGNAL_DIAG.py` now reads `V64_ENTRY_EVAL.csv` across current/archive roots in addition to event telemetry;
+- runner emits `V69_PRE_PENDING_*` counts/classification;
+- tests cover `no_complete_archetype`, zero ENTRY_EVAL rows, and read-only contracts;
+- upstream diagnostic workflow and Git Bash launcher compile/test the new analyzer.
+
+No V69 strategy threshold, entry state-machine, order path, SHORT policy or REAL authorization was changed.
+
+## Expected next diagnostic outcomes
+
+- `no_complete_archetype` dominant -> inspect pullback-sweep / breakout-retest component construction;
+- `invalid_arm_structural_stop` dominant -> inspect M15 swing-stop geometry;
+- `direction_isolated_out` dominant -> market selector favored opposite direction; do not auto-enable SHORT;
+- `pending_*` eval observed without `PENDING_ARM` -> state/telemetry integration bug review;
+- zero ENTRY_EVAL rows across all roots -> observability ends before `d==0`; next build should be an observability-only `EvaluateBar` tracer logging feature readiness, H4/H1 regime, trigger components, scores, edge and selected direction on each closed M15 bar.
+
+## CI
+
+Code checkpoint before this documentation sync: `16cf983747fbf826a94724cb32a26a7175d99962`.
+
+All five workflows on that exact code checkpoint completed successfully:
+
+- `v69-upstream-diag-quality`;
+- `v69-forward-quality`;
+- `v69-quality`;
+- `v68-quality`;
+- full `quality`.
+
+After this state-sync commit, re-resolve final branch HEAD and verify exact-head CI before operator instructions because code/runtime changed during this turn.
+
+## Project status
+
+- frozen V69 semantics unchanged;
+- DEMO execution transport PASS;
+- pending-state event count in latest preserved live evidence = 0;
+- absence of pending events is not yet sufficient to identify selector/archetype blocker;
+- next diagnostic is `V64_ENTRY_EVAL` analysis;
+- obsolete `2 trades / 48h` dashboard gate remains ignored;
+- session-volatility/New York work remains separate successor research;
 - SHORT disabled;
-- REAL authorization false.
-
-Pre-probe forward telemetry was archived to:
-
-`Common\Files\mt5_quant\_v69_forward_previous_20260902_182142_999701Z`
-
-This archive is now the preferred source for deeper upstream diagnosis because it contains the older no-trade observation window.
-
-## Diagnostic conclusion
-
-Do **not** wait for the dashboard's obsolete `2 trades / 48h` gate.
-
-Do **not** rerun the forced execution probe; its transport purpose is complete.
-
-Current blocker classification:
-
-`UPSTREAM_SIGNAL_OR_STATE_GATING_BEFORE_POST_ZONE_REVERSAL_CONFIRM`
-
-The next question is not whether MT5 can send an order. The next question is which earlier gate rejected the market opportunities the operator visually expected to qualify.
-
-## Code added this turn
-
-A read-only upstream signal diagnostic was added:
-
-- `scripts/analyze_v69_upstream_signal_funnel.py`;
-- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py`;
-- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh`;
-- `tests/test_v69_upstream_signal_diag.py`;
-- `.github/workflows/v69_upstream_diag_quality.yml`.
-
-It auto-discovers current and `_v69_forward_previous_*` telemetry roots and selects the richest event stream.
-
-It counts the upstream funnel:
-
-`PENDING_ARM -> MICRO_ENTRY_ARM -> MICRO_ENTRY_ZONE_TOUCH -> MICRO_ENTRY_PENETRATION -> POST_ZONE_CONFIRM_WAIT -> POST_ZONE_REVERSAL_CONFIRM -> POST_CONFIRM_SEPARATION -> POST_CONFIRM_RETEST_READY -> POST_CONFIRM_ENTRY_READY`
-
-It also reports:
-
-- invalidation/expiry events;
-- confirm-wait reason counts;
-- dominant blocker;
-- next diagnostic/action;
-- top raw event counts.
-
-Safety contract:
-
-- strictly read-only;
-- MT5 may remain running;
-- no MetaEditor;
-- no terminal restart;
-- no order functions;
-- no REAL authorization.
-
-## Documentation changes
-
-`CURRENT_STATE.md` now records actual execution PASS and moves the blocker upstream.
-
-`KNOWN_FAILURES.md` now records:
-
-- actual transport PASS + zero reclaim-confirm as the decisive localization lesson;
-- expected-HEAD bridge incident as resolved;
-- do not rerun forced transport probes without new contradictory evidence.
-
-## Strategy status
-
-Frozen V69 has not been changed.
-
-Historical V69 replay remains development-only, regime-concentrated evidence.
-
-Session-volatility/New York research remains a separate successor research track; it must not be used as a hard-coded session-open trade rule.
-
-## Safety status
-
-- current live runtime DEMO only;
-- LONG only;
-- SHORT disabled;
-- REAL authorization false;
-- actual probe PASS does not authorize REAL.
+- REAL money unauthorized.
 
 ## Next operator action
 
-After the final code/documentation HEAD passes exact-head CI:
-
-1. leave MT5 running;
-2. fast-forward only to the exact final HEAD;
-3. run one Git Bash launcher: `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh`;
-4. return the markers from `V69_UPSTREAM_SOURCE_ROOT=` through `V69_UPSTREAM_DIAGNOSTIC=PASS` or the first `FATAL`;
-5. do not wait for another natural trade before interpreting the result.
+Keep MT5 running. After final exact-head CI is green, fast-forward the branch and rerun the same read-only upstream launcher once. Return the `V69_PRE_PENDING_*` markers. Do not wait for another natural trade and do not rerun the execution probe.
