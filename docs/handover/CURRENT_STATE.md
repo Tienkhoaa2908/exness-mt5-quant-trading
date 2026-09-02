@@ -8,18 +8,19 @@ Repository: `Tienkhoaa2908/exness-mt5-quant-trading`
 
 Active branch: `agent/v69-one-shot-prospective-demo`
 
-Always resolve current remote HEAD and read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, and `TURN_SYNC.md` before project work.
+At the beginning of every project turn resolve the current remote HEAD, then read `OPERATING_PROTOCOL.md`, this file, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, and relevant exact-HEAD CI before changing code or instructing the operator.
 
 ## Current objective
 
-Passive waiting for a natural V69 trade is no longer the next diagnostic. After roughly one day of healthy DEMO runtime with zero natural fills, the project switched to immediate execution diagnosis:
+The project is no longer waiting for natural V69 fills. Actual DEMO transport has now been proven. The immediate blocker is upstream signal generation / state gating before reclaim confirmation.
 
-1. snapshot already-collected live V69 telemetry;
-2. determine the furthest signal/state-machine stage actually reached;
-3. run one isolated DEMO-only 0.01 XAUUSDm actual open/close probe;
-4. distinguish upstream strategy gating from an order-path integration defect;
-5. automatically relaunch frozen V69 after probe PASS;
-6. progress toward a separate REAL-readiness package only after this diagnostic is resolved.
+Current diagnostic sequence:
+
+1. keep frozen V69 strategy semantics unchanged;
+2. use already-collected live telemetry, including archived forward roots;
+3. locate the earliest upstream gate suppressing visible market opportunities;
+4. only then decide whether to revise candidate-generation architecture or build the session-volatility successor;
+5. progress toward a separate fail-closed REAL deployment package after the alpha/runtime diagnosis is complete.
 
 REAL money remains unauthorized.
 
@@ -33,20 +34,20 @@ Accepted evidence ZIP SHA256: `e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48
 
 Frozen forward parent source SHA256: `0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`
 
-Safety/strategy contract:
+Contract:
 
 - `XAUUSDm M15`;
 - LONG only;
 - fixed lot `0.01`;
-- DEMO only for current execution validation;
-- SHORT rejected/disabled;
-- REAL authorization false/fail-closed;
+- current live validation DEMO only;
+- SHORT disabled/rejected;
+- REAL authorization false;
 - planned structural cash risk `$0.85-$1.10`;
 - emergency cash-loss guard about `$1.20`;
 - target `+$3.50`;
 - risk/spread `>=4`;
-- reclaim -> separation `>= $1.30` -> later retest -> confirmation age `>=30s` -> `POST_CONFIRM_ENTRY_READY` -> `V64OrderPreflight`;
-- structural stop fixed, no widening/clamp.
+- reclaim -> favorable separation `>= $1.30` -> later retest -> confirmation age `>=30s` -> `POST_CONFIRM_ENTRY_READY` -> `V64OrderPreflight`;
+- fixed structural stop, no widening/clamp.
 
 The `$1.30` and `30s` values are development choices, not proven universal optima.
 
@@ -56,91 +57,98 @@ V68 LONG: `28 trades / 10W / 18L / +$2.87 / PF ~1.146 / max DD $6.04`.
 
 V69 LONG: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / max DD $3.34`.
 
-V69 retained all ten V68 winners while removing four losers, but `10/14` surviving V69 losers closed within 60 seconds. Monthly V69 replay is regime-concentrated: Sep `-$1.84`, Oct `+$9.15`, Nov `+$1.24`, Dec `-$2.28`, Jan `+$0.87`, Feb-May flat; excluding October total is `-$2.01`.
+V69 retained all ten V68 winners while removing four losers, but `10/14` surviving V69 losers closed within 60 seconds. Monthly replay is regime-concentrated: Sep `-$1.84`, Oct `+$9.15`, Nov `+$1.24`, Dec `-$2.28`, Jan `+$0.87`, Feb-May flat; excluding October `-$2.01`.
 
-The V69 Sep 2025-May 2026 replay is development evidence, not an independent holdout.
+Sep 2025-May 2026 V69 replay is development evidence, not an independent holdout.
 
-## Verified live runtime
+## Actual Windows real-readiness result — execution transport PASS
 
-The Windows DEMO dashboard has previously achieved and the latest operator screenshot again visibly shows:
+Operator successfully ran corrected code checkpoint:
 
-- `V69FrozenForwardSmokeDashboardLong` attached on `XAUUSDm M15`;
-- live tick heartbeat;
-- telemetry active;
-- `SYSTEM HEALTH: READY`;
-- `BROKER PREFLIGHT: READY`;
-- fixed lot `0.01` with broker min/step `0.01`;
-- position FLAT;
-- `Closed 0 / 2` on the legacy smoke dashboard.
+`614d68eca2fd30dbfe98adad02f82d61a0302aca`
 
-This proves the frozen dashboard/runtime is currently alive and broker dry-run health is READY. It still does not by itself prove the integrated V69 natural `g_trade.Buy()` path.
+The run passed repository/Python/static/secret gates and compiled `V69DemoExecutionProbe` with `0 errors, 0 warnings`.
 
-### Important UI correction
+Probe identity:
 
-The dashboard text `Closed 0/2` and `wait until 48h cap` is now **obsolete as a project gate**. It belongs to the earlier short forward-smoke design. The project has already replaced passive `2 trades or 48h` waiting with the immediate signal-funnel + actual DEMO execution-probe gate.
+- source SHA256 `150131300630fdf23d14c273494a9190a340bf05e1ffea8376d0a56fc160b278`;
+- EX5 SHA256 `25bbde5a813e7e5fa6c046a1dc1374a728253e127709079594c10daf44fad3be`;
+- unique diagnostic magic `699901`;
+- DEMO `XAUUSDm`, fixed `0.01` lot.
 
-Do not instruct the operator to keep waiting for two natural trades merely because the current frozen dashboard still displays that legacy progress text.
+Actual broker execution:
 
-## Immediate real-readiness execution probe
+- `V69_ACTUAL_DEMO_EXECUTION_VERIFIED=1`;
+- BUY open retcode `10009`, comment `done`, price `4377.736`;
+- immediate probe-owned close retcode `10009`, comment `done`, price `4377.476`;
+- free margin reported `$39.74`;
+- probe terminal closed gracefully `rc=0`.
 
-Canonical launcher:
+This proves the MT5 <-> broker market-order transport can actually open and close `0.01 XAUUSDm` on the current DEMO account. Do not keep treating generic real-time deployment transport, lot size, or broker fill capability as the primary no-trade blocker unless new contradictory evidence appears.
 
-`bash runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh`
+The probe is transport evidence only; it does not prove strategy edge or authorize REAL.
 
-Components:
+## Live signal funnel before the successful probe
 
-- `scripts/analyze_v69_live_signal_path.py` — signal/state funnel;
-- `scripts/build_v69_demo_execution_probe_source.py` — isolated `V69DemoExecutionProbe`;
-- `runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py` — snapshot, actual DEMO probe, evidence, frozen-V69 relaunch;
-- `tests/test_v69_real_readiness_probe_static.py` — safety/isolation/funnel/launcher-contract regressions;
-- `docs/handover/IMMEDIATE_REAL_READINESS_PLAN.md` — interpretation.
+The same run snapshotted the already-collected live V69 telemetry before the probe and reported:
 
-Probe contract:
+- `POST_ZONE_REVERSAL_CONFIRM=0`;
+- `POST_CONFIRM_SEPARATION=0`;
+- `POST_CONFIRM_RETEST_READY=0`;
+- `POST_CONFIRM_ENTRY_READY=0`;
+- natural closed V69 deals `0`;
+- classification `NO_V69_RECLAIM_CONFIRM_OBSERVED`.
 
-- DEMO account required;
-- exactly `XAUUSDm`;
-- exactly `0.01` lot;
-- unique magic `699901`;
-- dry-run `OrderCheck` then one actual DEMO BUY;
-- closes only the probe-owned position immediately;
-- records open/close retcode, comment, price and free margin;
-- gracefully closes the probe MT5 using `TerminalClose()`;
-- automatically relaunches frozen V69 after PASS;
-- never authorizes REAL money.
+Therefore V69 never reached the point where its separation/retest/entry-ready/order-send logic could run during that observed window. The no-trade result cannot be attributed to the integrated `g_trade.Buy()` path from this window.
 
-Interpretation:
+The current blocker is **upstream of `POST_ZONE_REVERSAL_CONFIRM`**.
 
-- probe PASS + no `POST_CONFIRM_ENTRY_READY`: upstream V69 gating/state selectivity prevented entry;
-- probe PASS + `POST_CONFIRM_ENTRY_READY > 0` but no natural V69 deal: inspect V69 preflight/send integration immediately;
-- probe FAIL: diagnose the actual broker execution retcode instead of waiting for a natural signal.
+## Preserved telemetry
 
-## First Windows probe attempt and fix
+When frozen V69 was automatically relaunched after the successful probe, the pre-probe root was archived as:
 
-Operator ran checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e`. Repository preflight, Python discovery, static tests and secret scan passed, but the runner failed before MT5 execution because the new launcher exported `V69_REAL_READINESS_EXPECTED_HEAD` while inherited `forward.base.ensure_repo()` required `V69_ONE_SHOT_EXPECTED_HEAD`.
+`Common\Files\mt5_quant\_v69_forward_previous_20260902_182142_999701Z`
 
-This was a harness-only failure before signal snapshot, MetaEditor compile, MT5 probe startup or any DEMO order.
+That archive should contain the fuller event stream from the preceding live period and is the primary source for immediate upstream diagnosis. The current `v69_frozen_forward_demo` root is also analyzed read-only.
 
-The active branch fixed this by bridging both expected-head names in both the Git Bash launcher and Python runner. Regression tests now require that bridge. Exact-head CI for corrected checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` passed `v69-forward-quality`, `v69-quality`, `v68-quality`, and full `quality`.
+## New upstream diagnostic
 
-## Latest operator-visible state
+Read-only components added after the successful execution probe:
 
-Latest screenshot supplied after the corrected code became available shows the frozen V69 dashboard running again with:
+- `scripts/analyze_v69_upstream_signal_funnel.py`;
+- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py`;
+- `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh`;
+- `tests/test_v69_upstream_signal_diag.py`;
+- `.github/workflows/v69_upstream_diag_quality.yml`.
 
-- `SYSTEM HEALTH: READY`;
-- `BROKER PREFLIGHT: READY`;
-- position FLAT;
-- live tick heartbeat;
-- zero closed V69 strategy trades.
+The diagnostic automatically selects the richest current/archive telemetry root and counts:
 
-However the chat does **not yet contain the corrected real-readiness terminal output or `V69_REAL_READINESS_PROBE_RESULT.json`**. Therefore actual probe PASS/FAIL and the pre-probe signal funnel must still be treated as unverified until that output is supplied or the corrected launcher is run to completion.
+`PENDING_ARM -> MICRO_ENTRY_ARM -> MICRO_ENTRY_ZONE_TOUCH -> MICRO_ENTRY_PENETRATION -> POST_ZONE_CONFIRM_WAIT -> POST_ZONE_REVERSAL_CONFIRM -> POST_CONFIRM_SEPARATION -> POST_CONFIRM_RETEST_READY -> POST_CONFIRM_ENTRY_READY`
 
-Do not infer execution-probe PASS from the chart alone. The chart can be relaunched independently.
+It also counts post-zone invalidation/expiry events and closed-M1 confirm-wait reasons such as:
+
+- `zone_penetration_not_ready`;
+- `m1_history_not_ready`;
+- `closed_bar_predates_zone_touch`;
+- `m1_atr_not_ready`;
+- `reclaim_body_too_small`;
+- `reclaim_body_fraction_weak`;
+- `reclaim_close_location_weak`;
+- `reclaim_candle_wrong_direction`;
+- `reclaim_no_close_progress`;
+- `reclaim_distance_from_extreme_weak`.
+
+The diagnostic is strictly read-only: MT5 may remain running, MetaEditor is not used, terminal is not restarted, and no order path exists.
+
+## Legacy dashboard warning
+
+The pinned dashboard may still display `Closed 0/2` and `wait until 48h cap`. That is obsolete legacy smoke UI, not the current project gate. Do not wait for it.
 
 ## Session-volatility successor research
 
-`docs/research/SESSION_VOLATILITY_RESEARCH.md` defines a separate development track inspired by public volatility tools such as MarketMilk.
+`docs/research/SESSION_VOLATILITY_RESEARCH.md` defines a separate development track using DST-aware session labels, past-only volatility percentiles, spread/range efficiency, directional persistence, breakout follow-through, MFE/MAE and expectancy by symbol/session.
 
-Research goal: learn symbol/session-specific volatility, spread efficiency and continuation expectancy from our own MT5 history with DST-aware London/New York labels. This is successor research, not a modification to frozen V69 and not a claim that New York always has positive expectancy.
+Session information is a conditioning feature, not a hard-coded `NEW_YORK = TRADE` rule. It may become part of a successor architecture after the current upstream suppression is quantified.
 
 ## Current classification
 
@@ -148,19 +156,19 @@ Research goal: learn symbol/session-specific volatility, spread efficiency and c
 
 `V69_HISTORICAL_REPLAY=DEVELOPMENT_ONLY_NOT_INDEPENDENT`
 
-`V69_CURRENT_DASHBOARD_RUNTIME=READY`
+`V69_ACTUAL_DEMO_EXECUTION_TRANSPORT=PASS`
 
-`V69_BROKER_PREFLIGHT=READY`
+`V69_EXECUTION_PROBE_OPEN_RETCODE=10009`
 
-`V69_NATURAL_CLOSED_TRADES=0`
+`V69_EXECUTION_PROBE_CLOSE_RETCODE=10009`
+
+`V69_PRE_PROBE_RECLAIM_CONFIRM=0`
+
+`V69_PRE_PROBE_ENTRY_READY=0`
+
+`V69_NO_TRADE_BLOCKER=UPSTREAM_SIGNAL_OR_STATE_GATING`
 
 `LEGACY_2_TRADE_48H_DASHBOARD_GATE=OBSOLETE_DO_NOT_WAIT`
-
-`V69_FIRST_REAL_READINESS_WINDOWS_ATTEMPT=HARNESS_FAIL_BEFORE_RUNTIME`
-
-`V69_EXPECTED_HEAD_BRIDGE_FIX=CODED_AND_EXACT_HEAD_CI_PASS`
-
-`V69_CORRECTED_EXECUTION_PROBE_RESULT=NOT_YET_VERIFIED_IN_CHAT`
 
 `V69_FORWARD_REAL_MONEY_AUTHORIZED=0`
 
@@ -170,11 +178,9 @@ Research goal: learn symbol/session-specific volatility, spread efficiency and c
 
 ## Next gate
 
-1. Do not wait for `2 closed trades` or the old `48h cap`.
-2. If the corrected `614d68e...` real-readiness probe has not been run to completion, close MT5/MetaEditor once and run only `START_V69_REAL_READINESS_PROBE_GIT_BASH.sh` on the exact corrected HEAD.
-3. Require `V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=`.
-4. Require MetaEditor `0 errors, 0 warnings` for the execution-probe EA.
-5. Require actual DEMO BUY + immediate probe-owned close PASS or capture the first exact broker failure.
-6. Read the pre-probe signal funnel and classify gating vs order-path integration.
-7. If the corrected probe already completed and this dashboard is its automatic frozen-V69 relaunch, obtain the terminal output/result file immediately; no further natural-trade waiting is required.
-8. REAL remains a separate fail-closed deployment/risk decision.
+1. Do not rerun the DEMO execution probe; transport purpose is complete.
+2. Do not wait for two natural trades or 48 hours.
+3. Run the read-only upstream signal diagnostic on the exact CI-green branch HEAD while MT5 remains running.
+4. Use its stage counts and dominant blocker to decide whether the live suppression comes from initial setup/BOS eligibility, micro-entry arm, zone return, penetration depth, or closed-M1 reclaim quality.
+5. Only after that diagnosis design a successor or revise upstream candidate generation on a separate development branch.
+6. REAL remains a separate explicit fail-closed deployment/risk decision.
