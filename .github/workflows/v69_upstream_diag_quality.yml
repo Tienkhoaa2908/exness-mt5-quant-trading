@@ -23,20 +23,24 @@ jobs:
             scripts/analyze_v69_selector_coverage_recovery.py \
             scripts/analyze_v69_downstream_long_funnel.py \
             scripts/analyze_v69_cycle_economics_rearm.py \
+            scripts/analyze_v69_mfe_giveback_recovery.py \
             runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py \
             runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py \
             runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY.py \
             runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py \
+            runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py \
             tests/test_v69_upstream_signal_diag.py \
             tests/test_v69_selector_coverage_recovery.py \
             tests/test_v69_downstream_long_funnel.py \
-            tests/test_v69_cycle_economics_rearm.py
+            tests/test_v69_cycle_economics_rearm.py \
+            tests/test_v69_mfe_giveback_recovery.py
       - name: Shell syntax
         run: |
           bash -n runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh
           bash -n runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh
           bash -n runtime/v69_downstream_funnel_recovery/RUN_V69_DOWNSTREAM_FUNNEL_RECOVERY_GIT_BASH.sh
           bash -n runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY_GIT_BASH.sh
+          bash -n runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY_GIT_BASH.sh
       - name: Upstream signal diagnostic tests
         run: python tests/test_v69_upstream_signal_diag.py
       - name: Selector coverage recovery tests
@@ -45,6 +49,8 @@ jobs:
         run: python tests/test_v69_downstream_long_funnel.py
       - name: Cycle economics and rearm tests
         run: python tests/test_v69_cycle_economics_rearm.py
+      - name: MFE and giveback recovery tests
+        run: python tests/test_v69_mfe_giveback_recovery.py
       - name: Read-only safety contract
         run: |
           grep -Fq 'V69_UPSTREAM_MT5_CAN_REMAIN_RUNNING=1' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
@@ -63,6 +69,11 @@ jobs:
           grep -Fq 'V69_CYCLE_ECONOMICS_ORDERS_SENT=0' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py
           grep -Fq 'V69_CYCLE_ECONOMICS_STRATEGY_CHANGED=0' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py
           grep -Fq 'V69_CYCLE_ECONOMICS_EXPECTED_HEAD is required' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY_GIT_BASH.sh
+          grep -Fq 'V69_MFE_GIVEBACK_MT5_CAN_REMAIN_RUNNING=1' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          grep -Fq 'V69_MFE_GIVEBACK_ORDERS_SENT=0' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          grep -Fq 'V69_MFE_GIVEBACK_STRATEGY_CHANGED=0' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          grep -Fq 'V69_MFE_GIVEBACK_TRAILING_COUNTERFACTUAL_SIMULATED=0' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          grep -Fq 'V69_MFE_GIVEBACK_EXPECTED_HEAD is required' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY_GIT_BASH.sh
           ! grep -Fiq 'terminal64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'OrderSend(' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
@@ -84,5 +95,11 @@ jobs:
           ! grep -Fiq '.Buy(' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py
           ! grep -Fiq '.Sell(' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py
           ! grep -Fiq 'MetaTrader5' runtime/v69_cycle_economics_recovery/RUN_V69_CYCLE_ECONOMICS_RECOVERY.py
+          ! grep -Fiq 'terminal64.exe' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          ! grep -Fiq 'metaeditor64.exe' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          ! grep -Fiq 'OrderSend(' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          ! grep -Fiq '.Buy(' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          ! grep -Fiq '.Sell(' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
+          ! grep -Fiq 'MetaTrader5' runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py
       - name: Secret scan
         run: python scripts/secret_scan.py .
