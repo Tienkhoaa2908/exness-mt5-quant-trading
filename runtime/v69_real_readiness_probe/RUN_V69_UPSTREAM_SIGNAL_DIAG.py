@@ -127,6 +127,10 @@ def eval_richness(result: dict) -> tuple[int, int]:
     return (int(result.get("rows", 0)), int(bool(result.get("eval_file_present"))))
 
 
+def print_json_marker(name: str, value) -> None:
+    print(name + "=" + json.dumps(value, ensure_ascii=False, sort_keys=True))
+
+
 def main() -> int:
     branch, head = ensure_repo()
     analyzer = load(ANALYZER, "v69_upstream_signal_funnel")
@@ -140,12 +144,13 @@ def main() -> int:
 
     roots = candidate_roots(parent)
     analyses = []
-    eval_analyses = []
     for root in roots:
         result = analyzer.analyze(root)
         result["source_kind"] = "FILE_COMMON_ROOT"
         analyses.append(result)
-        eval_analyses.append(pre_pending.analyze(root))
+
+    eval_aggregate = pre_pending.aggregate(roots)
+    eval_analyses = list(eval_aggregate.get("source_analyses", []))
 
     snapshot = snapshot_analysis(PRE_PROBE_SIGNAL_PATH, analyzer)
     if snapshot is not None:
@@ -176,12 +181,15 @@ def main() -> int:
         "selected_direction_counts": {},
         "eval_file_present": False,
     }
-    total_eval_rows = sum(int(item.get("rows", 0)) for item in eval_analyses)
-    roots_with_eval_rows = sum(1 for item in eval_analyses if int(item.get("rows", 0)) > 0)
+    total_eval_rows = int(eval_aggregate.get("raw_rows_across_sources", 0))
+    roots_with_eval_rows = int(eval_aggregate.get("sources_with_rows", 0))
+    unique_eval_rows = int(eval_aggregate.get("unique_rows_across_sources", 0))
+    duplicate_eval_rows = int(eval_aggregate.get("duplicate_rows_removed", 0))
+    unique_eval = dict(eval_aggregate.get("unique_summary", {}))
 
     OUT.mkdir(parents=True, exist_ok=True)
     payload = {
-        "protocol": "v69_upstream_signal_diagnostic_v3",
+        "protocol": "v69_upstream_signal_diagnostic_v4",
         "branch": branch,
         "head": head,
         "read_only": True,
@@ -193,7 +201,10 @@ def main() -> int:
         "sources_with_event_rows": roots_with_rows,
         "selected_pre_pending_eval": selected_eval,
         "all_pre_pending_eval_sources": eval_analyses,
+        "aggregate_pre_pending_eval": eval_aggregate,
         "total_pre_pending_eval_rows": total_eval_rows,
+        "unique_pre_pending_eval_rows": unique_eval_rows,
+        "duplicate_pre_pending_eval_rows_removed": duplicate_eval_rows,
         "sources_with_pre_pending_eval_rows": roots_with_eval_rows,
     }
     out = OUT / "V69_UPSTREAM_SIGNAL_DIAGNOSTIC.json"
@@ -212,11 +223,8 @@ def main() -> int:
     print("V69_UPSTREAM_CLASSIFICATION=" + selected["classification"])
     print("V69_UPSTREAM_TOP_BLOCKER=" + selected["dominant_blocker"])
     print("V69_UPSTREAM_NEXT_ACTION=" + selected["next_action"])
-    print(
-        "V69_UPSTREAM_CONFIRM_WAIT_REASONS="
-        + json.dumps(selected.get("confirm_wait_reason_counts", {}), ensure_ascii=False, sort_keys=True)
-    )
-    print("V69_UPSTREAM_TOP_EVENTS=" + json.dumps(selected.get("top_event_counts", {}), ensure_ascii=False, sort_keys=True))
+    print_json_marker("V69_UPSTREAM_CONFIRM_WAIT_REASONS", selected.get("confirm_wait_reason_counts", {}))
+    print_json_marker("V69_UPSTREAM_TOP_EVENTS", selected.get("top_event_counts", {}))
 
     print("V69_PRE_PENDING_SOURCE_ROOT=" + str(selected_eval.get("root", "none")))
     print(f"V69_PRE_PENDING_EVAL_ROWS={int(selected_eval.get('rows', 0))}")
@@ -225,9 +233,41 @@ def main() -> int:
     print("V69_PRE_PENDING_CLASSIFICATION=" + str(selected_eval.get("classification", "UNKNOWN")))
     print("V69_PRE_PENDING_TOP_BLOCKER=" + str(selected_eval.get("dominant_blocker", "UNKNOWN")))
     print("V69_PRE_PENDING_NEXT_ACTION=" + str(selected_eval.get("next_action", "UNKNOWN")))
-    print("V69_PRE_PENDING_DECISION_REASONS=" + json.dumps(selected_eval.get("decision_reason_counts", {}), ensure_ascii=False, sort_keys=True))
-    print("V69_PRE_PENDING_REJECT_REASONS=" + json.dumps(selected_eval.get("reject_reason_counts", {}), ensure_ascii=False, sort_keys=True))
-    print("V69_PRE_PENDING_SELECTED_DIRECTIONS=" + json.dumps(selected_eval.get("selected_direction_counts", {}), ensure_ascii=False, sort_keys=True))
+    print_json_marker("V69_PRE_PENDING_DECISION_REASONS", selected_eval.get("decision_reason_counts", {}))
+    print_json_marker("V69_PRE_PENDING_REJECT_REASONS", selected_eval.get("reject_reason_counts", {}))
+    print_json_marker("V69_PRE_PENDING_SELECTED_DIRECTIONS", selected_eval.get("selected_direction_counts", {}))
+
+    print(f"V69_PRE_PENDING_ALL_RAW_ROWS={total_eval_rows}")
+    print(f"V69_PRE_PENDING_ALL_UNIQUE_ROWS={unique_eval_rows}")
+    print(f"V69_PRE_PENDING_ALL_DUPLICATE_ROWS_REMOVED={duplicate_eval_rows}")
+    print("V69_PRE_PENDING_ALL_CONTEXT=" + str(unique_eval.get("direction_context_classification", "UNKNOWN")))
+    print("V69_PRE_PENDING_ALL_CONTEXT_NEXT_ACTION=" + str(unique_eval.get("direction_context_next_action", "UNKNOWN")))
+    print_json_marker("V69_PRE_PENDING_ALL_DECISION_REASONS", unique_eval.get("decision_reason_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_REJECT_REASONS", unique_eval.get("reject_reason_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_SELECTED_DIRECTIONS", unique_eval.get("selected_direction_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_HTF_REGIMES", unique_eval.get("htf_regime_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_TRIGGER_STATES", unique_eval.get("trigger_state_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_SCORE_RELATIONS", unique_eval.get("score_relation_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_H1_TRENDS", unique_eval.get("h1_trend_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_H4_TRENDS", unique_eval.get("h4_trend_counts", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_SELECTED_BY_HTF", unique_eval.get("selected_by_htf_regime", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_SELECTED_BY_TRIGGER", unique_eval.get("selected_by_trigger_state", {}))
+    print_json_marker("V69_PRE_PENDING_ALL_COMPONENT_DIRECTIONS", unique_eval.get("component_direction_counts", {}))
+    print_json_marker(
+        "V69_PRE_PENDING_ALL_SCORE_SUMMARY",
+        {
+            "long_min": unique_eval.get("long_score_min"),
+            "long_max": unique_eval.get("long_score_max"),
+            "long_mean": unique_eval.get("long_score_mean"),
+            "short_min": unique_eval.get("short_score_min"),
+            "short_max": unique_eval.get("short_score_max"),
+            "short_mean": unique_eval.get("short_score_mean"),
+            "long_minus_short_min": unique_eval.get("long_minus_short_score_min"),
+            "long_minus_short_max": unique_eval.get("long_minus_short_score_max"),
+            "long_minus_short_mean": unique_eval.get("long_minus_short_score_mean"),
+        },
+    )
+    print_json_marker("V69_PRE_PENDING_ALL_SOURCE_SUMMARY", eval_aggregate.get("source_summaries", []))
 
     print(f"V69_UPSTREAM_ANALYZED_SOURCES={len(analyses)}")
     print(f"V69_UPSTREAM_RESULT_JSON={out}")
