@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 02:25 (+07)
+Updated: 2026-09-03 02:55 (+07)
 
 ## Authority
 
@@ -12,11 +12,11 @@ At the beginning of every project turn resolve current remote HEAD, then read `O
 
 ## Current objective
 
-Do not wait for natural V69 fills or the obsolete `2 trades / 48h` dashboard gate.
+The observed V69 live no-trade window has been localized. Do not keep diagnosing broker execution, reclaim, separation or retest for this window.
 
-Actual DEMO execution transport is already proven. The live no-trade path has now been localized one layer earlier: preserved `V64_ENTRY_EVAL.csv` shows the richest observed pre-pending source selected the opposite direction on every recorded evaluation, and frozen LONG-only direction isolation rejected those candidates before `PENDING_ARM`.
+The next question is economic/coverage-oriented: **how often does the unchanged V69 direction selector produce LONG, SHORT or neutral outcomes across all closed M15 bars?** The 83 preserved live `V64_ENTRY_EVAL.csv` rows are candidate/evaluation rows, not an all-bar coverage sample.
 
-The immediate gate is to aggregate and deduplicate all preserved ENTRY_EVAL roots so archived copies are not double-counted, then determine whether any preserved LONG selector candidate exists outside the richest 46-row source.
+Use the read-only selector-coverage recovery tool. It reuses the existing V64 all-bar screen only after proving its feature/scoring/selector functions and score thresholds are identical to frozen V69. This is development observability only, not independent edge evidence.
 
 REAL money remains unauthorized. SHORT remains disabled/rejected.
 
@@ -65,105 +65,86 @@ Corrected real-readiness execution probe checkpoint:
 
 Actual broker execution:
 
-- `V69_ACTUAL_DEMO_EXECUTION_VERIFIED=1`;
-- BUY `0.01 XAUUSDm` open retcode `10009`, comment `done`, price `4377.736`;
-- immediate probe-owned close retcode `10009`, comment `done`, price `4377.476`;
+- one BUY `0.01 XAUUSDm` opened successfully, retcode `10009 / done`;
+- the probe-owned position closed immediately, retcode `10009 / done`;
 - free margin `$39.74`;
 - terminal exited gracefully.
 
-This proves MT5 <-> broker market-order transport can open and close `0.01 XAUUSDm` on the current DEMO account. Do not return to generic lot/broker/transport suspicion without contradictory evidence. The probe proves transport only; it does not prove strategy edge or authorize REAL.
+This proves MT5 <-> broker market-order transport for the current DEMO account. Do not rerun the forced transport probe unless contradictory evidence appears. Transport PASS does not prove strategy edge or authorize REAL.
 
-## Latest operator evidence — direction isolation before pending arm
+## Decisive live selector evidence — PASS
 
-Operator ran the enhanced read-only upstream diagnostic at exact checkpoint:
+Operator ran the aggregate read-only upstream diagnostic at exact checkpoint:
 
-`931caf8949564ecaad65a524a9f55f16f044593d`
+`9ca2ac66b4c82f5b2f5c51184259d7147486c5a9`
 
-The run passed repository/Python/tests/secret scan and finished with:
+The diagnostic passed with MT5 left running, no MetaEditor, no orders and REAL authorization false.
 
-- `V69_UPSTREAM_TOTAL_EVENT_ROWS=0`;
-- `V69_UPSTREAM_SOURCES_WITH_EVENT_ROWS=0`;
-- `PENDING_ARM=0` and every later pending/reclaim stage `0`;
-- `V69_UPSTREAM_DIAGNOSTIC=PASS`;
-- MT5 remained running;
-- orders sent `0`;
-- REAL authorization `0`.
+Across preserved ENTRY_EVAL roots:
 
-Pre-pending ENTRY_EVAL evidence:
+- raw rows `83`;
+- unique rows `83`;
+- duplicate rows removed `0`;
+- decision reason `short_edge`: `83/83`;
+- reject reason `direction_isolated_out`: `83/83`;
+- selected direction `-1`: `83/83`;
+- selector-defined `SHORT_HTF_REGIME`: `83/83`;
+- H1 trend `-1`: `83/83`;
+- H4 trend `-1`: `83/83`;
+- score relation `SHORT_SCORE_HIGHER`: `83/83`;
+- triggers: `SHORT_TRIGGER_ONLY=59`, `BOTH_TRIGGERS=24`;
+- long score min/mean/max `-11 / -7.6265 / -1`;
+- short score min/mean/max `8 / 10.2892 / 15`;
+- long-minus-short margin min/mean/max `-25 / -17.9157 / -9`.
 
-- richest source: `_v69_forward_previous_20260901_140447_333776Z`;
-- richest-source rows `46`;
-- raw rows summed across four roots `83`;
-- roots with rows `4`;
-- classification `DIRECTION_ISOLATION_BLOCK_BEFORE_PENDING_ARM`;
-- dominant blocker `direction_isolated_out`;
-- decision reasons on richest source: `{"short_edge": 46}`;
-- reject reasons: `{"direction_isolated_out": 46}`;
-- selected directions: `{"-1": 46}`.
+Aggregate context:
 
-Therefore the observed live no-trade path is no longer ambiguous at the richest source: the selector produced opposite-direction candidates and frozen LONG-only isolation rejected them before pending-arm creation. Broker transport, reclaim, separation and retest were not the active blockers for those 46 evaluations.
+`ALL_UNIQUE_EVALS_SHORT_EDGE_IN_SHORT_HTF_REGIME`
 
-Do **not** enable SHORT from this result.
+This locks the no-trade interpretation for the observed evaluated candidates: **frozen V69 LONG-only abstained consistently with its unchanged direction selector.** There was no preserved LONG selector candidate among these 83 evaluations. Broker transport, reclaim, separation and retest were not the active blockers for these rows.
 
-## Meaning of `short_edge`
+Do not loosen LONG merely to manufacture turnover. Do not enable the rejected historical SHORT path.
 
-Inherited V59 selector logic requires the short side to satisfy all of the following before returning `short_edge` / direction `-1`:
+## Important nuance: 83 evaluations are not all closed M15 bars
 
-- short HTF regime: `h1_trend == -1 && h4_trend != 1`;
-- at least one short trigger: BOS/CHOCH, FVG, liquidity sweep, order-block retest, or aligned pullback/M15 trend;
-- short score meets the configured minimum;
-- short-minus-long score edge meets the configured minimum.
+The inherited V62/V69 `EvaluateBar` path returns before writing `V64_ENTRY_EVAL.csv` when:
 
-So `short_edge` is not an arbitrary label. It means the code's SHORT eligibility predicate passed on those rows. It does not independently prove objective future market direction or profitable SHORT expectancy.
+- `V64BuildFeatures()` fails; or
+- `V64SelectDirection()` returns `d==0`.
 
-## Why raw `83` rows are not yet an economic sample size
+Therefore `83/83 SHORT` means **83/83 recorded directional evaluations were SHORT**, not that 100% of all M15 bars in the calendar window were bearish/SHORT-eligible.
 
-`V64_ENTRY_EVAL.csv` exists in current and rotated FILE_COMMON roots. Archive rotation can copy the same historical rows into more than one preserved root. Summing root row counts can therefore double-count the same evaluation.
+All-bar coverage must include feature-not-ready and neutral/`d==0` bars before estimating LONG opportunity frequency.
 
-Use exact-row deduplication before interpreting aggregate selector frequencies. The raw `83` is a storage count across four roots, not yet a count of unique market evaluations.
+## Selector coverage recovery — read-only development tool
 
-## Read-only diagnostic v4
+Current branch now contains:
 
-Current branch code checkpoint `56787feaf6370da4cd766d917ad602bdb40f01fa` passed all five CI workflows and adds diagnostic-only aggregation. Strategy semantics are unchanged.
+- `scripts/analyze_v69_selector_coverage_recovery.py`;
+- `runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py`;
+- `runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh`;
+- `tests/test_v69_selector_coverage_recovery.py`;
+- CI coverage in `.github/workflows/v69_upstream_diag_quality.yml`.
 
-`analyze_v69_pre_pending_eval.py` now:
+The tool:
 
-- aggregates every current/archive `V64_ENTRY_EVAL.csv` root;
-- removes exact duplicate rows across rotated roots;
-- reconstructs the selector's HTF regime predicates;
-- reconstructs LONG/SHORT trigger state from logged feature columns;
-- compares long/short scores;
-- reports H1/H4 trend distributions;
-- reports selected direction by HTF regime and trigger state;
-- reports component-direction counts for structure, BOS/CHOCH, FVG, sweep, order-block retest, pullback, DI, MACD and location;
-- reports score min/max/mean and long-minus-short margin;
-- reports per-root summaries.
+1. reads the existing V64 all-bar directional-screen source and `screen/V64_ENTRY_EVAL.csv`, or recovers them read-only from the accepted local V64 evidence ZIP;
+2. generates the current frozen V69 source;
+3. compares the exact normalized directional core functions `V64EMA`, `V64ATR`, `V64RSI`, pivots/swings, FVG, DI/ADX, order-block retest, score, feature builder and selector;
+4. compares `InpV64MinDirectionalScore` and `InpV64MinScoreEdge` defaults;
+5. fails closed on any mismatch;
+6. only on exact identity, counts every unique M15 screen row including neutral and feature-not-ready rows;
+7. reports LONG/SHORT/neutral percentages, HTF regimes, decision reasons, score statistics and monthly coverage.
 
-Key new runtime markers:
+Repository-level CI additionally generates the V64 all-bar screen and frozen V69 source and confirms their directional core + score thresholds match exactly.
 
-- `V69_PRE_PENDING_ALL_RAW_ROWS`;
-- `V69_PRE_PENDING_ALL_UNIQUE_ROWS`;
-- `V69_PRE_PENDING_ALL_DUPLICATE_ROWS_REMOVED`;
-- `V69_PRE_PENDING_ALL_CONTEXT`;
-- `V69_PRE_PENDING_ALL_SELECTED_DIRECTIONS`;
-- `V69_PRE_PENDING_ALL_HTF_REGIMES`;
-- `V69_PRE_PENDING_ALL_TRIGGER_STATES`;
-- `V69_PRE_PENDING_ALL_SCORE_RELATIONS`;
-- `V69_PRE_PENDING_ALL_SCORE_SUMMARY`;
-- `V69_PRE_PENDING_ALL_SOURCE_SUMMARY`.
+This recovery does not restart MT5, does not invoke MetaEditor, sends no orders, changes no strategy semantics and does not authorize REAL or SHORT.
 
-Context classification intentionally distinguishes:
-
-- all unique rows are short-edge in selector-defined short HTF regime -> LONG-only abstention is internally consistent; keep SHORT disabled;
-- any preserved LONG selector rows exist -> localize their downstream rejection/archetype/stop path;
-- all rows selected SHORT but regime/trigger/score context is inconsistent -> review selector/telemetry consistency;
-- mixed evidence -> compare context before strategy changes.
-
-The diagnostic remains strictly read-only: no MetaEditor, no MT5 restart, no order path, no strategy threshold mutation.
+Coverage recovered from reused historical screen output is **development coverage**, not independent V69 edge evidence.
 
 ## Legacy dashboard warning
 
-The dashboard may still display `Closed 0/2` and `wait until 48h cap`. That UI is obsolete as a project gate. Do not wait for it.
+The dashboard may still display `Closed 0/2` and `wait until 48h cap`. That UI is obsolete as a project gate. Do not wait for it and do not restart healthy MT5 just to change the text.
 
 ## Current classification
 
@@ -175,17 +156,27 @@ The dashboard may still display `Closed 0/2` and `wait until 48h cap`. That UI i
 
 `V69_PENDING_STATE_EVENTS_ACROSS_PRESERVED_SOURCES=0`
 
-`V69_RICHEST_PRE_PENDING_ROWS=46`
+`V69_PRE_PENDING_UNIQUE_EVAL_ROWS=83`
 
-`V69_RICHEST_PRE_PENDING_DECISION=SHORT_EDGE_46_OF_46`
+`V69_PRE_PENDING_SHORT_EDGE=83_OF_83`
 
-`V69_RICHEST_PRE_PENDING_REJECTION=DIRECTION_ISOLATED_OUT_46_OF_46`
+`V69_PRE_PENDING_DIRECTION_ISOLATED_OUT=83_OF_83`
 
-`V69_RICHEST_PRE_PENDING_SELECTED_DIRECTION=SHORT_46_OF_46`
+`V69_PRE_PENDING_SHORT_HTF_REGIME=83_OF_83`
 
-`V69_RAW_ENTRY_EVAL_ROWS_ACROSS_ROOTS=83_NEEDS_DEDUP`
+`V69_PRE_PENDING_H1_SHORT=83_OF_83`
 
-`V69_LIVE_NO_TRADE_BLOCKER=DIRECTION_SELECTION_OR_REGIME_ABSTENTION_BEFORE_PENDING_ARM`
+`V69_PRE_PENDING_H4_SHORT=83_OF_83`
+
+`V69_PRE_PENDING_SHORT_SCORE_HIGHER=83_OF_83`
+
+`V69_LIVE_NO_TRADE_PRIMARY_CAUSE=LONG_ONLY_REGIME_ABSTENTION_IN_OBSERVED_DIRECTIONAL_EVALUATIONS`
+
+`V69_NO_LONG_DIRECTIONAL_CANDIDATES_IN_83_EVALS=1`
+
+`V69_83_EVALS_DO_NOT_EQUAL_ALL_M15_BARS=1`
+
+`V69_NEXT_GATE=ALL_BAR_SELECTOR_COVERAGE_RECOVERY`
 
 `V69_SHORT_ENABLED=0`
 
@@ -198,11 +189,12 @@ The dashboard may still display `Closed 0/2` and `wait until 48h cap`. That UI i
 ## Next gate
 
 1. Do not rerun the DEMO execution probe.
-2. Do not wait for natural trades or 48 hours.
-3. Keep MT5 running.
-4. Fast-forward to the final exact CI-green branch HEAD and run the same read-only upstream launcher once.
-5. Interpret only the deduplicated `V69_PRE_PENDING_ALL_*` markers for cross-root selector frequency.
-6. If all unique rows are `short_edge` in selector-defined short HTF regime, treat frozen LONG inactivity as regime abstention, not a runtime bug; do not loosen LONG merely to force trades and do not activate historical SHORT.
-7. If any unique LONG selector rows exist, localize their reject reasons and earliest downstream gate before designing strategy changes.
-8. Only after this aggregate diagnosis decide the separate economic research direction: improve LONG regime/candidate quality or start a separately validated SHORT/successor research line.
-9. REAL remains a separate explicit fail-closed deployment/risk decision.
+2. Do not rerun the upstream event/pre-pending diagnostic; its observed-window blocker is settled.
+3. Do not wait for natural trades or 48 hours.
+4. Keep MT5 running.
+5. Run the read-only selector-coverage recovery on the final exact CI-green branch HEAD.
+6. If existing V64 all-bar evidence is missing locally, do not stop MT5 just to regenerate it; return the fail-closed message and choose a non-disruptive fallback.
+7. If directional-core identity fails, do not override it and do not reuse incompatible historical screen evidence.
+8. If identity passes, use all-bar LONG/SHORT/neutral coverage and monthly distribution to decide whether LONG-only opportunity is intrinsically sparse and whether a **separate** bearish-regime challenger deserves research.
+9. Any bearish-regime challenger must be a new research line; it is not permission to reactivate rejected V69 SHORT.
+10. REAL remains a separate explicit fail-closed deployment/risk decision.
