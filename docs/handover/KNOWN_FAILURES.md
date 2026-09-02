@@ -1,14 +1,44 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 (+07)
+Updated: 2026-09-03 02:25 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
+### KD-2026-09-03-06 — `direction_isolated_out + short_edge` is a selector/regime result, not permission to enable SHORT
+
+Latest operator run at checkpoint `931caf8949564ecaad65a524a9f55f16f044593d` found, in the richest preserved `V64_ENTRY_EVAL.csv` source:
+
+- 46 evaluation rows;
+- `decision_reason=short_edge` on 46/46;
+- `selected_direction=-1` on 46/46;
+- `reject_reason=direction_isolated_out` on 46/46;
+- no `PENDING_ARM` or later pending/reclaim event.
+
+Inherited selector code only returns `short_edge` when the selector-defined short HTF regime, at least one short trigger, the minimum short score and the minimum short-vs-long score edge all pass. Therefore these 46 rows were not arbitrarily labeled SHORT; frozen LONG-only direction isolation rejected selector-qualified opposite-direction candidates by design.
+
+Do not react by:
+
+- enabling the historically rejected SHORT path;
+- loosening LONG direction/regime gates merely to force turnover;
+- blaming broker transport, reclaim, separation or retest for these rows.
+
+The correct next question is whether this evidence represents the whole preserved period or only the richest archive root.
+
+Raw row totals across FILE_COMMON roots may duplicate the same evaluations because archive rotation copies telemetry. The observed raw total `83` across four roots must be exact-row deduplicated before selector frequencies are interpreted as a market sample.
+
+Regression/guard:
+
+- diagnostic v4 aggregates all ENTRY_EVAL roots;
+- exact duplicate rows are removed;
+- it reconstructs selector HTF regime and trigger predicates from logged columns;
+- it reports score relation, H1/H4 distributions, direction by regime/trigger, component directions and per-root summaries;
+- a result where all unique rows are short-edge in short HTF regime is classified as internally consistent LONG-only abstention, while SHORT stays disabled.
+
 ### KD-2026-09-03-05 — `V64_EVENTS=0` does NOT mean `no market signal`
 
-Latest read-only upstream run examined 8 preserved V69 sources and found zero `V64_EVENTS.csv` data rows, including `PENDING_ARM=0` and every later pending/reclaim stage at zero.
+A read-only upstream run examined 8 preserved V69 sources and found zero `V64_EVENTS.csv` data rows, including `PENDING_ARM=0` and every later pending/reclaim stage at zero.
 
 This proves that no **instrumented pending-state event** occurred. It does not prove that `BuildFeatures`/`SelectDirection` found no candidate.
 
@@ -20,38 +50,25 @@ Code lineage shows several paths before `PENDING_ARM` that do not create a pendi
 - raw M15 stop geometry can reject as `invalid_arm_structural_stop` and write only `V64_ENTRY_EVAL.csv`;
 - only a successful arm emits `PENDING_ARM`.
 
-Do not equate empty event telemetry with absence of visual/selector opportunities. Before changing strategy thresholds, inspect `V64_ENTRY_EVAL.csv` across current and archived roots.
-
-Regression/guard:
-
-- enhanced read-only diagnostic includes `scripts/analyze_v69_pre_pending_eval.py`;
-- runner reports `V69_PRE_PENDING_*` decision/reject/direction counts;
-- tests cover archetype rejection and zero-entry-eval cases.
+Do not equate empty event telemetry with absence of visual/selector opportunities. Inspect `V64_ENTRY_EVAL.csv` before changing strategy thresholds.
 
 If ENTRY_EVAL is also empty, observability is insufficient before the `d==0` return. The next step is an observability-only M15 `EvaluateBar` tracer, not threshold tuning.
 
 ### KD-2026-09-03-04 — actual DEMO execution PASS localizes the no-trade issue upstream
 
-Successful corrected real-readiness run at code checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` proved actual MT5/broker transport:
+Successful corrected real-readiness run at checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` proved actual MT5/broker transport:
 
 - one DEMO BUY `XAUUSDm 0.01` opened successfully;
 - open retcode `10009`, comment `done`;
-- the probe-owned position closed immediately;
-- close retcode `10009`, comment `done`;
+- probe-owned close retcode `10009`, comment `done`;
 - probe terminal exited gracefully;
-- frozen V69 automatically relaunched and returned to stable broker/runtime READY.
+- frozen V69 automatically returned to normal DEMO runtime.
 
-The pre-probe live signal funnel showed no reclaim/separation/retest/entry-ready stage. The subsequent 8-source diagnostic showed no pending-state event at all.
-
-Therefore generic real-time deployment, lot size, broker transport and the post-confirm order path are not the primary explanation for the observed no-trade window. Diagnose candidate generation and pre-pending gates first.
-
-Do not rerun the forced transport probe unless new evidence contradicts the transport PASS.
+Therefore generic real-time deployment, lot size and broker transport are not the primary explanation for the observed no-trade window. Do not rerun the forced transport probe unless new evidence contradicts this PASS.
 
 ### KD-2026-09-03-03 — frozen dashboard still displays obsolete `2 trades / 48h` wait gate
 
-The smoke dashboard can still show `Closed 0/2`, `2 more closed trades`, and `wait until 48h cap`. Those lines are obsolete as project gates.
-
-Current gate is diagnostic localization, not passive waiting. Future dashboard work should label natural-trade counts informational or replace the legacy progress block with current real-readiness/upstream-diagnostic state.
+The smoke dashboard can still show `Closed 0/2`, `2 more closed trades`, and `wait until 48h cap`. Those lines are obsolete as project gates. Current gate is diagnostic localization, not passive waiting.
 
 Do not restart a healthy runtime solely to fix this cosmetic text.
 
@@ -65,11 +82,19 @@ Never convert probe PASS directly into automatic REAL authorization.
 
 Dry-run readiness plus zero trades is ambiguous. Resolve it with signal-stage telemetry plus isolated execution evidence, not visual chart interpretation or longer waiting.
 
-## Resolved harness/broker incidents
+## Resolved harness / diagnostic incidents
+
+### KH-2026-09-03-03 — diagnostic v4 CI failed on a stale source-string assertion — RESOLVED
+
+At code checkpoint `85572066021b0f90f30e242d20f5e21c0d239116`, all substantive dedup/regime aggregation tests passed, but `v69-upstream-diag-quality` failed because a static test expected the literal source text `V69_PRE_PENDING_REJECT_REASONS=` while the runner emits that runtime marker through `print_json_marker(...)`.
+
+Fix: test the structured marker name rather than the implementation-specific source literal. Corrected checkpoint `56787feaf6370da4cd766d917ad602bdb40f01fa` passed all five workflows.
+
+Do not mutate runtime semantics merely to satisfy a stale textual assertion.
 
 ### KH-2026-09-03-02 — upstream diagnostic treated zero event rows as fatal — RESOLVED
 
-The first upstream runner raised `V69 telemetry roots found but none contain readable V64_EVENTS.csv rows` even though the analyzer intentionally classified zero events as `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`.
+The first upstream runner raised a fatal error even though the analyzer intentionally classified zero events as `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`.
 
 Fix:
 
@@ -83,13 +108,7 @@ The corrected operator run subsequently completed with diagnostic PASS across 8 
 
 First Windows attempt at checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e` failed before MT5 with `V69_ONE_SHOT_EXPECTED_HEAD is required` because the new launcher used `V69_REAL_READINESS_EXPECTED_HEAD` while inherited code required the old name.
 
-Fix:
-
-- launcher bridges the inherited variable;
-- Python runner normalizes both names before inherited `ensure_repo()` and keeps the bridge through `forward.main()`;
-- regression test asserts the cross-module bridge.
-
-Corrected checkpoint `614d68e...` subsequently completed the entire real-readiness probe successfully.
+Fix bridged the inherited variable end-to-end and added regression coverage. Corrected checkpoint `614d68e...` completed the real-readiness probe successfully.
 
 ### KF-2026-09-01-01 — generic 4756 hid server `10019 No money` — RESOLVED
 
@@ -176,6 +195,8 @@ See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 - Dry-run READY proves request readiness; actual probe PASS proves transport; neither proves strategy edge.
 - After prolonged no-trade runtime, inspect stage telemetry instead of waiting blindly.
 - Empty pending-event telemetry must be followed by pre-pending ENTRY_EVAL analysis before claiming there were no signals.
+- Deduplicate copied telemetry rows across rotated FILE_COMMON roots before treating row totals as market-sample counts.
+- `short_edge` in a LONG-only runtime is abstention evidence, not authorization to activate SHORT.
 - Once actual execution transport is proven, do not rerun forced probes unless transport evidence changes.
 - Ignore legacy dashboard `2 trades / 48h` as a current project gate.
 - Keep strategy, broker transport and harness failures separate.
