@@ -1,171 +1,125 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 02:25 (+07)
+Updated: 2026-09-03 02:55 (+07)
 
 ## User input
 
-Operator ran the enhanced read-only upstream diagnostic at exact checkpoint:
+Operator ran the aggregate read-only upstream diagnostic at exact checkpoint:
 
-`931caf8949564ecaad65a524a9f55f16f044593d`
+`9ca2ac66b4c82f5b2f5c51184259d7147486c5a9`
 
-MT5 remained running. The diagnostic completed cleanly with no orders and REAL authorization false.
+MT5 remained running. No MetaEditor was required, no orders were sent and REAL authorization remained false.
 
 ## Exact operator evidence
 
-Pending-state/event funnel across preserved sources:
+Pending/event funnel remained empty:
 
 - analyzed sources `8`;
-- total `V64_EVENTS.csv` data rows `0`;
-- sources with event rows `0`;
+- total event rows `0`;
 - `PENDING_ARM=0`;
-- `MICRO_ENTRY_ARM=0`;
-- `MICRO_ENTRY_ZONE_TOUCH=0`;
-- `MICRO_ENTRY_PENETRATION=0`;
-- `POST_ZONE_CONFIRM_WAIT=0`;
-- `POST_ZONE_REVERSAL_CONFIRM=0`;
-- `POST_CONFIRM_SEPARATION=0`;
-- `POST_CONFIRM_RETEST_READY=0`;
-- `POST_CONFIRM_ENTRY_READY=0`;
-- natural closed V69 deals `0`;
-- upstream classification `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`.
+- all reclaim/separation/retest/entry-ready stages `0`;
+- natural closed V69 deals `0`.
 
-Pre-pending ENTRY_EVAL:
+Aggregate pre-pending evidence:
 
-- richest root: `Common\Files\mt5_quant\_v69_forward_previous_20260901_140447_333776Z`;
-- richest-root rows `46`;
-- raw rows summed across four roots `83`;
-- roots with rows `4`;
-- classification `DIRECTION_ISOLATION_BLOCK_BEFORE_PENDING_ARM`;
-- blocker `direction_isolated_out`;
-- decision reasons `{"short_edge": 46}`;
-- reject reasons `{"direction_isolated_out": 46}`;
-- selected directions `{"-1": 46}`;
-- diagnostic PASS;
-- launcher PASS;
-- MT5 can remain running `1`;
-- orders sent `0`;
-- REAL authorization `0`.
+- raw ENTRY_EVAL rows `83`;
+- unique rows `83`;
+- duplicates removed `0`;
+- `decision_reason=short_edge`: `83/83`;
+- `reject_reason=direction_isolated_out`: `83/83`;
+- selected direction `-1`: `83/83`;
+- `SHORT_HTF_REGIME`: `83/83`;
+- H1 trend `-1`: `83/83`;
+- H4 trend `-1`: `83/83`;
+- `SHORT_SCORE_HIGHER`: `83/83`;
+- trigger state: `SHORT_TRIGGER_ONLY=59`, `BOTH_TRIGGERS=24`;
+- long score min/mean/max `-11 / -7.6265 / -1`;
+- short score min/mean/max `8 / 10.2892 / 15`;
+- long-minus-short min/mean/max `-25 / -17.9157 / -9`;
+- aggregate context `ALL_UNIQUE_EVALS_SHORT_EDGE_IN_SHORT_HTF_REGIME`;
+- diagnostic PASS and launcher PASS.
 
-## Decisive interpretation
+Component telemetry still contained some local bullish cues, especially `location_dir=+1` on `65/83` and bullish liquidity sweep on `19/83`, but broad directional evidence remained strongly bearish: H1/H4 were both `-1` on every row, MACD was `-1` on `79/83`, DI was `-1` on `76/83`, and short score beat long score by at least 9 on every row.
 
-The live no-trade path is now localized more precisely for the richest preserved source.
+## Locked interpretation
 
-Those 46 evaluations did not fail at broker execution, reclaim confirmation, separation or retest. The inherited selector selected direction `-1`; V69's frozen LONG-only isolation then logged `direction_isolated_out` and returned before `PENDING_ARM`.
+The observed no-trade path is no longer ambiguous for recorded directional evaluations.
 
-Code review of inherited V59 selector confirms `short_edge` requires:
+Frozen V69 LONG-only correctly abstained because the unchanged selector selected SHORT on all 83 unique evaluations. V69 then rejected the opposite direction before `PENDING_ARM` by design.
 
-- `h1_trend == -1 && h4_trend != 1`;
-- at least one short trigger (BOS/CHOCH, FVG, liquidity sweep, order-block retest, or aligned pullback/M15 trend);
-- short score >= configured minimum;
-- short-minus-long score edge >= configured minimum.
+Therefore:
 
-Thus `short_edge` is a real selector eligibility result, not a cosmetic label. It does not prove profitable SHORT expectancy and does not authorize SHORT.
+- broker execution is not the blocker;
+- reclaim confirmation is not the blocker for these rows;
+- separation/retest is not the blocker for these rows;
+- no preserved LONG selector candidate exists among the 83 recorded evaluations;
+- do not loosen LONG just to manufacture trades;
+- do not enable the rejected historical SHORT path.
 
-## Remaining ambiguity
+## Remaining observability gap
 
-The raw `83` ENTRY_EVAL rows across four roots cannot yet be treated as 83 unique market evaluations. FILE_COMMON telemetry rotation can preserve copies of the same rows in multiple roots.
+The 83 rows are **not all closed M15 bars**.
 
-The next diagnostic must exact-row deduplicate all roots and answer:
+Code review of inherited V62/V69 `EvaluateBar` proves it returns before `V64_ENTRY_EVAL.csv` when feature building fails or selector returns `d==0`. Therefore the candidate telemetry cannot estimate calendar opportunity coverage.
 
-1. how many unique evaluations exist;
-2. whether any unique LONG selector rows exist outside the richest 46-row source;
-3. whether SHORT selections consistently coincide with the selector-defined short HTF regime and short-trigger state;
-4. how long/short score relations and component directions behave by root/time.
+The next question is all-bar selector coverage: among every closed M15 bar, what fraction is feature-ready, LONG-selected, SHORT-selected or neutral, and how does that vary by month/regime?
 
 ## Code work this turn
 
-Diagnostic-only changes were added to `agent/v69-one-shot-prospective-demo`. Frozen V69 strategy semantics were not changed.
+A new read-only selector-coverage recovery path was added on `agent/v69-one-shot-prospective-demo`:
 
-### Analyzer
+- `scripts/analyze_v69_selector_coverage_recovery.py`;
+- `runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY.py`;
+- `runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh`;
+- `tests/test_v69_selector_coverage_recovery.py`;
+- extended `.github/workflows/v69_upstream_diag_quality.yml`.
 
-`scripts/analyze_v69_pre_pending_eval.py` now:
+The recovery tool does **not** run MT5 tester or MetaEditor. It reuses existing local V64 all-bar screen evidence if available.
 
-- aggregates all current/archive ENTRY_EVAL roots;
-- exact-row deduplicates copied archive rows;
-- mirrors V59 HTF-regime predicates;
-- mirrors V59 trigger predicates from logged fields;
-- reports LONG/SHORT score relation;
-- reports H1/H4 trend distributions;
-- reports direction by HTF regime and trigger state;
-- reports component-direction counts;
-- reports score min/max/mean and long-minus-short margin;
-- reports per-source summaries.
+Before reuse it generates frozen V69 and compares exact normalized directional functions and score thresholds against the V64 all-bar screen source. Any mismatch is fatal. It also checks the actual local V64 screen source again at operator runtime rather than trusting CI alone.
 
-### Runtime
+If identity passes, it reports:
 
-`RUN_V69_UPSTREAM_SIGNAL_DIAG.py` protocol advanced to v4 and prints:
+- unique M15 rows and date span;
+- feature-ready vs feature-not-ready bars;
+- selected LONG/SHORT/neutral counts and percentages;
+- LONG/SHORT share among directional selections;
+- decision reasons;
+- HTF regime counts;
+- trigger-state counts;
+- score distributions;
+- month-by-month coverage.
 
-- `V69_PRE_PENDING_ALL_RAW_ROWS`;
-- `V69_PRE_PENDING_ALL_UNIQUE_ROWS`;
-- `V69_PRE_PENDING_ALL_DUPLICATE_ROWS_REMOVED`;
-- `V69_PRE_PENDING_ALL_CONTEXT` and next action;
-- aggregate decision/reject/direction counts;
-- HTF regime, trigger-state and score-relation counts;
-- H1/H4 trends;
-- direction grouped by HTF/trigger;
-- component directions;
-- score summary;
-- per-root source summary.
+This output is explicitly `DEVELOPMENT_COVERAGE_ONLY=1` and `INDEPENDENT_EDGE_EVIDENCE=0`.
 
-The runtime remains strictly read-only: no MetaEditor, no MT5 restart, no order calls, no strategy changes.
+## CI
 
-### Tests and CI incident
+Code checkpoint `2666bc8520afd850dc6fd32f29c101e2bd01cbe3` passed the new `v69-upstream-diag-quality` workflow.
 
-New tests cover:
+A further regression checkpoint `c39d18b77f543a3d83cfefe0601beb931cf8e83f` generates both repository builders in CI and proves the V64 all-bar screen directional core + score thresholds match frozen V69 exactly. `v69-upstream-diag-quality` passed on that checkpoint.
 
-- exact-row dedup across rotated roots;
-- mixed LONG/SHORT aggregate evidence;
-- all-short-edge / short-HTF-regime abstention classification;
-- v4 runtime marker contract.
-
-Checkpoint `85572066021b0f90f30e242d20f5e21c0d239116` had one CI failure caused only by a stale static source-string assertion. All substantive new aggregation tests had already passed.
-
-The assertion was corrected without changing runtime semantics.
-
-Corrected code checkpoint:
-
-`56787feaf6370da4cd766d917ad602bdb40f01fa`
-
-All five workflows on that exact code checkpoint completed successfully:
-
-- `v69-upstream-diag-quality`;
-- `v69-forward-quality`;
-- `v69-quality`;
-- `v68-quality`;
-- full `quality`.
-
-## Economic direction after the next read-only run
-
-If all deduplicated unique rows are `short_edge` in selector-defined short HTF regime:
-
-- frozen V69 LONG was abstaining consistently with its inherited direction selector;
-- do not loosen LONG merely to manufacture turnover;
-- do not activate the old rejected SHORT implementation;
-- move to economic research on LONG regime availability/quality and, only as a separate research line, a newly validated SHORT/successor architecture.
-
-If any unique LONG selector rows exist:
-
-- inspect their reject reasons and earliest downstream gate;
-- `no_complete_archetype` means candidate/archetype construction is the next bottleneck;
-- `invalid_arm_structural_stop` means M15 stop geometry is the next bottleneck;
-- pending eval without `PENDING_ARM` requires state/telemetry integration review.
+After this handover sync, resolve the final branch HEAD and require all five exact-head workflows green before giving the operator the recovery launcher.
 
 ## Safety and strategy status
 
 - frozen V69 semantics unchanged;
 - DEMO execution transport PASS;
-- LONG only;
-- SHORT disabled/rejected;
+- current observed directional evaluations all SHORT-selected;
+- LONG-only abstention is working as designed for those evaluations;
+- SHORT remains disabled/rejected;
 - no automatic REAL promotion;
 - REAL authorization false;
-- no order sent by current diagnostic work.
+- selector-coverage recovery is read-only and sends no orders.
 
 ## Next operator action
 
-After this documentation sync resolves to a final exact CI-green branch HEAD:
+After the documentation-sync HEAD is exact-CI-green:
 
 1. leave MT5 running;
 2. fast-forward only to the exact final HEAD;
-3. run `runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh` once;
-4. return the markers from `V69_PRE_PENDING_ALL_RAW_ROWS=` through `V69_PRE_PENDING_ALL_SOURCE_SUMMARY=` plus final PASS/FATAL;
-5. do not wait for another natural trade and do not rerun the execution probe.
+3. export `V69_SELECTOR_COVERAGE_EXPECTED_HEAD` to that SHA;
+4. run `runtime/v69_selector_coverage_recovery/RUN_V69_SELECTOR_COVERAGE_RECOVERY_GIT_BASH.sh` once;
+5. return output from `V69_SELECTOR_DIRECTIONAL_CORE_IDENTITY=` through `V69_SELECTOR_COVERAGE_RECOVERY=PASS`, or the exact FATAL message;
+6. if V64 evidence is absent, do not stop MT5 to regenerate it;
+7. if identity mismatches, do not override the fail-closed check;
+8. do not rerun the upstream diagnostic or execution probe.
