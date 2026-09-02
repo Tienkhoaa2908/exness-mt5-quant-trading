@@ -8,8 +8,17 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 ANALYZER = REPO / "scripts" / "analyze_v69_upstream_signal_funnel.py"
+PRE_PENDING_ANALYZER = REPO / "scripts" / "analyze_v69_pre_pending_eval.py"
 RUNNER = REPO / "runtime" / "v69_real_readiness_probe" / "RUN_V69_UPSTREAM_SIGNAL_DIAG.py"
 LAUNCHER = REPO / "runtime" / "v69_real_readiness_probe" / "RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh"
+
+EVAL_HEADER = [
+    "time","h4_trend","h1_trend","m15_trend","structure_dir","bos_choch_dir","fvg_dir",
+    "liquidity_sweep_dir","order_block_retest_dir","pullback_dir","di_dir","macd_dir","location_dir",
+    "atr15","rsi2","rsi14","adx","plus_di","minus_di","macd","macd_slope","distance_ema_atr",
+    "range_location","long_score","short_score","selected_direction","decision_reason","entry","stop","tp",
+    "risk_cash","risk_pct","margin_cash","spread_points","spread_cash","feasible","reject_reason","stop_source","screen_only",
+]
 
 
 def load(path: Path, name: str):
@@ -34,6 +43,27 @@ def write_events(root: Path, events: list[tuple[str, str]], *, partial_tail: boo
     with (root / "V64_DEALS.csv").open("w", encoding="utf-8", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["time", "entry", "price"])
+
+
+def write_eval(root: Path, reject_reason: str, *, decision_reason: str = "long_edge", selected_direction: int = 1) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    row = {name: "0" for name in EVAL_HEADER}
+    row.update({
+        "time": "2026.09.02 12:00:00",
+        "h4_trend": "1",
+        "h1_trend": "1",
+        "m15_trend": "1",
+        "long_score": "10",
+        "short_score": "2",
+        "selected_direction": str(selected_direction),
+        "decision_reason": decision_reason,
+        "reject_reason": reject_reason,
+        "stop_source": "none",
+    })
+    with (root / "V64_ENTRY_EVAL.csv").open("w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=EVAL_HEADER)
+        w.writeheader()
+        w.writerow(row)
 
 
 def test_confirm_wait_reason_localizes_upstream_block() -> None:
@@ -100,12 +130,41 @@ def test_header_only_event_file_is_valid_upstream_evidence() -> None:
         assert out["dominant_blocker"] == "PENDING_ARM"
 
 
-def test_runner_accepts_zero_event_rows_and_uses_pre_probe_snapshot() -> None:
+def test_pre_pending_eval_localizes_no_complete_archetype() -> None:
+    mod = load(PRE_PENDING_ANALYZER, "v69_pre_pending_arch")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        write_eval(root, "no_complete_archetype")
+        out = mod.analyze(root)
+        assert out["rows"] == 1
+        assert out["classification"] == "ARCHETYPE_COMPLETION_BLOCK_BEFORE_PENDING_ARM"
+        assert out["dominant_blocker"] == "no_complete_archetype"
+        assert out["decision_reason_counts"]["long_edge"] == 1
+
+
+def test_pre_pending_zero_eval_requires_evaluatebar_observability() -> None:
+    mod = load(PRE_PENDING_ANALYZER, "v69_pre_pending_zero")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        root.mkdir(parents=True, exist_ok=True)
+        with (root / "V64_ENTRY_EVAL.csv").open("w", encoding="utf-8", newline="") as fh:
+            csv.writer(fh).writerow(EVAL_HEADER)
+        out = mod.analyze(root)
+        assert out["rows"] == 0
+        assert out["classification"] == "NO_PRE_PENDING_DIRECTIONAL_EVAL_ROWS"
+        assert out["dominant_blocker"] == "selector_or_feature_gate_unobserved"
+        assert "EvaluateBar" in out["next_action"]
+
+
+def test_runner_accepts_zero_event_rows_and_reads_pre_pending_eval() -> None:
     runner = RUNNER.read_text(encoding="utf-8")
     assert "V69_PRE_PROBE_SIGNAL_PATH.json" in runner
     assert "V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1" in runner
     assert "none contain readable V64_EVENTS.csv rows" not in runner
     assert "PRE_PROBE_SIGNAL_PATH_JSON" in runner
+    assert "analyze_v69_pre_pending_eval.py" in runner
+    assert "V69_PRE_PENDING_EVAL_ROWS=" in runner
+    assert "V69_PRE_PENDING_REJECT_REASONS=" in runner
     assert "INITIAL_SETUP_OR_PENDING_ARM_BLOCK" in ANALYZER.read_text(encoding="utf-8")
 
 
