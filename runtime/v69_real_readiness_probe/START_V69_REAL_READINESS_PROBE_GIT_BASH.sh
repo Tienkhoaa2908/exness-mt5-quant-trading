@@ -30,6 +30,11 @@ echo "EXPECTED_HEAD=$EXPECTED_HEAD"
 [[ "$HEAD" == "$EXPECTED_HEAD" ]] || die "wrong HEAD expected=$EXPECTED_HEAD actual=$HEAD"
 [[ -z "$DIRTY" ]] || { printf '%s\n' "$DIRTY"; echo "DO NOT git clean"; echo "DO NOT stash pop"; die "working tree dirty"; }
 
+# The real-readiness runner reuses the frozen V69 one-shot repository guard and later
+# calls forward.main(). Bridge the canonical probe head into that inherited contract.
+export V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"
+echo "V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=$V69_ONE_SHOT_EXPECTED_HEAD"
+
 PY_CMD=()
 probe_python(){
   local label="$1"; shift
