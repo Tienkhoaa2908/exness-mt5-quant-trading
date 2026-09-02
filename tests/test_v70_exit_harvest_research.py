@@ -192,6 +192,17 @@ def test_runtime_gates_on_legacy_identity_not_economic_roundtrip_net() -> None:
             raise AssertionError("all-zero shadow telemetry must fail closed")
 
 
+def test_existing_evidence_reanalysis_is_source_pinned_and_skips_tester() -> None:
+    src = RUNTIME.read_text(encoding="utf-8")
+    assert 'REANALYZE_ENV = "V70_REANALYZE_EXISTING"' in src
+    assert "V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS" in src
+    assert "V70_EXISTING_EVIDENCE_MONTHS=PASS" in src
+    assert "V70_EXISTING_EVIDENCE_REANALYSIS" in src
+    assert "builder.transform()" in src
+    assert '"V64_DEALS.csv", "V64_EVENTS.csv"' in src
+    assert src.index("if reanalyze_existing:") < src.index("data = runner.base.find_mt5_data_dir()")
+
+
 def test_runtime_is_exact_head_tester_only_long_only() -> None:
     src = RUNTIME.read_text(encoding="utf-8")
     sh = LAUNCHER.read_text(encoding="utf-8")
