@@ -78,12 +78,11 @@ def test_forward_recovery_contract_is_canonical() -> None:
     t = CURRENT.read_text(encoding="utf-8")
     assert "0569701be7846605ac01f94d8b5fc4ec2a6f8dd1" in t
     assert "SHORT rejected/disabled" in t or "SHORT disabled" in t
-    assert "REAL authorization false" in t
+    assert "REAL authorization false" in t or "REAL_MONEY_AUTHORIZED=0" in t
     assert "LONG only" in t
-    # Handover wording may evolve; require the durable safety semantics instead
-    # of the old literal phrase "DEMO only".
-    assert "Actual DEMO execution transport" in t
-    assert "REAL money remains unauthorized" in t or "REAL authorization false" in t
+    # Use durable classification/safety markers rather than prose headings.
+    assert "V69_ACTUAL_DEMO_EXECUTION_TRANSPORT=PASS" in t
+    assert "REAL_MONEY_AUTHORIZED=0" in t
 
 
 def main() -> int:
