@@ -113,6 +113,16 @@ def test_one_shot_reads_old_telemetry_then_probes_then_relaunches_frozen_v69() -
         assert forbidden not in text
 
 
+def test_expected_head_contract_is_bridged_into_inherited_forward_runtime() -> None:
+    launcher = LAUNCHER.read_text(encoding="utf-8")
+    runner = RUNNER.read_text(encoding="utf-8")
+    assert 'export V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"' in launcher
+    assert "V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=" in launcher
+    assert 'os.environ["V69_ONE_SHOT_EXPECTED_HEAD"] = expected_head' in runner
+    assert "bridge_expected_head()" in runner
+    assert "V69_REAL_READINESS_EXPECTED_HEAD is required" in runner
+
+
 def test_launcher_contract() -> None:
     text = LAUNCHER.read_text(encoding="utf-8")
     assert "V69_REAL_READINESS_EXPECTED_HEAD is required" in text
