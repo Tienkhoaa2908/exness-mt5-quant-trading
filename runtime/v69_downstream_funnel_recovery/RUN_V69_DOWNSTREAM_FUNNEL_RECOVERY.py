@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -10,6 +11,8 @@ import zipfile
 from pathlib import Path
 
 EXPECTED_BRANCH = "agent/v69-one-shot-prospective-demo"
+ACCEPTED_V69_ZIP_SHA256 = "e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb"
+EXPECTED_V69_DEALS = {"trades": 24, "wins": 10, "losses": 14, "net_usd": 7.14}
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = HERE / "OUTPUT_V69_DOWNSTREAM_FUNNEL_RECOVERY"
@@ -26,6 +29,14 @@ def load(path: Path, name: str):
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def capture(cmd, *, cwd=None) -> str:
@@ -82,6 +93,13 @@ def direct_v69_root() -> Path | None:
 def recover_v69_from_zip() -> Path | None:
     if not V69_ZIP.is_file():
         return None
+    digest = sha256(V69_ZIP)
+    print(f"V69_DOWNSTREAM_ACCEPTED_ZIP_SHA256={digest}")
+    if digest != ACCEPTED_V69_ZIP_SHA256:
+        raise RuntimeError(
+            "local V69 research ZIP does not match the accepted V69 evidence identity; "
+            f"expected={ACCEPTED_V69_ZIP_SHA256} actual={digest}"
+        )
     root = OUT / "RECOVERED_V69_DEVELOPMENT"
     if root.exists():
         for path in sorted(root.rglob("*"), reverse=True):
@@ -127,6 +145,26 @@ def discover_v69_root() -> tuple[Path, str]:
     )
 
 
+def assert_accepted_development_identity(result: dict) -> None:
+    deals = result.get("deals", {})
+    mismatches = []
+    for key in ("trades", "wins", "losses"):
+        if int(deals.get(key, -1)) != int(EXPECTED_V69_DEALS[key]):
+            mismatches.append(f"{key}:expected={EXPECTED_V69_DEALS[key]} actual={deals.get(key)}")
+    try:
+        net = float(deals.get("net_usd"))
+    except (TypeError, ValueError):
+        net = float("nan")
+    if not (abs(net - EXPECTED_V69_DEALS["net_usd"]) <= 0.02):
+        mismatches.append(f"net_usd:expected={EXPECTED_V69_DEALS['net_usd']:.2f} actual={deals.get('net_usd')}")
+    if mismatches:
+        raise RuntimeError(
+            "local V69 development telemetry does not match accepted 24/10/14/+7.14 identity: "
+            + "; ".join(mismatches)
+        )
+    print("V69_DOWNSTREAM_ACCEPTED_DEVELOPMENT_IDENTITY=PASS")
+
+
 def main() -> int:
     branch, head = ensure_repo()
     analyzer = load(ANALYZER, "v69_downstream_long_funnel")
@@ -137,6 +175,7 @@ def main() -> int:
     print(f"V69_DOWNSTREAM_V69_ROOT={v69_root}")
 
     result = analyzer.analyze(screen, v69_root)
+    assert_accepted_development_identity(result)
     result["branch"] = branch
     result["head"] = head
     result["v69_source_kind"] = source_kind
