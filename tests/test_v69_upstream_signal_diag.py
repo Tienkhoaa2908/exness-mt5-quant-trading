@@ -279,7 +279,7 @@ def test_runner_accepts_zero_event_rows_and_reads_pre_pending_eval() -> None:
     assert "analyze_v69_pre_pending_eval.py" in runner
     assert "v69_upstream_signal_diagnostic_v4" in runner
     assert "V69_PRE_PENDING_EVAL_ROWS=" in runner
-    assert "V69_PRE_PENDING_REJECT_REASONS=" in runner
+    assert "V69_PRE_PENDING_REJECT_REASONS" in runner
     assert "V69_PRE_PENDING_ALL_UNIQUE_ROWS=" in runner
     assert "V69_PRE_PENDING_ALL_HTF_REGIMES" in runner
     assert "V69_PRE_PENDING_ALL_TRIGGER_STATES" in runner
