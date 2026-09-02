@@ -2,158 +2,130 @@
 
 Updated: 2026-09-03 (+07)
 
-Read this before modifying Windows/MT5 runtime code.
+Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
+### KD-2026-09-03-04 — actual DEMO execution PASS + zero reclaim-confirm localizes the no-trade issue upstream
+
+Successful corrected real-readiness run at code checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` proved actual MT5/broker transport:
+
+- one DEMO BUY `XAUUSDm 0.01` opened successfully;
+- open retcode `10009`, comment `done`;
+- the probe-owned position closed immediately;
+- close retcode `10009`, comment `done`;
+- probe terminal exited gracefully;
+- frozen V69 automatically relaunched and returned to stable broker/runtime READY.
+
+The pre-probe live signal funnel from the preceding no-trade period showed:
+
+- `POST_ZONE_REVERSAL_CONFIRM=0`;
+- `POST_CONFIRM_SEPARATION=0`;
+- `POST_CONFIRM_RETEST_READY=0`;
+- `POST_CONFIRM_ENTRY_READY=0`;
+- natural V69 deals `0`.
+
+Therefore the observed no-trade period did **not** exercise V69 separation/retest/entry-ready/order-send logic. Do not continue blaming generic real-time deployment, lot size, or broker transport for that period.
+
+Current preferred diagnostic is to read the archived event stream and locate the earliest failing upstream transition:
+
+`PENDING_ARM -> MICRO_ENTRY_ARM -> ZONE_TOUCH -> PENETRATION -> POST_ZONE_CONFIRM_WAIT -> POST_ZONE_REVERSAL_CONFIRM`
+
+Use the read-only upstream diagnostic. Do not wait for another natural trade and do not send another forced transport probe unless new transport evidence contradicts the PASS.
+
 ### KD-2026-09-03-03 — frozen dashboard still displays obsolete `2 trades / 48h` wait gate
 
-After the project switched from passive forward waiting to immediate real-readiness diagnosis, the frozen smoke dashboard still visibly displayed:
+The smoke dashboard can still show `Closed 0/2`, `2 more closed trades`, and `wait until 48h cap`. Those lines are obsolete as project gates.
 
-- `Closed 0/2`;
-- `NEED: 2 more closed trade(s), or wait until 48h cap`;
-- `Quick gate: ... 2 closed trades`.
+Current gate is diagnostic localization, not passive waiting. Future dashboard work should label natural-trade counts informational or replace the legacy progress block with current real-readiness/upstream-diagnostic state.
 
-This UI is now stale relative to the current project gate and can mislead the operator into waiting again even though the canonical plan already says not to wait for natural fills.
-
-Do not use those dashboard lines as the current go/no-go criterion.
-
-Current canonical gate is:
-
-1. live signal funnel from already-collected V69 telemetry;
-2. isolated actual DEMO 0.01 open/close execution probe;
-3. interpret gating vs V69 order-path integration;
-4. proceed to separate REAL-readiness work only after that diagnostic.
-
-Future dashboard revision should replace the legacy wait text with the real-readiness/probe state or clearly mark the natural-trade counter as informational only. Do not restart a healthy runtime solely to fix this cosmetic/stale status text before the current execution diagnostic is completed.
-
-### KD-2026-09-03-01 — broker READY + live ticks + zero trades does not locate the fault
-
-Observed state:
-
-- frozen V69 attached correctly on `XAUUSDm M15`;
-- live ticks and telemetry active;
-- broker preflight stable READY twice;
-- dry-run OrderCheck accepted lot `0.01`;
-- approximately one day passed with no natural V69 fill.
-
-A long wait with zero trades is ambiguous. It can mean either:
-
-1. frozen V69 never reached its final entry state because its setup/reclaim/separation/retest gates were not all satisfied; or
-2. V69 reached `POST_CONFIRM_ENTRY_READY` but its integrated preflight/send path failed.
-
-Do not keep waiting indefinitely and do not infer either explanation from the chart visually.
-
-Current regression/diagnostic contract:
-
-- snapshot `V64_EVENTS.csv` / `V64_DEALS.csv` and count each V69 stage;
-- classify the last reached state using `scripts/analyze_v69_live_signal_path.py`;
-- independently prove actual MT5<->broker market execution using the isolated DEMO-only `V69DemoExecutionProbe`;
-- execution probe uses unique magic `699901`, lot `0.01`, XAUUSDm only, opens one DEMO BUY then immediately closes only its own position;
-- actual probe trades must never be counted as V69 strategy evidence;
-- after probe completion, relaunch frozen V69 automatically;
-- if `POST_CONFIRM_ENTRY_READY > 0` with no natural V69 deal while the actual execution probe passes, inspect V69 preflight/send events immediately.
-
-This is the preferred fast diagnostic before any REAL-readiness decision.
+Do not restart a healthy runtime solely to fix this cosmetic text.
 
 ### KD-2026-09-03-02 — a forced DEMO fill proves transport, not strategy edge
 
-An isolated DEMO execution probe can prove that the account, symbol, lot, filling mode and MT5/broker market-order path can actually open and close. It does not prove V69 signal correctness, persistent edge, acceptable slippage across regimes, or REAL deployment safety/profitability.
+The isolated probe proves account/symbol/lot/filling/market-order transport can open and close. It does not prove V69 edge, live expectancy, acceptable slippage across regimes, or REAL safety/profitability.
 
 Never convert probe PASS directly into automatic REAL authorization.
 
-## Active harness regression — code fixed, Windows rerun/result pending verification
+### KD-2026-09-03-01 — broker READY + live ticks + zero trades does not locate the fault
 
-### KH-2026-09-03-01 — real-readiness expected-HEAD variable was not bridged into inherited V69 one-shot guard
+Dry-run readiness plus zero trades is ambiguous. Resolve it with a signal funnel plus isolated execution probe, not visual chart interpretation or longer waiting.
 
-First Windows run of checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e` passed repository preflight, Python discovery, six static tests and secret scan, then failed immediately with:
+That diagnostic has now been completed for the latest window: transport PASS; reclaim-confirm count zero; blocker moved upstream.
 
-`RuntimeError: V69_ONE_SHOT_EXPECTED_HEAD is required`
+## Resolved harness/broker incidents
 
-Root cause:
+### KH-2026-09-03-01 — expected-HEAD variable mismatch in nested real-readiness runtime — RESOLVED
 
-- new launcher used canonical `V69_REAL_READINESS_EXPECTED_HEAD`;
-- real-readiness runner reused `forward.base.ensure_repo()` and later `forward.main()` from the existing one-shot runtime;
-- those inherited paths require `V69_ONE_SHOT_EXPECTED_HEAD`;
-- launcher/test contract did not bridge/assert the inherited environment variable.
+First Windows attempt at checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e` failed before MT5 with `V69_ONE_SHOT_EXPECTED_HEAD is required` because the new launcher used `V69_REAL_READINESS_EXPECTED_HEAD` while inherited code required the old name.
 
-Impact classification:
+Fix:
 
-- harness-only failure;
-- occurred before `configure_runtime()`;
-- no signal snapshot was produced by this attempt;
-- no MetaEditor compile of the probe occurred;
-- no MT5 probe terminal was launched;
-- no actual DEMO order was sent;
-- no strategy/broker conclusion may be drawn from this failure.
+- launcher bridges the inherited variable;
+- Python runner normalizes both names before inherited `ensure_repo()` and keeps the bridge through `forward.main()`;
+- regression test asserts the cross-module bridge.
 
-Fix contract:
+Corrected checkpoint `614d68e...` subsequently completed the entire real-readiness probe successfully, so this item is resolved.
 
-- launcher exports `V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"` after exact Git validation;
-- runner normalizes both head-variable names before calling inherited code;
-- regression tests explicitly assert both bridges;
-- keep the bridge alive through the final `forward.main()` relaunch path;
-- do not work around this by weakening exact-HEAD checks.
+### KF-2026-09-01-01 — generic 4756 hid server `10019 No money` — RESOLVED
 
-Corrected checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` passed `v69-forward-quality`, `v69-quality`, `v68-quality`, and full `quality`. Latest screenshot shows frozen V69 running again, but the corrected execution-probe terminal output/result has not yet been supplied in chat, so probe PASS/FAIL remains unverified.
-
-## Maintenance follow-up
-
-### KM-2026-09-01-01 — server `10019 No money` should fail fast and expose account funds
-
-Prior DEMO run captured repeated local `_LastError=4756` plus server `retcode=10019`, comment `No money`. After DEMO funds/free margin were restored, the same 0.01 preflight produced two consecutive `READY / retcode 0 / Done` checks. Therefore `10019` was deterministic insufficient funds/free margin, not a transient transport event and not a lot-step failure.
-
-Future non-disruptive harness revision should classify repeated `10019` as deterministic insufficient-funds BLOCKED, expose balance/equity/used/free margin, avoid the full transient retry window, and never change V69 alpha semantics to mask account-funding defects.
-
-## Resolved broker/harness incidents
-
-### KF-2026-09-01-01 — generic 4756 was hiding broker `10019 No money`
-
-Lot `0.01` was valid against broker min `0.01`, step `0.01`, max `200`. Instrumentation retained `MqlTradeCheckResult.retcode/comment`, exposing server `10019 / No money`. Restoring DEMO funds resolved the blocker and produced stable broker READY.
+Lot `0.01` was valid against broker min `0.01`, step `0.01`, max `200`. Server retcode/comment exposed `10019 / No money`. Restoring DEMO funds produced stable dry-run READY and later an actual open/close PASS.
 
 Never interpret local `4756` alone when server retcode/comment is available.
 
 ### KF-02 — broken Python launcher candidate
 
-Finding an executable path is insufficient. Probe it by actually executing Python and require 3.10+. Print rejected candidates. This prevents a broken `py.exe -3` from being selected merely because it exists.
+Finding an executable path is insufficient. Probe candidates by executing Python and require 3.10+. Print rejected candidates.
 
 ### KF-03 — unsupported MQL helper `LongToString`
 
-MetaEditor rejected a generated dashboard even though Python static tests passed. Use supported MQL5 conversion APIs and retain generated-source compile/API regressions.
+MetaEditor rejected generated dashboard source. Use supported MQL5 conversion APIs and retain generated-source compile regressions.
 
 ### KF-04 — generated dashboard hash-pin drift
 
-A valid deterministic builder changed while a runner retained a stale duplicated generated-source hash. Freeze the true parent strategy identity, but validate generated UI through deterministic A/B builds and exact installed bytes rather than redundant ephemeral pins.
+A deterministic UI builder changed while a runner retained a stale duplicated generated-source hash. Freeze the true parent strategy identity; validate generated UI through deterministic builds and installed bytes rather than redundant ephemeral pins.
 
 ### KF-05 — background helpers flashed console windows
 
-Periodic console executables could create visible windows. Background Windows helpers must use `pythonw.exe` and/or `CREATE_NO_WINDOW`, hidden PowerShell and redirected handles. Static tests guard this.
+Periodic console executables created visible windows. Background Windows helpers must use hidden/no-window execution and redirected handles.
 
 ### KF-06 — zero forward telemetry is stronger than zero trades
 
-Successful inherited `OnInit()` creates status/header telemetry. Zero telemetry after attempted startup means the intended EA did not initialize/attach correctly; do not simply wait for a trade.
+Successful inherited `OnInit()` creates status/header telemetry. Zero telemetry after attempted startup means intended EA initialization/attachment failed; do not wait for a trade.
 
 ### KF-07 — manual EA attachment is avoidable operator risk
 
-Normal workflow is deterministic compile -> exact byte verification -> startup config -> `XAUUSDm M15` launch -> heartbeat. Do not require manual attach when automation can pin the exact expert/chart.
+Normal workflow is deterministic compile -> byte verification -> startup config -> `XAUUSDm M15` launch -> heartbeat. Do not require manual attachment when automation can pin it.
 
 ### KF-08 — CI semantic contract drifted behind runtime wording
 
-If actual tests pass but a workflow grep expects superseded literal strings, fix the CI contract rather than changing strategy/runtime semantics to satisfy stale text.
+If actual tests pass but a workflow grep expects superseded literal strings, fix the CI contract rather than mutating strategy/runtime semantics to satisfy stale text.
+
+### KF-09 — broker health runner concluded before a second broker refresh
+
+A previous runner could classify BLOCKED at 12 seconds while broker refresh cadence was 30 seconds. Broker readiness now requires independent stable checks and must not conclude before a new broker observation exists.
+
+## Maintenance follow-up
+
+### KM-2026-09-01-01 — confirmed `10019 No money` should fail fast and expose account funds
+
+Future non-disruptive dashboard revision should show balance/equity/used/free margin and classify repeated server `10019` as deterministic insufficient-funds BLOCKED after independent confirmation instead of spending a full transient retry window.
+
+Do not change V69 alpha semantics to mask account funding defects.
 
 ## Trading-system lessons that must not be lost
 
-### KL-01 — surviving V69 losers are fast-loss dominated
+### KL-01 — surviving V69 historical losers are fast-loss dominated
 
-V68 LONG: 28 trades, 10W/18L, +$2.87, PF ~1.146, max DD $6.04.
+V68 LONG: `28 trades / 10W / 18L / +$2.87 / PF ~1.146 / max DD $6.04`.
 
-V69 LONG: 24 trades, 10W/14L, +$7.14, PF 1.462, max DD $3.34.
+V69 LONG: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / max DD $3.34`.
 
-V69 retained all ten V68 winners while removing four losers, but 10/14 V69 losers closed within 60 seconds. Entry/regime quality remains the first verified economic research priority.
+V69 retained all ten V68 winners while removing four losers, but `10/14` V69 losers closed within 60 seconds. Entry/regime quality remains the first verified economic research priority.
 
 ### KL-02 — October concentration indicates regime sensitivity
 
-V69 monthly LONG: Sep -$1.84; Oct +$9.15; Nov +$1.24; Dec -$2.28; Jan +$0.87; Feb-May flat. Excluding October: -$2.01.
+V69 monthly replay: Sep `-$1.84`; Oct `+$9.15`; Nov `+$1.24`; Dec `-$2.28`; Jan `+$0.87`; Feb-May flat. Excluding October: `-$2.01`.
 
 ### KL-03 — V69 historical replay is development-only
 
@@ -161,11 +133,11 @@ V69 was designed after V68 was inspected. Sep 2025-May 2026 is not an untouched 
 
 ### KL-04 — existing profit ratchet has a theoretical sub-$2 harvest gap
 
-Current lineage arms protection around +$2 and attempts to lock about +$1. Do not lower it blindly. Inspect MFE/capture/giveback first; near-zero-MFE fast losers cannot be fixed by earlier profit protection.
+Current lineage arms around +$2 and attempts to lock about +$1. Do not lower it blindly. Inspect MFE/capture/giveback first; near-zero-MFE fast losers cannot be rescued by earlier profit protection.
 
 ### KL-05 — session volatility is a conditioning feature, not a trading rule
 
-London/New York overlap and New York morning can have greater liquidity/activity, but this does not imply positive expectancy for every symbol or setup. Build DST-aware, past-only session statistics from our own MT5 history and test continuation/reversal expectancy, spread efficiency and MFE/MAE by symbol/session. Do not hard-code `NEW_YORK = TRADE`.
+London/New York overlap and New York morning can have higher activity, but that does not imply positive expectancy. Build DST-aware, past-only session statistics from our own MT5 history and test volatility, spread efficiency, continuation/reversal behavior and MFE/MAE by symbol/session. Do not hard-code `NEW_YORK = TRADE`.
 
 See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 
@@ -176,12 +148,12 @@ See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 - Use explicit UTF-8 on Windows.
 - MetaEditor process rc alone is not compile acceptance; require exact source identity + `0 errors, 0 warnings` + current non-empty EX5.
 - Terminal process state alone is not runtime health; require telemetry/heartbeat.
-- Interpret `_LastError` together with broker `MqlTradeCheckResult.retcode/comment`.
-- Server retcode `10019 / No money` means insufficient funds/free margin; do not relabel it as lot-size failure.
-- Dry-run READY proves request readiness, not an actual fill.
-- After prolonged no-trade runtime, use signal-funnel + isolated actual DEMO probe instead of waiting blindly.
-- Ignore the stale dashboard `2 trades / 48h` gate as a current project gate; it is informational legacy UI until revised.
+- Interpret `_LastError` together with broker server retcode/comment.
+- Dry-run READY proves request readiness; actual probe PASS proves transport; neither proves strategy edge.
+- After prolonged no-trade runtime, inspect stage telemetry instead of waiting blindly.
+- Once actual execution transport is proven, do not rerun forced probes unless transport evidence changes.
+- Ignore legacy dashboard `2 trades / 48h` as a current project gate.
 - Keep strategy, broker transport and harness failures separate.
 - Do not change strategy thresholds to mask tooling/broker defects.
 - Exact-HEAD contracts reused across nested runtimes must be bridged and regression-tested end-to-end.
-- REAL money remains fail-closed until a separate explicit decision and deployment/risk gate.
+- REAL money remains fail-closed until a separate explicit deployment/risk decision.
