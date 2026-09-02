@@ -1,138 +1,186 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 04:24 (+07)
+Updated: 2026-09-03 05:10 (+07)
 
 ## User input
 
-Operator successfully ran V69 cycle economics + re-arm recovery at exact checkpoint:
+Operator ran the V69 MFE/giveback recovery at exact checkpoint:
 
-`0ca414f6ea8bfd1e7a3aa842845ec70a1f19e41f`
+`12c97d81d6846b2b0c81cad234d698c25c9a3341`
 
-The run reproduced accepted V69 development identity and ended PASS with MT5 left available, MetaEditor not required, zero orders, zero strategy changes and REAL authorization false.
+The run completed PASS, reproduced accepted V69 development deal identity and sent zero orders.
 
-## Decisive cycle-economics evidence
+The user then asked for the current status and explicitly pushed to stop repeating long diagnostic loops and move the project forward faster.
 
-Accepted identity: `24 trades / 10W / 14L / +$7.14`.
+## Operator output — valid evidence
 
-Terminal families across `460` PENDING_ARM cycles:
+Accepted development identity reproduced:
 
-- `HARD_STRUCTURAL=235` (`51.087%`);
-- `TTL_EXPIRY=120`;
-- `CONTEXT_QUALITY=80`;
-- `SENT_ORDER=24`;
-- `UNTERMINATED=1`.
+`24 trades / 10W / 14L / +$7.14`.
 
-TTL + context = `200` cycles (`43.4783%`).
+All 24 deals matched a `V64_NOISE_SHADOW` row by entry timestamp.
 
-Archetypes:
+Profit-ratchet events inside actual entry->exit windows:
 
-- `BREAKOUT_RETEST_BOS`: `241` cycles, `22` trades, `9W/13L`, net `+$4.76`, PF `1.332402`;
-- `PULLBACK_SWEEP_BOS`: `219` cycles, only `2` trades, `1W/1L`, net `+$2.38`, PF `3.125`.
+- `PROFIT_LOCK` event trades `9`;
+- modified trades `9`;
+- modify-failed trades `0`.
 
-Do not promote pullback from a two-trade PF. Breakout-retest is the current economic engine (`22/24` actual V69 trades).
+The run itself was read-only:
 
-Rearm associations:
+- strategy changed `0`;
+- orders sent `0`;
+- SHORT remained disabled;
+- REAL authorization remained false.
 
-- context-quality next cycles: `4` sent, `3W/1L`, `+$6.90`;
-- TTL next cycles: `8` sent, `3W/5L`, `+$2.46`;
-- hard-structural next cycles: `12` sent, `4W/8L`, `-$2.22`.
+## Critical source-audit correction
 
-These are chronological next-cycle associations only. `same archetype != same setup identity`, and cross-month rearms are not linked. They do not prove that relaxing TTL/context would capture the observed next-cycle PnL.
+The initial MFE/giveback output appeared to show very large profit excursion and severe giveback. That interpretation is rejected after source audit.
 
-Trade transitions:
+`V64NoiseStart()` begins its noise shadow at actual fill, but `V64UpdateNoiseShadows()` does not terminate that shadow at the actual deal exit. The shadow remains alive until its synthetic 3x3 stop/target matrix resolves or `InpV64NoiseShadowMaxMinutes=480` is reached.
 
-- `L->L=7`, destination net `-$7.67`;
-- `L->W=6`, `+$16.11`;
-- `W->L=6`, `-$6.65`;
-- `W->W=4`, `+$6.47`.
+Therefore `V64_NOISE_SHADOW.max_pnl/min_pnl` is a post-entry synthetic path metric, not actual position-lifetime MFE/MAE.
 
-Loss clustering exists but does not authorize a post-win/post-loss throttle without counterfactual evidence.
+Consequences:
+
+- old median MFE winner/loser values are invalid as actual-trade MFE;
+- old median giveback and MFE-capture ratios are invalid for exit tuning;
+- old `22/24 MFE >= $2` and `17/22 realized below $1` counts are invalid as actual-trade threshold evidence;
+- extreme values such as `$29`, `$46`, `$118` can occur after the real trade has already closed;
+- the valid in-trade event evidence is the `9/9` successful logged profit-lock modify attempts and the actual deal economics.
+
+This is a diagnostic-attribution defect, not a broker or strategy-execution defect.
+
+Do not tune V69 exit thresholds from the old noise-shadow MFE output.
 
 ## Decision
 
-Do **not** loosen entry filters first.
+Do not continue the previous chain of read-only analyzers.
 
-Reasons:
+Do not loosen entry filters yet.
 
-1. hard structural failures are the largest attrition family;
-2. prior funnel evidence showed V69 separation retained `49/51` reversal-confirm cycles, so separation is not the dominant bottleneck;
-3. positive next-cycle PnL after TTL/context is not same-setup missed-edge proof;
-4. pullback economics are sample-starved;
-5. the unresolved economic complaint is still profit excursion being given back after entry.
+Run one decisive, ordered-tick V70 replay that:
 
-The next gate is therefore **MFE / MAE / realized giveback / inherited V61 profit-ratchet audit on the accepted 24 sent trades**.
+1. keeps the V69 entry cohort and actual exit behavior unchanged;
+2. tracks high-water/low-water only while the actual owned position is open;
+3. evaluates several exit-harvest policies simultaneously in shadow;
+4. produces direct economics for each policy on the same actual-entry cohort;
+5. either identifies one candidate worth promoting or closes the exit-harvest hypothesis.
 
-## MFE/giveback recovery implementation
+This avoids four separate tester campaigns and removes the V64 post-exit attribution problem.
 
-Read-only files added on `agent/v69-one-shot-prospective-demo`:
+## V70 branch and implementation
 
-- `scripts/analyze_v69_mfe_giveback_recovery.py`;
-- `runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY.py`;
-- `runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY_GIT_BASH.sh`;
-- `tests/test_v69_mfe_giveback_recovery.py`;
-- extended `.github/workflows/v69_upstream_diag_quality.yml`.
+New branch created from the exact green V69 demo checkpoint:
 
-The recovery uses existing accepted V69 development telemetry:
+`agent/v70-exit-harvest-research`
 
-- realized entry/exit PnL from `V64_DEALS.csv`;
-- MFE/MAE from `V64_NOISE_SHADOW.csv` `max_pnl/min_pnl`, matched to entry time;
-- sent-cycle archetype;
-- `PROFIT_LOCK` events inside each trade window.
+Parent:
 
-It reports MFE coverage, winner/loser MFE, loser MAE, giveback, winner capture ratio, positive-MFE realized losses, sub-`$2` round-trip losers, `MFE >= $2` but realized `<$1` split by profit-lock event presence, profit-lock modified/failed counts, threshold diagnostics, month/archetype breakdown and compact per-trade rows.
+`12c97d81d6846b2b0c81cad234d698c25c9a3341`
 
-It intentionally does **not** simulate a trailing-stop counterfactual from MFE peak alone because peak excursion lacks chronological path ordering.
+Pre-handover V70 implementation checkpoint:
 
-Safety:
+`968976e33eddc2ae205a882ff3eea4b7d3dc92ef`
 
-- accepted identity must remain `24 / 10 / 14 / +$7.14`;
-- read-only;
-- no MT5/MetaEditor launch;
-- zero order path;
-- frozen strategy unchanged;
+Files added:
+
+- `scripts/build_v70_exit_harvest_shadow_source.py`;
+- `scripts/analyze_v70_exit_harvest_shadow.py`;
+- `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py`;
+- `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh`;
+- `tests/test_v70_exit_harvest_research.py`;
+- `.github/workflows/v70_exit_harvest_quality.yml`.
+
+### Preserved actual strategy contract
+
+V70 research keeps:
+
+- XAUUSDm M15;
+- LONG only;
+- lot `0.01`;
+- V69 entry state machine;
+- separation `>= $1.30`;
+- confirmation age `>=30s`;
+- target `+$3.50`;
+- inherited actual profit ratchet `+$2 -> about +$1`;
+- actual V69-equivalent exit behavior unchanged;
 - SHORT disabled;
-- REAL authorization false;
-- development-only, not independent edge evidence.
-
-## CI incident and resolution
-
-Code/CI checkpoint `c60f4a05b14f993745433f94f3c15a58221443e9` passed the dedicated `v69-upstream-diag-quality` MFE/giveback tests and safety contract.
-
-The first post-handover exact HEAD `1d5f91b9f09f52c19ae4008079035e15ed9ad43a` then failed `v69-forward-quality` only because `tests/test_v69_frozen_forward_demo_static.py` still asserted the obsolete literal handover phrase `DEMO only`.
-
-The generated frozen-forward source tests before that assertion passed. This was a stale documentation-string contract, not a strategy or runtime failure.
-
-Checkpoint `78c439c67034c1153828a5a96257c91eb4c55ccb` replaced the fragile literal assertion with durable canonical safety checks: frozen research identity, LONG-only, SHORT disabled, DEMO execution context and REAL unauthorized. Frozen V69 source/strategy semantics were not changed.
-
-Resolve the final branch HEAD after this TURN_SYNC commit and require all five exact-head workflows `completed/success` before operator execution.
-
-## Current safety/strategy status
-
-- frozen V69 semantics unchanged;
-- DEMO broker execution transport remains proven PASS;
-- no execution probe rerun needed;
-- live bearish-window abstention remains explained;
-- selector global-starvation hypothesis rejected;
-- downstream funnel localized;
-- cycle economics localized;
-- no entry gate loosened;
-- SHORT disabled/rejected;
 - REAL authorization false.
+
+The V70 shadow helper cannot call `PositionClose`, `PositionModify`, `.Buy()` or `.Sell()`.
+
+### True position-lifetime excursion
+
+V70 starts its exit shadow only when an actual owned position exists, updates cash PnL every tick while that position remains open, and ends when the actual position disappears.
+
+The V70 analyzer explicitly does not consume `V64_NOISE_SHADOW`.
+
+### Four simultaneous shadow policies
+
+- `BASELINE_200_100`: idealized current `+$2` arm / `+$1` floor validation lane;
+- `EARLY_100_025`: `+$1` arm / `+$0.25` floor;
+- `MID_150_050`: `+$1.50` arm / `+$0.50` floor;
+- `TIERED_100_025_200_100`: early `+$1/+0.25`, then upgrade to `+$1` floor after `+$2`.
+
+Each policy records its first arm/upgrade/trigger in ordered real-tick replay. It does not alter the actual tester position.
+
+The analyzer reports actual economics and policy economics including:
+
+- net PnL;
+- PF;
+- realized drawdown;
+- changed-trade count;
+- baseline winners cut by the candidate;
+- baseline losses improved by the candidate;
+- true in-position MFE/MAE counts.
+
+The same run covers all Sep 2025-May 2026 LONG months on real tick model 4.
+
+## CI
+
+At pre-handover checkpoint `968976e33eddc2ae205a882ff3eea4b7d3dc92ef` all six workflows completed successfully:
+
+- `v70-exit-harvest-quality` run `33687927019` — success;
+- `v69-upstream-diag-quality` run `33687927023` — success;
+- `v69-forward-quality` run `33687926961` — success;
+- `v69-quality` run `33687926978` — success;
+- `v68-quality` run `33687926942` — success;
+- full `quality` run `33687926995` — success.
+
+Handover synchronization commits follow that checkpoint. Resolve the final branch HEAD and require all six exact-head workflows `completed/success` before operator execution.
+
+## Current status
+
+Completed/localized:
+
+- broker transport;
+- live zero-trade cause;
+- all-bar selector opportunity;
+- downstream LONG funnel;
+- cycle economics;
+- V64-noise-shadow attribution bug.
+
+Current active work:
+
+`V70_TRUE_POSITION_LIFETIME_EXIT_HARVEST_REPLAY`.
+
+This is not another natural-trade waiting gate. It is one deterministic Strategy Tester campaign with four candidate exit shadows in parallel.
 
 ## Next operator action
 
-After the final exact HEAD is CI-green:
+After the final V70 HEAD is exact-CI-green:
 
-1. leave MT5 running;
-2. fast-forward only to that exact branch HEAD;
-3. export `V69_MFE_GIVEBACK_EXPECTED_HEAD` to the exact SHA;
-4. run `runtime/v69_mfe_giveback_recovery/RUN_V69_MFE_GIVEBACK_RECOVERY_GIT_BASH.sh` once;
-5. return output from `V69_MFE_GIVEBACK_ACCEPTED_DEVELOPMENT_IDENTITY=PASS` through `V69_MFE_GIVEBACK_RECOVERY=PASS`;
-6. if `V64_NOISE_SHADOW` coverage is missing/insufficient, stop at the exact FATAL; do not fabricate MFE or rerun accepted strategy evidence blindly.
+1. close MT5 and MetaEditor once because this run needs Strategy Tester and MetaEditor compile;
+2. fast-forward only to the exact final `agent/v70-exit-harvest-research` SHA;
+3. export `V70_EXIT_HARVEST_EXPECTED_HEAD` to that SHA;
+4. run `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh` once;
+5. return the final true-excursion and four `POLICY_*` summaries plus `V70_EXIT_HARVEST_RESEARCH=PASS`, or the exact FATAL.
 
-Interpretation after that run:
+Decision after the replay:
 
-- positive-MFE losers whose peak stays `<$2` identify the inherited ratchet's sub-arm harvest gap;
-- `MFE >= $2` but realized `<$1` requires direct `PROFIT_LOCK` event audit before any threshold change;
-- poor winner MFE capture prioritizes an exit-harvest successor hypothesis;
-- if giveback is not dominant, return focus to entry/reentry quality rather than forcing an exit change.
+- if no shadow policy improves the baseline without unacceptable winner damage, close exit-harvest research and return to entry/re-entry quality;
+- if one policy materially improves reused development economics, promote only that policy into a separate actual-exit semantic branch and replay actual tester execution;
+- do not call the reused Sep-May result independent evidence;
+- do not enable SHORT;
+- do not authorize REAL.
