@@ -19,6 +19,7 @@ jobs:
         run: |
           python -m py_compile \
             scripts/analyze_v69_upstream_signal_funnel.py \
+            scripts/analyze_v69_pre_pending_eval.py \
             runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py \
             tests/test_v69_upstream_signal_diag.py
       - name: Shell syntax
@@ -31,6 +32,7 @@ jobs:
           grep -Fq 'V69_UPSTREAM_ORDERS_SENT=0' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           grep -Fq '_v69_forward_previous_*' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           grep -Fq 'V69_UPSTREAM_DIAG_EXPECTED_HEAD is required' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG_GIT_BASH.sh
+          grep -Fq 'V64_ENTRY_EVAL.csv' scripts/analyze_v69_pre_pending_eval.py
           ! grep -Fiq 'terminal64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'metaeditor64.exe' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
           ! grep -Fiq 'OrderSend(' runtime/v69_real_readiness_probe/RUN_V69_UPSTREAM_SIGNAL_DIAG.py
