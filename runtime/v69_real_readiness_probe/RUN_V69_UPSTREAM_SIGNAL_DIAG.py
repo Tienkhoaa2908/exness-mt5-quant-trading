@@ -11,6 +11,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 ANALYZER = REPO / "scripts" / "analyze_v69_upstream_signal_funnel.py"
+PRE_PENDING_ANALYZER = REPO / "scripts" / "analyze_v69_pre_pending_eval.py"
 OUT = HERE / "OUTPUT_V69_REAL_READINESS_PROBE"
 PRE_PROBE_SIGNAL_PATH = OUT / "V69_PRE_PROBE_SIGNAL_PATH.json"
 EXPECTED_BRANCH = "agent/v69-one-shot-prospective-demo"
@@ -71,13 +72,7 @@ def candidate_roots(parent: Path) -> list[Path]:
 
 
 def snapshot_analysis(path: Path, analyzer) -> dict | None:
-    """Reconstruct the funnel from the pre-probe JSON saved before V69 relaunch.
-
-    The older snapshot analyzer stored every event name in top_event_counts even
-    though its stage_counts only covered the four V69 post-confirm stages.  That
-    makes the snapshot a valid read-only fallback after the FILE_COMMON root has
-    been rotated or contains only headers.
-    """
+    """Reconstruct the funnel from the pre-probe JSON saved before V69 relaunch."""
     if not path.is_file() or path.stat().st_size <= 0:
         return None
     try:
@@ -97,8 +92,6 @@ def snapshot_analysis(path: Path, analyzer) -> dict | None:
     stage_counts = {name: int(event_counts.get(name, 0)) for name in analyzer.FUNNEL_STAGES}
     aux_counts = {name: int(event_counts.get(name, 0)) for name in analyzer.AUX_EVENTS}
     closed = int(payload.get("closed_deals", 0) or 0)
-    # The legacy snapshot did not retain a safe event->detail mapping, so do not
-    # invent confirm-wait reasons from its aggregate detail counter.
     wait_reasons: Counter[str] = Counter()
     classification, blocker, next_action = analyzer.classify(stage_counts, wait_reasons, closed)
     try:
@@ -130,9 +123,14 @@ def richness(result: dict) -> tuple[int, int, int, int]:
     return (int(result.get("events_rows", 0)), stage_total, source_bonus, file_bonus)
 
 
+def eval_richness(result: dict) -> tuple[int, int]:
+    return (int(result.get("rows", 0)), int(bool(result.get("eval_file_present"))))
+
+
 def main() -> int:
     branch, head = ensure_repo()
     analyzer = load(ANALYZER, "v69_upstream_signal_funnel")
+    pre_pending = load(PRE_PENDING_ANALYZER, "v69_pre_pending_eval")
     parent = common_mt5_quant_root()
     print(f"V69_UPSTREAM_COMMON_PARENT={parent}")
     print("V69_UPSTREAM_READ_ONLY=1")
@@ -142,10 +140,12 @@ def main() -> int:
 
     roots = candidate_roots(parent)
     analyses = []
+    eval_analyses = []
     for root in roots:
         result = analyzer.analyze(root)
         result["source_kind"] = "FILE_COMMON_ROOT"
         analyses.append(result)
+        eval_analyses.append(pre_pending.analyze(root))
 
     snapshot = snapshot_analysis(PRE_PROBE_SIGNAL_PATH, analyzer)
     if snapshot is not None:
@@ -162,14 +162,26 @@ def main() -> int:
     total_event_rows = sum(int(item.get("events_rows", 0)) for item in analyses)
     roots_with_rows = sum(1 for item in analyses if int(item.get("events_rows", 0)) > 0)
     if total_event_rows == 0:
-        # This is evidence, not a runtime failure: no instrumented upstream event
-        # reached even PENDING_ARM in any preserved source.  The existing analyzer
-        # intentionally classifies this as INITIAL_SETUP_OR_PENDING_ARM_BLOCK.
         print("V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1")
+
+    eval_analyses.sort(key=eval_richness, reverse=True)
+    selected_eval = eval_analyses[0] if eval_analyses else {
+        "root": "none",
+        "rows": 0,
+        "classification": "NO_PRE_PENDING_DIRECTIONAL_EVAL_ROWS",
+        "dominant_blocker": "selector_or_feature_gate_unobserved",
+        "next_action": "instrument V69 EvaluateBar before d==0 return to distinguish feature readiness, HTF regime, trigger, score and edge gates",
+        "decision_reason_counts": {},
+        "reject_reason_counts": {},
+        "selected_direction_counts": {},
+        "eval_file_present": False,
+    }
+    total_eval_rows = sum(int(item.get("rows", 0)) for item in eval_analyses)
+    roots_with_eval_rows = sum(1 for item in eval_analyses if int(item.get("rows", 0)) > 0)
 
     OUT.mkdir(parents=True, exist_ok=True)
     payload = {
-        "protocol": "v69_upstream_signal_diagnostic_v2",
+        "protocol": "v69_upstream_signal_diagnostic_v3",
         "branch": branch,
         "head": head,
         "read_only": True,
@@ -179,6 +191,10 @@ def main() -> int:
         "all_sources": analyses,
         "total_event_rows_across_sources": total_event_rows,
         "sources_with_event_rows": roots_with_rows,
+        "selected_pre_pending_eval": selected_eval,
+        "all_pre_pending_eval_sources": eval_analyses,
+        "total_pre_pending_eval_rows": total_eval_rows,
+        "sources_with_pre_pending_eval_rows": roots_with_eval_rows,
     }
     out = OUT / "V69_UPSTREAM_SIGNAL_DIAGNOSTIC.json"
     out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -201,6 +217,18 @@ def main() -> int:
         + json.dumps(selected.get("confirm_wait_reason_counts", {}), ensure_ascii=False, sort_keys=True)
     )
     print("V69_UPSTREAM_TOP_EVENTS=" + json.dumps(selected.get("top_event_counts", {}), ensure_ascii=False, sort_keys=True))
+
+    print("V69_PRE_PENDING_SOURCE_ROOT=" + str(selected_eval.get("root", "none")))
+    print(f"V69_PRE_PENDING_EVAL_ROWS={int(selected_eval.get('rows', 0))}")
+    print(f"V69_PRE_PENDING_TOTAL_EVAL_ROWS={total_eval_rows}")
+    print(f"V69_PRE_PENDING_SOURCES_WITH_ROWS={roots_with_eval_rows}")
+    print("V69_PRE_PENDING_CLASSIFICATION=" + str(selected_eval.get("classification", "UNKNOWN")))
+    print("V69_PRE_PENDING_TOP_BLOCKER=" + str(selected_eval.get("dominant_blocker", "UNKNOWN")))
+    print("V69_PRE_PENDING_NEXT_ACTION=" + str(selected_eval.get("next_action", "UNKNOWN")))
+    print("V69_PRE_PENDING_DECISION_REASONS=" + json.dumps(selected_eval.get("decision_reason_counts", {}), ensure_ascii=False, sort_keys=True))
+    print("V69_PRE_PENDING_REJECT_REASONS=" + json.dumps(selected_eval.get("reject_reason_counts", {}), ensure_ascii=False, sort_keys=True))
+    print("V69_PRE_PENDING_SELECTED_DIRECTIONS=" + json.dumps(selected_eval.get("selected_direction_counts", {}), ensure_ascii=False, sort_keys=True))
+
     print(f"V69_UPSTREAM_ANALYZED_SOURCES={len(analyses)}")
     print(f"V69_UPSTREAM_RESULT_JSON={out}")
     print("V69_UPSTREAM_DIAGNOSTIC=PASS")
