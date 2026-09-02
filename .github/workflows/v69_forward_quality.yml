@@ -22,11 +22,14 @@ jobs:
             scripts/build_v69_frozen_forward_demo_source.py \
             scripts/build_v69_frozen_forward_demo_dashboard_source.py \
             scripts/build_v69_frozen_forward_demo_broker_ready_dashboard_source.py \
+            scripts/build_v69_demo_execution_probe_source.py \
             scripts/analyze_v69_forward_trade_quality.py \
+            scripts/analyze_v69_live_signal_path.py \
             tests/test_v69_confirm_separation_retest_static.py \
             tests/test_v69_frozen_forward_demo_static.py \
             tests/test_v69_frozen_forward_demo_dashboard_static.py \
             tests/test_v69_one_shot_broker_ready_static.py \
+            tests/test_v69_real_readiness_probe_static.py \
             tests/test_v69_forward_trade_quality.py \
             tests/test_v69_trade_quality_runtime_static.py \
             tests/test_v69_one_shot_prospective_demo_static.py \
@@ -34,18 +37,22 @@ jobs:
             runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS.py \
             runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_PROSPECTIVE_DEMO.py \
             runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py \
-            runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+            runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py \
+            runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
       - name: Shell syntax
         run: |
           bash -n runtime/v69_frozen_forward_demo/START_V69_FROZEN_FORWARD_DEMO_GIT_BASH.sh
           bash -n runtime/v69_trade_quality_diagnostics/RUN_V69_TRADE_QUALITY_DIAGNOSTICS_GIT_BASH.sh
           bash -n runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
+          bash -n runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh
       - name: Frozen forward source tests
         run: python tests/test_v69_frozen_forward_demo_static.py
       - name: Frozen forward dashboard tests
         run: python tests/test_v69_frozen_forward_demo_dashboard_static.py
       - name: Broker-ready smoke tests
         run: python tests/test_v69_one_shot_broker_ready_static.py
+      - name: Immediate real-readiness probe tests
+        run: python tests/test_v69_real_readiness_probe_static.py
       - name: V69 parent regression tests
         run: python tests/test_v69_confirm_separation_retest_static.py
       - name: Trade-quality analyzer tests
@@ -95,6 +102,20 @@ jobs:
           grep -Fq 'PYTHON_REJECTED=' runtime/v69_one_shot_prospective_demo/START_V69_ONE_SHOT_PROSPECTIVE_DEMO_GIT_BASH.sh
           ! grep -Fiq 'taskkill' runtime/v69_one_shot_prospective_demo/RUN_V69_ONE_SHOT_BROKER_READY_DEMO.py
           ! grep -Fiq 'OrderSend(' runtime/v69_one_shot_prospective_demo/SUPERVISE_V69_ONE_SHOT_PROSPECTIVE_DEMO.py
+      - name: Real-readiness probe safety contract
+        run: |
+          grep -Fq 'V69ProbeRealMoneyAuthorized=false' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'V69ProbeLot=0.01' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'V69ProbeMagic=699901' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'g_probe.Buy(V69ProbeLot' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'g_probe.PositionClose(ticket,50)' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'TerminalClose(terminal_code)' scripts/build_v69_demo_execution_probe_source.py
+          grep -Fq 'snapshot_signal_path(common)' runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
+          grep -Fq 'V69_ACTUAL_DEMO_EXECUTION_VERIFIED=1' runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
+          grep -Fq 'RELAUNCH_FROZEN_V69_AFTER_EXECUTION_PROBE=1' runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
+          grep -Fq 'V69_REAL_READINESS_EXPECTED_HEAD is required' runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh
+          ! grep -Fiq 'taskkill' runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
+          ! grep -Fiq '.terminate(' runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py
       - name: Preparation contract
         run: |
           grep -Fq 'V69_FORWARD_EXPECTED_HEAD is required' runtime/v69_frozen_forward_demo/PREPARE_V69_FROZEN_FORWARD_DEMO.py
