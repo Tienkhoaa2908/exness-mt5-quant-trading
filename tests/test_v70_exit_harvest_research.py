@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 from pathlib import Path
 
@@ -68,12 +69,39 @@ def test_analyzer_uses_true_position_lifetime_events_not_v64_noise_shadow() -> N
     assert "V64_NOISE_SHADOW" not in src
 
 
+def test_runtime_fails_closed_on_accepted_v69_baseline_identity() -> None:
+    m = load(RUNTIME, "v70_exit_runtime_identity_test")
+    with tempfile.TemporaryDirectory() as td:
+        p = Path(td) / "analysis.json"
+        p.write_text(
+            json.dumps({"actual": {"trades": 24, "wins": 10, "losses": 14, "net_usd": 7.14}}),
+            encoding="utf-8",
+        )
+        result = m.require_accepted_baseline(p)
+        assert result["actual"]["trades"] == 24
+        p.write_text(
+            json.dumps({"actual": {"trades": 23, "wins": 10, "losses": 13, "net_usd": 7.14}}),
+            encoding="utf-8",
+        )
+        try:
+            m.require_accepted_baseline(p)
+        except RuntimeError as exc:
+            assert "baseline trade identity mismatch" in str(exc)
+        else:
+            raise AssertionError("baseline identity guard must fail closed")
+
+
 def test_runtime_is_exact_head_tester_only_long_only() -> None:
     src = RUNTIME.read_text(encoding="utf-8")
     sh = LAUNCHER.read_text(encoding="utf-8")
     assert 'EXPECTED_BRANCH = "agent/v70-exit-harvest-research"' in src
     assert 'EXPECTED_HEAD_ENV = "V70_EXIT_HARVEST_EXPECTED_HEAD"' in src
     assert 'EXPERT = "V70ExitHarvestShadowLong"' in src
+    assert "EXPECTED_BASELINE_TRADES = 24" in src
+    assert "EXPECTED_BASELINE_WINS = 10" in src
+    assert "EXPECTED_BASELINE_LOSSES = 14" in src
+    assert "EXPECTED_BASELINE_NET_USD = 7.14" in src
+    assert "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS" in src
     assert "MetaTrader 5 must be closed for the one-pass V70 tester replay" in src
     assert "REAL_MONEY_AUTHORIZED=0" in src
     assert "V70_SHORT_ENABLED=0" in src
