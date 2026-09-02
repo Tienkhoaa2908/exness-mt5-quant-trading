@@ -113,13 +113,15 @@ def analyze(run_dirs: list[Path]) -> tuple[Path, Path]:
     return output, summary
 
 
-def require_accepted_baseline(output: Path) -> dict:
+def require_accepted_baseline(output: Path, *, emit: bool = True) -> dict:
     result = json.loads(output.read_text(encoding="utf-8"))
-    actual = result.get("actual") or {}
-    trades = int(actual.get("trades") or 0)
-    wins = int(actual.get("wins") or 0)
-    losses = int(actual.get("losses") or 0)
-    net = float(actual.get("net_usd") or 0.0)
+    legacy = result.get("legacy_accepted_identity") or {}
+    economic = result.get("economic_roundtrip_actual") or result.get("actual") or {}
+    trades = int(legacy.get("trades") or 0)
+    wins = int(legacy.get("wins") or 0)
+    losses = int(legacy.get("losses") or 0)
+    legacy_net = float(legacy.get("net_usd") or 0.0)
+    economic_net = float(economic.get("net_usd") or 0.0)
     if trades != EXPECTED_BASELINE_TRADES:
         raise RuntimeError(
             f"V70 baseline trade identity mismatch expected={EXPECTED_BASELINE_TRADES} actual={trades}"
@@ -129,16 +131,50 @@ def require_accepted_baseline(output: Path) -> dict:
             "V70 baseline win/loss identity mismatch "
             f"expected={EXPECTED_BASELINE_WINS}W/{EXPECTED_BASELINE_LOSSES}L actual={wins}W/{losses}L"
         )
-    if abs(net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
+    if abs(legacy_net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
         raise RuntimeError(
-            "V70 baseline net identity mismatch "
-            f"expected={EXPECTED_BASELINE_NET_USD:.2f}+/-{EXPECTED_BASELINE_NET_TOLERANCE_USD:.2f} actual={net:.8f}"
+            "V70 legacy baseline net identity mismatch "
+            f"expected={EXPECTED_BASELINE_NET_USD:.2f}+/-{EXPECTED_BASELINE_NET_TOLERANCE_USD:.2f} "
+            f"actual={legacy_net:.8f}"
         )
-    print(
-        "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS "
-        f"trades={trades} wins={wins} losses={losses} net_usd={net:.8f}"
-    )
+    if emit:
+        print(
+            "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS "
+            f"trades={trades} wins={wins} losses={losses} "
+            f"legacy_net_usd={legacy_net:.8f} economic_roundtrip_net_usd={economic_net:.8f}"
+        )
     return result
+
+
+def require_shadow_integrity(result: dict, *, emit: bool = True) -> None:
+    excursion = result.get("true_in_position_excursion") or {}
+    trades = int(excursion.get("trades") or 0)
+    mfe_all = float(excursion.get("median_true_mfe_all_usd") or 0.0)
+    mfe_winners = float(excursion.get("median_true_mfe_winners_usd") or 0.0)
+    mfe_ge_1 = int(excursion.get("true_mfe_ge_1_count") or 0)
+    policy_changes = sum(
+        int((result.get("policies") or {}).get(name, {}).get("changed_trade_count") or 0)
+        for name in (
+            "BASELINE_200_100",
+            "EARLY_100_025",
+            "MID_150_050",
+            "TIERED_100_025_200_100",
+        )
+    )
+    if trades <= 0:
+        raise RuntimeError("V70 true excursion telemetry invalid: no matched trades")
+    if mfe_all <= 1e-12 and mfe_winners <= 1e-12 and mfe_ge_1 == 0 and policy_changes == 0:
+        raise RuntimeError(
+            "V70 true excursion telemetry invalid: all-zero excursion/policy path; "
+            "do not interpret POLICY_* economics"
+        )
+    if emit:
+        print(
+            "V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS "
+            f"trades={trades} median_mfe_all={mfe_all:.8f} "
+            f"median_mfe_winners={mfe_winners:.8f} mfe_ge_1={mfe_ge_1} "
+            f"policy_changed_sum={policy_changes}"
+        )
 
 
 def main() -> int:
@@ -169,7 +205,8 @@ def main() -> int:
         run_dirs.append(runner.run_terminal(root, ini, label, REAL_MODEL))
 
     output, summary = analyze(run_dirs)
-    require_accepted_baseline(output)
+    result = require_accepted_baseline(output)
+    require_shadow_integrity(result)
     print(f"V70_EXIT_HARVEST_HEAD={head}")
     print(f"V70_EXIT_HARVEST_RESULT_JSON={output}")
     print(f"V70_EXIT_HARVEST_SUMMARY={summary}")
