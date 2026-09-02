@@ -17,6 +17,11 @@ POLICIES = (
     "MID_150_050",
     "TIERED_100_025_200_100",
 )
+EVENT_VALUE_ALIASES = {
+    "value1": ("value1", "v1"),
+    "value2": ("value2", "v2"),
+    "value3": ("value3", "v3"),
+}
 
 
 def load(path: Path, name: str):
@@ -32,10 +37,15 @@ trade_quality = load(TRADE_ANALYZER, "v69_trade_quality_for_v70_exit_shadow")
 
 
 def event_num(row: dict[str, str], key: str) -> float:
-    try:
-        return float(row.get(key, "") or 0.0)
-    except (TypeError, ValueError):
-        return 0.0
+    for name in EVENT_VALUE_ALIASES.get(key, (key,)):
+        raw = row.get(name, "")
+        if raw in (None, ""):
+            continue
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            continue
+    return 0.0
 
 
 def parse_shadow_blocks(events: list[dict[str, str]]) -> list[dict]:
@@ -49,7 +59,7 @@ def parse_shadow_blocks(events: list[dict[str, str]]) -> list[dict]:
             current = {
                 "start_time": row.get("time", ""),
                 "start_time_dt": trade_quality.parse_time(row.get("time")),
-                "entry_price": event_num(row, "v1"),
+                "entry_price": event_num(row, "value1"),
                 "triggers": {},
                 "arms": {},
                 "upgrades": {},
@@ -62,37 +72,50 @@ def parse_shadow_blocks(events: list[dict[str, str]]) -> list[dict]:
             if name in POLICIES and name not in current["arms"]:
                 current["arms"][name] = {
                     "time": row.get("time", ""),
-                    "pnl": event_num(row, "v1"),
-                    "floor": event_num(row, "v2"),
+                    "pnl": event_num(row, "value1"),
+                    "floor": event_num(row, "value2"),
                 }
         elif event == "V70_EXIT_POLICY_UPGRADE":
             name = (row.get("detail") or "").strip()
             if name in POLICIES and name not in current["upgrades"]:
                 current["upgrades"][name] = {
                     "time": row.get("time", ""),
-                    "pnl": event_num(row, "v1"),
-                    "floor": event_num(row, "v2"),
+                    "pnl": event_num(row, "value1"),
+                    "floor": event_num(row, "value2"),
                 }
         elif event == "V70_EXIT_POLICY_TRIGGER":
             name = (row.get("detail") or "").strip()
             if name in POLICIES and name not in current["triggers"]:
                 current["triggers"][name] = {
                     "time": row.get("time", ""),
-                    "pnl": event_num(row, "v1"),
-                    "floor": event_num(row, "v2"),
-                    "max_pnl_at_trigger": event_num(row, "v3"),
+                    "pnl": event_num(row, "value1"),
+                    "floor": event_num(row, "value2"),
+                    "max_pnl_at_trigger": event_num(row, "value3"),
                 }
         elif event == "V70_EXIT_SHADOW_END":
             current["end_time"] = row.get("time", "")
             current["end_time_dt"] = trade_quality.parse_time(row.get("time"))
-            current["true_mfe_usd"] = event_num(row, "v1")
-            current["true_mae_usd"] = event_num(row, "v2")
-            current["shadow_duration_seconds"] = event_num(row, "v3")
+            current["true_mfe_usd"] = event_num(row, "value1")
+            current["true_mae_usd"] = event_num(row, "value2")
+            current["shadow_duration_seconds"] = event_num(row, "value3")
             blocks.append(current)
             current = None
     if current is not None:
         raise RuntimeError("V70 unterminated exit shadow block")
     return blocks
+
+
+def legacy_accepted_summary(deals: list[dict[str, str]]) -> dict:
+    """Mirror the accepted V68/V69 headline accounting: exit-row PnL + exit-row costs only."""
+    exits = [r for r in deals if trade_quality.integer(r, "entry") != 0]
+    values = [
+        trade_quality.num(r, "profit")
+        + trade_quality.num(r, "commission")
+        + trade_quality.num(r, "swap")
+        + trade_quality.num(r, "fee")
+        for r in exits
+    ]
+    return summary_for(values)
 
 
 def match_blocks(trades: list[dict], blocks: list[dict], max_start_delta_seconds: float = 15.0) -> list[dict]:
@@ -115,12 +138,12 @@ def match_blocks(trades: list[dict], blocks: list[dict], max_start_delta_seconds
         row["policy_arms"] = block["arms"]
         row["policy_upgrades"] = block["upgrades"]
         row["policy_triggers"] = block["triggers"]
-        cost = float(row.get("explicit_cost_usd") or 0.0)
-        actual = float(row.get("realized_pnl_usd") or 0.0)
+        explicit_actual_cost = float(row.get("explicit_cost_usd") or 0.0)
+        economic_actual = float(row.get("realized_pnl_usd") or 0.0)
         policy_net: dict[str, float] = {}
         for name in POLICIES:
             trigger = block["triggers"].get(name)
-            policy_net[name] = float(trigger["pnl"]) + cost if trigger else actual
+            policy_net[name] = float(trigger["pnl"]) + explicit_actual_cost if trigger else economic_actual
         row["policy_net_usd"] = policy_net
         out.append(row)
     return out
@@ -145,24 +168,32 @@ def summary_for(values: list[float]) -> dict:
     }
 
 
-def analyze_run(run_dir: Path) -> list[dict]:
+def analyze_run(run_dir: Path) -> tuple[list[dict], dict]:
     deals = trade_quality.read_csv(run_dir / "V64_DEALS.csv")
     events = trade_quality.read_csv(run_dir / "V64_EVENTS.csv")
     trades = trade_quality.parse_deals(deals)
     blocks = parse_shadow_blocks(events)
-    return match_blocks(trades, blocks)
+    return match_blocks(trades, blocks), legacy_accepted_summary(deals)
 
 
 def analyze(run_dirs: list[Path]) -> dict:
     all_trades: list[dict] = []
+    legacy_values_by_run: list[float] = []
     by_run: dict[str, dict] = {}
     for run_dir in run_dirs:
-        trades = analyze_run(run_dir)
+        trades, legacy = analyze_run(run_dir)
         for row in trades:
             row["run_dir"] = run_dir.name
         all_trades.extend(trades)
+        # Reconstruct the aggregate legacy headline from the per-run summary components.
+        # Win/loss counts and net are exact; PF/DD for the accepted identity are not used as gates.
+        legacy_values_by_run.extend(
+            [legacy["avg_win_usd"]] * legacy["wins"]
+            + [legacy["avg_loss_usd"]] * legacy["losses"]
+        )
         by_run[run_dir.name] = {
-            "actual": summary_for([float(t["realized_pnl_usd"]) for t in trades]),
+            "legacy_accepted": legacy,
+            "economic_roundtrip_actual": summary_for([float(t["realized_pnl_usd"]) for t in trades]),
             "policies": {
                 name: summary_for([float(t["policy_net_usd"][name]) for t in trades])
                 for name in POLICIES
@@ -173,16 +204,17 @@ def analyze(run_dirs: list[Path]) -> dict:
     for idx, row in enumerate(all_trades, 1):
         row["global_trade_index"] = idx
 
-    actual_values = [float(t["realized_pnl_usd"]) for t in all_trades]
-    actual = summary_for(actual_values)
+    economic_values = [float(t["realized_pnl_usd"]) for t in all_trades]
+    economic_actual = summary_for(economic_values)
+    legacy_accepted = summary_for(legacy_values_by_run)
     policies = {}
     for name in POLICIES:
         vals = [float(t["policy_net_usd"][name]) for t in all_trades]
         s = summary_for(vals)
-        s["net_delta_vs_actual_usd"] = round(s["net_usd"] - actual["net_usd"], 8)
-        s["changed_trade_count"] = sum(
-            1 for t in all_trades if name in t.get("policy_triggers", {})
-        )
+        s["net_delta_vs_economic_actual_usd"] = round(s["net_usd"] - economic_actual["net_usd"], 8)
+        # Compatibility alias for prior JSON consumers; denominator is explicitly economic actual.
+        s["net_delta_vs_actual_usd"] = s["net_delta_vs_economic_actual_usd"]
+        s["changed_trade_count"] = sum(1 for t in all_trades if name in t.get("policy_triggers", {}))
         s["baseline_winner_cut_count"] = sum(
             1
             for t in all_trades
@@ -207,9 +239,7 @@ def analyze(run_dirs: list[Path]) -> dict:
         "median_true_mfe_winners_usd": finite_median([float(t["true_mfe_usd"]) for t in winners]),
         "median_true_mfe_losers_usd": finite_median([float(t["true_mfe_usd"]) for t in losses]),
         "median_true_mae_losers_usd": finite_median([float(t["true_mae_usd"]) for t in losses]),
-        "positive_true_mfe_realized_loss_count": sum(
-            1 for t in losses if float(t["true_mfe_usd"]) > 1e-9
-        ),
+        "positive_true_mfe_realized_loss_count": sum(1 for t in losses if float(t["true_mfe_usd"]) > 1e-9),
         "true_mfe_ge_1_count": sum(1 for t in all_trades if float(t["true_mfe_usd"]) >= 1.0 - 1e-9),
         "true_mfe_ge_2_count": sum(1 for t in all_trades if float(t["true_mfe_usd"]) >= 2.0 - 1e-9),
         "true_mfe_ge_2_realized_loss_count": sum(
@@ -218,9 +248,14 @@ def analyze(run_dirs: list[Path]) -> dict:
     }
 
     return {
-        "protocol": "v70_exit_harvest_shadow_v1",
+        "protocol": "v70_exit_harvest_shadow_v2",
         "development_only_not_independent": True,
-        "actual": actual,
+        "legacy_accepted_identity": legacy_accepted,
+        "economic_roundtrip_actual": economic_actual,
+        "actual": economic_actual,
+        "accounting_delta_economic_minus_legacy_usd": round(
+            economic_actual["net_usd"] - legacy_accepted["net_usd"], 8
+        ),
         "true_in_position_excursion": excursion,
         "policies": policies,
         "by_run": by_run,
@@ -230,7 +265,9 @@ def analyze(run_dirs: list[Path]) -> dict:
             "EARLY_100_025": "research-only +1 arm / +0.25 floor",
             "MID_150_050": "research-only +1.5 arm / +0.5 floor",
             "TIERED_100_025_200_100": "research-only +1/+0.25 early floor upgraded to +1 after +2",
-            "counterfactual_cost_model": "trigger OrderCalcProfit plus actual explicit deal costs for same 0.01 cohort",
+            "accepted_identity_accounting": "legacy V69 headline: exit profit plus exit-row commission/swap/fee only",
+            "economic_roundtrip_accounting": "exit profit plus entry and exit explicit commission/swap/fee",
+            "counterfactual_cost_model": "trigger OrderCalcProfit plus actual round-trip explicit deal costs for same 0.01 cohort",
             "entry_semantics_changed": False,
             "real_exit_semantics_changed": False,
             "orders_added": 0,
@@ -251,11 +288,16 @@ def main() -> int:
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
 
+    legacy = result["legacy_accepted_identity"]
+    economic = result["economic_roundtrip_actual"]
     lines = [
         "V70_EXIT_HARVEST_SHADOW=PASS",
-        f"TRADES={result['actual']['trades']}",
-        f"ACTUAL_NET_USD={result['actual']['net_usd']}",
-        f"ACTUAL_PF={result['actual']['profit_factor']}",
+        f"TRADES={economic['trades']}",
+        f"V70_BASELINE_LEGACY_ACCEPTED_NET_USD={legacy['net_usd']}",
+        f"V70_BASELINE_ECONOMIC_ROUNDTRIP_NET_USD={economic['net_usd']}",
+        f"V70_BASELINE_ACCOUNTING_DELTA_USD={result['accounting_delta_economic_minus_legacy_usd']}",
+        f"ACTUAL_NET_USD={economic['net_usd']}",
+        f"ACTUAL_PF={economic['profit_factor']}",
         f"TRUE_EXCURSION={json.dumps(result['true_in_position_excursion'], sort_keys=True)}",
     ]
     for name in POLICIES:
