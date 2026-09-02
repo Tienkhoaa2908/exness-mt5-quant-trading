@@ -87,6 +87,28 @@ def test_partial_live_tail_is_ignored_not_invented() -> None:
         assert out["stage_counts"]["POST_ZONE_REVERSAL_CONFIRM"] == 0
 
 
+def test_header_only_event_file_is_valid_upstream_evidence() -> None:
+    mod = load(ANALYZER, "v69_upstream_header_only")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        write_events(root, [])
+        out = mod.analyze(root)
+        assert out["events_file_present"] is True
+        assert out["events_rows"] == 0
+        assert out["stage_counts"]["PENDING_ARM"] == 0
+        assert out["classification"] == "INITIAL_SETUP_OR_PENDING_ARM_BLOCK"
+        assert out["dominant_blocker"] == "PENDING_ARM"
+
+
+def test_runner_accepts_zero_event_rows_and_uses_pre_probe_snapshot() -> None:
+    runner = RUNNER.read_text(encoding="utf-8")
+    assert "V69_PRE_PROBE_SIGNAL_PATH.json" in runner
+    assert "V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1" in runner
+    assert "none contain readable V64_EVENTS.csv rows" not in runner
+    assert "PRE_PROBE_SIGNAL_PATH_JSON" in runner
+    assert "INITIAL_SETUP_OR_PENDING_ARM_BLOCK" in ANALYZER.read_text(encoding="utf-8")
+
+
 def test_runner_and_launcher_are_strictly_read_only() -> None:
     runner = RUNNER.read_text(encoding="utf-8")
     launcher = LAUNCHER.read_text(encoding="utf-8")
