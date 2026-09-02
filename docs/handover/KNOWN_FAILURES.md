@@ -6,7 +6,31 @@ Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
-### KD-2026-09-03-04 — actual DEMO execution PASS + zero reclaim-confirm localizes the no-trade issue upstream
+### KD-2026-09-03-05 — `V64_EVENTS=0` does NOT mean `no market signal`
+
+Latest read-only upstream run examined 8 preserved V69 sources and found zero `V64_EVENTS.csv` data rows, including `PENDING_ARM=0` and every later pending/reclaim stage at zero.
+
+This proves that no **instrumented pending-state event** occurred. It does not prove that `BuildFeatures`/`SelectDirection` found no candidate.
+
+Code lineage shows several paths before `PENDING_ARM` that do not create a pending event:
+
+- `SelectDirection` can return `d==0` and `EvaluateBar` returns immediately;
+- opposite selected direction can be recorded only in `V64_ENTRY_EVAL.csv` as `direction_isolated_out`;
+- `V64ClassifyArchetype` can reject as `no_complete_archetype` and write only `V64_ENTRY_EVAL.csv`;
+- raw M15 stop geometry can reject as `invalid_arm_structural_stop` and write only `V64_ENTRY_EVAL.csv`;
+- only a successful arm emits `PENDING_ARM`.
+
+Do not equate empty event telemetry with absence of visual/selector opportunities. Before changing strategy thresholds, inspect `V64_ENTRY_EVAL.csv` across current and archived roots.
+
+Regression/guard:
+
+- enhanced read-only diagnostic includes `scripts/analyze_v69_pre_pending_eval.py`;
+- runner reports `V69_PRE_PENDING_*` decision/reject/direction counts;
+- tests cover archetype rejection and zero-entry-eval cases.
+
+If ENTRY_EVAL is also empty, observability is insufficient before the `d==0` return. The next step is an observability-only M15 `EvaluateBar` tracer, not threshold tuning.
+
+### KD-2026-09-03-04 — actual DEMO execution PASS localizes the no-trade issue upstream
 
 Successful corrected real-readiness run at code checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca` proved actual MT5/broker transport:
 
@@ -17,21 +41,11 @@ Successful corrected real-readiness run at code checkpoint `614d68eca2fd30dbfe98
 - probe terminal exited gracefully;
 - frozen V69 automatically relaunched and returned to stable broker/runtime READY.
 
-The pre-probe live signal funnel from the preceding no-trade period showed:
+The pre-probe live signal funnel showed no reclaim/separation/retest/entry-ready stage. The subsequent 8-source diagnostic showed no pending-state event at all.
 
-- `POST_ZONE_REVERSAL_CONFIRM=0`;
-- `POST_CONFIRM_SEPARATION=0`;
-- `POST_CONFIRM_RETEST_READY=0`;
-- `POST_CONFIRM_ENTRY_READY=0`;
-- natural V69 deals `0`.
+Therefore generic real-time deployment, lot size, broker transport and the post-confirm order path are not the primary explanation for the observed no-trade window. Diagnose candidate generation and pre-pending gates first.
 
-Therefore the observed no-trade period did **not** exercise V69 separation/retest/entry-ready/order-send logic. Do not continue blaming generic real-time deployment, lot size, or broker transport for that period.
-
-Current preferred diagnostic is to read the archived event stream and locate the earliest failing upstream transition:
-
-`PENDING_ARM -> MICRO_ENTRY_ARM -> ZONE_TOUCH -> PENETRATION -> POST_ZONE_CONFIRM_WAIT -> POST_ZONE_REVERSAL_CONFIRM`
-
-Use the read-only upstream diagnostic. Do not wait for another natural trade and do not send another forced transport probe unless new transport evidence contradicts the PASS.
+Do not rerun the forced transport probe unless new evidence contradicts the transport PASS.
 
 ### KD-2026-09-03-03 — frozen dashboard still displays obsolete `2 trades / 48h` wait gate
 
@@ -49,11 +63,21 @@ Never convert probe PASS directly into automatic REAL authorization.
 
 ### KD-2026-09-03-01 — broker READY + live ticks + zero trades does not locate the fault
 
-Dry-run readiness plus zero trades is ambiguous. Resolve it with a signal funnel plus isolated execution probe, not visual chart interpretation or longer waiting.
-
-That diagnostic has now been completed for the latest window: transport PASS; reclaim-confirm count zero; blocker moved upstream.
+Dry-run readiness plus zero trades is ambiguous. Resolve it with signal-stage telemetry plus isolated execution evidence, not visual chart interpretation or longer waiting.
 
 ## Resolved harness/broker incidents
+
+### KH-2026-09-03-02 — upstream diagnostic treated zero event rows as fatal — RESOLVED
+
+The first upstream runner raised `V69 telemetry roots found but none contain readable V64_EVENTS.csv rows` even though the analyzer intentionally classified zero events as `INITIAL_SETUP_OR_PENDING_ARM_BLOCK`.
+
+Fix:
+
+- zero event rows are valid diagnostic evidence;
+- pre-probe JSON snapshot is also considered after FILE_COMMON rotation;
+- regression tests cover header-only/zero-event telemetry.
+
+The corrected operator run subsequently completed with diagnostic PASS across 8 sources.
 
 ### KH-2026-09-03-01 — expected-HEAD variable mismatch in nested real-readiness runtime — RESOLVED
 
@@ -65,7 +89,7 @@ Fix:
 - Python runner normalizes both names before inherited `ensure_repo()` and keeps the bridge through `forward.main()`;
 - regression test asserts the cross-module bridge.
 
-Corrected checkpoint `614d68e...` subsequently completed the entire real-readiness probe successfully, so this item is resolved.
+Corrected checkpoint `614d68e...` subsequently completed the entire real-readiness probe successfully.
 
 ### KF-2026-09-01-01 — generic 4756 hid server `10019 No money` — RESOLVED
 
@@ -151,9 +175,10 @@ See `docs/research/SESSION_VOLATILITY_RESEARCH.md`.
 - Interpret `_LastError` together with broker server retcode/comment.
 - Dry-run READY proves request readiness; actual probe PASS proves transport; neither proves strategy edge.
 - After prolonged no-trade runtime, inspect stage telemetry instead of waiting blindly.
+- Empty pending-event telemetry must be followed by pre-pending ENTRY_EVAL analysis before claiming there were no signals.
 - Once actual execution transport is proven, do not rerun forced probes unless transport evidence changes.
 - Ignore legacy dashboard `2 trades / 48h` as a current project gate.
 - Keep strategy, broker transport and harness failures separate.
-- Do not change strategy thresholds to mask tooling/broker defects.
+- Do not change strategy thresholds to mask tooling/broker defects or observability gaps.
 - Exact-HEAD contracts reused across nested runtimes must be bridged and regression-tested end-to-end.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
