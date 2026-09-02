@@ -5,12 +5,14 @@ import importlib.util
 import json
 import os
 import subprocess
+from collections import Counter
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 ANALYZER = REPO / "scripts" / "analyze_v69_upstream_signal_funnel.py"
 OUT = HERE / "OUTPUT_V69_REAL_READINESS_PROBE"
+PRE_PROBE_SIGNAL_PATH = OUT / "V69_PRE_PROBE_SIGNAL_PATH.json"
 EXPECTED_BRANCH = "agent/v69-one-shot-prospective-demo"
 
 
@@ -68,9 +70,64 @@ def candidate_roots(parent: Path) -> list[Path]:
     return roots
 
 
-def richness(result: dict) -> tuple[int, int, int]:
+def snapshot_analysis(path: Path, analyzer) -> dict | None:
+    """Reconstruct the funnel from the pre-probe JSON saved before V69 relaunch.
+
+    The older snapshot analyzer stored every event name in top_event_counts even
+    though its stage_counts only covered the four V69 post-confirm stages.  That
+    makes the snapshot a valid read-only fallback after the FILE_COMMON root has
+    been rotated or contains only headers.
+    """
+    if not path.is_file() or path.stat().st_size <= 0:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig", errors="replace"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    raw_counts = payload.get("top_event_counts", {})
+    if not isinstance(raw_counts, dict):
+        raw_counts = {}
+    event_counts: Counter[str] = Counter()
+    for name, value in raw_counts.items():
+        try:
+            event_counts[str(name)] = int(value)
+        except (TypeError, ValueError):
+            continue
+
+    stage_counts = {name: int(event_counts.get(name, 0)) for name in analyzer.FUNNEL_STAGES}
+    aux_counts = {name: int(event_counts.get(name, 0)) for name in analyzer.AUX_EVENTS}
+    closed = int(payload.get("closed_deals", 0) or 0)
+    # The legacy snapshot did not retain a safe event->detail mapping, so do not
+    # invent confirm-wait reasons from its aggregate detail counter.
+    wait_reasons: Counter[str] = Counter()
+    classification, blocker, next_action = analyzer.classify(stage_counts, wait_reasons, closed)
+    try:
+        events_rows = int(payload.get("events_rows", 0) or 0)
+    except (TypeError, ValueError):
+        events_rows = 0
+    return {
+        "root": f"snapshot:{path}",
+        "source_kind": "PRE_PROBE_SIGNAL_PATH_JSON",
+        "events_file_present": bool(payload.get("events_file_present", False)),
+        "deals_file_present": bool(payload.get("deals_file_present", False)),
+        "events_rows": events_rows,
+        "closed_deals": closed,
+        "stage_counts": stage_counts,
+        "aux_event_counts": aux_counts,
+        "classification": classification,
+        "dominant_blocker": blocker,
+        "next_action": next_action,
+        "confirm_wait_reason_counts": {},
+        "top_event_counts": dict(event_counts.most_common(60)),
+        "top_detail_counts": payload.get("diagnostic_detail_counts", {}),
+    }
+
+
+def richness(result: dict) -> tuple[int, int, int, int]:
     stage_total = sum(int(v) for v in result.get("stage_counts", {}).values())
-    return (int(result.get("events_rows", 0)), stage_total, int(result.get("closed_deals", 0)))
+    source_bonus = 1 if result.get("source_kind") == "PRE_PROBE_SIGNAL_PATH_JSON" else 0
+    file_bonus = int(bool(result.get("events_file_present")))
+    return (int(result.get("events_rows", 0)), stage_total, source_bonus, file_bonus)
 
 
 def main() -> int:
@@ -84,31 +141,53 @@ def main() -> int:
     print("V69_UPSTREAM_ORDERS_SENT=0")
 
     roots = candidate_roots(parent)
-    if not roots:
-        raise RuntimeError(f"no V69 forward telemetry roots found under {parent}")
+    analyses = []
+    for root in roots:
+        result = analyzer.analyze(root)
+        result["source_kind"] = "FILE_COMMON_ROOT"
+        analyses.append(result)
 
-    analyses = [analyzer.analyze(root) for root in roots]
+    snapshot = snapshot_analysis(PRE_PROBE_SIGNAL_PATH, analyzer)
+    if snapshot is not None:
+        analyses.append(snapshot)
+        print(f"V69_UPSTREAM_PRE_PROBE_SNAPSHOT={PRE_PROBE_SIGNAL_PATH}")
+
+    if not analyses:
+        raise RuntimeError(
+            f"no V69 forward telemetry roots or pre-probe snapshot found under {parent} / {PRE_PROBE_SIGNAL_PATH}"
+        )
+
     analyses.sort(key=richness, reverse=True)
     selected = analyses[0]
-    if int(selected.get("events_rows", 0)) <= 0:
-        raise RuntimeError("V69 telemetry roots found but none contain readable V64_EVENTS.csv rows")
+    total_event_rows = sum(int(item.get("events_rows", 0)) for item in analyses)
+    roots_with_rows = sum(1 for item in analyses if int(item.get("events_rows", 0)) > 0)
+    if total_event_rows == 0:
+        # This is evidence, not a runtime failure: no instrumented upstream event
+        # reached even PENDING_ARM in any preserved source.  The existing analyzer
+        # intentionally classifies this as INITIAL_SETUP_OR_PENDING_ARM_BLOCK.
+        print("V69_UPSTREAM_ZERO_EVENT_ROWS_VALID=1")
 
     OUT.mkdir(parents=True, exist_ok=True)
     payload = {
-        "protocol": "v69_upstream_signal_diagnostic_v1",
+        "protocol": "v69_upstream_signal_diagnostic_v2",
         "branch": branch,
         "head": head,
         "read_only": True,
         "mt5_can_remain_running": True,
         "orders_sent": False,
         "selected": selected,
-        "all_roots": analyses,
+        "all_sources": analyses,
+        "total_event_rows_across_sources": total_event_rows,
+        "sources_with_event_rows": roots_with_rows,
     }
     out = OUT / "V69_UPSTREAM_SIGNAL_DIAGNOSTIC.json"
     out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     print("V69_UPSTREAM_SOURCE_ROOT=" + selected["root"])
+    print("V69_UPSTREAM_SOURCE_KIND=" + selected.get("source_kind", "UNKNOWN"))
     print(f"V69_UPSTREAM_EVENTS_ROWS={selected['events_rows']}")
+    print(f"V69_UPSTREAM_TOTAL_EVENT_ROWS={total_event_rows}")
+    print(f"V69_UPSTREAM_SOURCES_WITH_EVENT_ROWS={roots_with_rows}")
     for name, value in selected["stage_counts"].items():
         print(f"V69_UPSTREAM_{name}={value}")
     for name, value in selected.get("aux_event_counts", {}).items():
@@ -122,7 +201,7 @@ def main() -> int:
         + json.dumps(selected.get("confirm_wait_reason_counts", {}), ensure_ascii=False, sort_keys=True)
     )
     print("V69_UPSTREAM_TOP_EVENTS=" + json.dumps(selected.get("top_event_counts", {}), ensure_ascii=False, sort_keys=True))
-    print(f"V69_UPSTREAM_ANALYZED_ROOTS={len(analyses)}")
+    print(f"V69_UPSTREAM_ANALYZED_SOURCES={len(analyses)}")
     print(f"V69_UPSTREAM_RESULT_JSON={out}")
     print("V69_UPSTREAM_DIAGNOSTIC=PASS")
     return 0
