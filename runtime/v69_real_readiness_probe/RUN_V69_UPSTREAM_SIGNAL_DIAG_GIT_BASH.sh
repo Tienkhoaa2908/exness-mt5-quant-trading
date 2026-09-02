@@ -7,6 +7,7 @@ ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_ROOT="$(cd -- "$ROOT/../.." && pwd -P)"
 RUNNER="$ROOT/RUN_V69_UPSTREAM_SIGNAL_DIAG.py"
 STATIC="$REPO_ROOT/tests/test_v69_upstream_signal_diag.py"
+PRE_PENDING="$REPO_ROOT/scripts/analyze_v69_pre_pending_eval.py"
 EXPECTED_BRANCH="agent/v69-one-shot-prospective-demo"
 EXPECTED_HEAD="${V69_UPSTREAM_DIAG_EXPECTED_HEAD:-}"
 
@@ -17,6 +18,7 @@ trap 'rc=$?; echo "FAILED rc=$rc line=${BASH_LINENO[0]:-?} cmd=${BASH_COMMAND:-?
 [[ -d "$REPO_ROOT/.git" ]] || die "repository not found: $REPO_ROOT"
 [[ -s "$RUNNER" ]] || die "runner missing: $RUNNER"
 [[ -s "$STATIC" ]] || die "static test missing: $STATIC"
+[[ -s "$PRE_PENDING" ]] || die "pre-pending analyzer missing: $PRE_PENDING"
 [[ -n "$EXPECTED_HEAD" ]] || die "V69_UPSTREAM_DIAG_EXPECTED_HEAD is required"
 
 say "Repository exact-state preflight"
@@ -63,11 +65,12 @@ say "Read-only upstream diagnostic gates"
 bash -n "$0"
 "${PY_CMD[@]}" -m py_compile \
   "$REPO_ROOT/scripts/analyze_v69_upstream_signal_funnel.py" \
+  "$PRE_PENDING" \
   "$RUNNER" "$STATIC"
 "${PY_CMD[@]}" "$STATIC"
 "${PY_CMD[@]}" "$REPO_ROOT/scripts/secret_scan.py" "$REPO_ROOT"
 
-say "Analyze archived and current V69 signal funnel"
+say "Analyze archived/current V69 event and pre-pending evaluation telemetry"
 "${PY_CMD[@]}" "$RUNNER"
 
 echo
