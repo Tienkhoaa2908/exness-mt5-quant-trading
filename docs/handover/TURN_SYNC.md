@@ -1,137 +1,77 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 01:xx (+07)
+Updated: 2026-09-03 (+07)
 
 ## User input
 
-Operator ran the immediate V69 real-readiness probe from exact checkpoint `40115f1aa741720afa360b4cad4216dd0e2ab27e`.
+Operator supplied a current MT5 screenshot and asked how much longer to wait.
 
-Observed output:
+Visible dashboard state:
 
-- repo exact-state preflight PASS;
-- Python 3.12.10 selected after broken `py.exe -3` was rejected;
-- all six then-existing real-readiness static tests PASS;
-- secret scan PASS;
-- first Python runner call failed immediately with:
-  `RuntimeError: V69_ONE_SHOT_EXPECTED_HEAD is required`.
+- `V69FrozenForwardSmokeDashboardLong` on `XAUUSDm M15`;
+- `SYSTEM HEALTH: READY`;
+- `BROKER PREFLIGHT: READY`;
+- position FLAT;
+- live tick heartbeat active;
+- `Closed 0 / 2`;
+- legacy dashboard text still says to wait for `2 closed trades` or a `48h cap`.
 
 ## Mandatory state inspection
 
-Before changing code, re-resolved active branch remote HEAD and read:
+Before answering, re-resolved active remote branch HEAD and re-read:
 
-- `docs/handover/OPERATING_PROTOCOL.md`;
 - `docs/handover/CURRENT_STATE.md`;
 - `docs/handover/KNOWN_FAILURES.md`;
 - previous `docs/handover/TURN_SYNC.md`;
-- real-readiness Git Bash launcher;
-- real-readiness Python runner;
-- inherited one-shot `ensure_repo()` implementation;
-- real-readiness static regression tests.
+- exact corrected-head CI evidence already associated with checkpoint `614d68eca2fd30dbfe98adad02f82d61a0302aca`.
 
-## Root cause
+## Key conclusion
 
-This was a harness-only contract mismatch.
+The operator should **not wait any longer for the legacy `2 trades / 48h` smoke gate**.
 
-`START_V69_REAL_READINESS_PROBE_GIT_BASH.sh` validated and read:
+That text is stale relative to the current project plan. After approximately one day of healthy runtime with zero natural fills, the project explicitly replaced passive waiting with:
 
-`V69_REAL_READINESS_EXPECTED_HEAD`
+1. signal-path funnel from existing V69 telemetry;
+2. isolated actual DEMO 0.01 BUY/open-close execution probe;
+3. classification of upstream V69 gating versus integrated order-path failure.
 
-but `RUN_V69_REAL_READINESS_PROBE.py` immediately reused `forward.base.ensure_repo()`, whose inherited contract requires:
+Therefore the correct wait time for the old natural-trade gate is effectively zero.
 
-`V69_ONE_SHOT_EXPECTED_HEAD`
+The latest chart proves current frozen-dashboard runtime and broker dry-run health are READY, but it does not prove that the corrected real-readiness probe completed. The chat still lacks the corrected probe terminal output or `V69_REAL_READINESS_PROBE_RESULT.json`.
 
-The runner later also calls `forward.main()` to relaunch frozen V69, so the inherited variable must remain available through the entire diagnostic.
+Do not infer probe PASS from the screenshot alone. The frozen dashboard can be relaunched separately and the legacy progress text is not authoritative.
 
-The previous static launcher test checked only that the new variable was required; it did not assert that the new contract was bridged into the inherited runtime. Therefore CI passed while the first Windows execution failed.
+## Documentation updates this turn
 
-## Impact classification
+Updated `CURRENT_STATE.md` to record:
 
-The failure occurred before:
+- latest frozen-dashboard runtime is visibly READY again;
+- `2 trades / 48h` is obsolete as the current project gate;
+- corrected probe result remains unverified in chat.
 
-- `configure_runtime()`;
-- live telemetry snapshot/analyzer execution;
-- MetaEditor compilation of `V69DemoExecutionProbe`;
-- MT5 probe startup;
-- actual DEMO order send;
-- automatic frozen-V69 relaunch.
+Updated `KNOWN_FAILURES.md` with a new lesson:
 
-Therefore this attempt provides no new broker/execution evidence and no strategy evidence.
+- stale dashboard `2 trades / 48h` text can mislead the operator into waiting after the project has already switched to immediate real-readiness diagnosis;
+- future dashboard revision should show real-readiness/probe state or label the natural-trade counter informational only.
 
-Because the operator had closed MT5/MetaEditor as instructed and the runner failed before relaunch, frozen V69 should be considered not relaunched until the corrected retry finishes.
+No strategy/runtime code was changed this turn. No REAL authorization changed.
 
-## Code changes
+## Current action
 
-### Launcher bridge
+- If corrected real-readiness probe at/after checkpoint `614d68e...` has **not** run to completion: do not wait; close MT5/MetaEditor once and run the corrected probe launcher now.
+- If it **did** run and the current frozen dashboard is the automatic relaunch after probe PASS: do not wait; return the terminal output/result immediately so the signal funnel and execution result can be interpreted.
 
-`runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh`
-
-After exact branch/HEAD/clean-worktree validation it now exports:
-
-`V69_ONE_SHOT_EXPECTED_HEAD="$EXPECTED_HEAD"`
-
-and prints:
-
-`V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=...`
-
-### Runner bridge
-
-`runtime/v69_real_readiness_probe/RUN_V69_REAL_READINESS_PROBE.py`
-
-Added `bridge_expected_head()` which:
-
-- reads canonical `V69_REAL_READINESS_EXPECTED_HEAD`;
-- permits inherited `V69_ONE_SHOT_EXPECTED_HEAD` only as a fallback for direct compatibility;
-- requires an expected HEAD if neither exists;
-- normalizes both variables to the same SHA;
-- runs before inherited `forward.base.ensure_repo()`;
-- leaves the inherited variable available for the final `forward.main()` relaunch.
-
-### Regression test
-
-`tests/test_v69_real_readiness_probe_static.py`
-
-Added a dedicated test requiring:
-
-- launcher export of the inherited expected-head variable;
-- launcher bridge marker;
-- runner normalization of `V69_ONE_SHOT_EXPECTED_HEAD`;
-- runner call to `bridge_expected_head()`.
-
-No V69 strategy logic, symbol, lot, direction, probe magic, DEMO guard, or REAL authorization semantics changed.
-
-## Documentation sync
-
-Updated:
-
-- `CURRENT_STATE.md` — first Windows attempt classified as harness failure before runtime;
-- `KNOWN_FAILURES.md` — new expected-head cross-module contract regression recorded;
-- this `TURN_SYNC.md`.
-
-## Current blocker
-
-Actual DEMO execution remains untested because the first attempt failed before MT5 launch.
-
-The corrected branch must pass exact-HEAD CI, then the operator should retry only the same real-readiness launcher. No historical replay and no additional waiting for a natural trade is required.
-
-## Safety status
+## Safety
 
 Unchanged:
 
-- XAUUSDm only;
+- V69 frozen LONG only;
+- XAUUSDm M15;
 - 0.01 lot;
-- DEMO-only execution probe;
-- unique magic `699901`;
-- LONG BUY probe only;
-- frozen V69 strategy unchanged;
-- SHORT rejected/disabled;
-- REAL authorization remains false.
+- current execution diagnostic DEMO only;
+- SHORT disabled;
+- REAL authorization false.
 
-## Next operator action
+## Next gate
 
-1. Verify exact corrected remote HEAD and CI.
-2. Keep MT5 and MetaEditor closed.
-3. Fast-forward active branch to exact corrected HEAD.
-4. Export `V69_REAL_READINESS_EXPECTED_HEAD` to that corrected HEAD.
-5. Run only `runtime/v69_real_readiness_probe/START_V69_REAL_READINESS_PROBE_GIT_BASH.sh`.
-6. Return output from `V69_ONE_SHOT_EXPECTED_HEAD_BRIDGED=` onward or the first `FATAL`.
-7. Do not rerun historical research and do not wait another day for a natural signal.
+The next evidence required is **probe/funnel output**, not a natural closed trade and not expiration of the old 48-hour counter.
