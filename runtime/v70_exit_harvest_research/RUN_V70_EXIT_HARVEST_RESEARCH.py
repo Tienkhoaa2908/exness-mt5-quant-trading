@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import os
 import subprocess
 import sys
@@ -9,6 +10,11 @@ from pathlib import Path
 
 EXPECTED_BRANCH = "agent/v70-exit-harvest-research"
 EXPECTED_HEAD_ENV = "V70_EXIT_HARVEST_EXPECTED_HEAD"
+EXPECTED_BASELINE_TRADES = 24
+EXPECTED_BASELINE_WINS = 10
+EXPECTED_BASELINE_LOSSES = 14
+EXPECTED_BASELINE_NET_USD = 7.14
+EXPECTED_BASELINE_NET_TOLERANCE_USD = 0.05
 SYMBOL = "XAUUSDm"
 PERIOD = "M15"
 REAL_MODEL = 4
@@ -107,6 +113,34 @@ def analyze(run_dirs: list[Path]) -> tuple[Path, Path]:
     return output, summary
 
 
+def require_accepted_baseline(output: Path) -> dict:
+    result = json.loads(output.read_text(encoding="utf-8"))
+    actual = result.get("actual") or {}
+    trades = int(actual.get("trades") or 0)
+    wins = int(actual.get("wins") or 0)
+    losses = int(actual.get("losses") or 0)
+    net = float(actual.get("net_usd") or 0.0)
+    if trades != EXPECTED_BASELINE_TRADES:
+        raise RuntimeError(
+            f"V70 baseline trade identity mismatch expected={EXPECTED_BASELINE_TRADES} actual={trades}"
+        )
+    if wins != EXPECTED_BASELINE_WINS or losses != EXPECTED_BASELINE_LOSSES:
+        raise RuntimeError(
+            "V70 baseline win/loss identity mismatch "
+            f"expected={EXPECTED_BASELINE_WINS}W/{EXPECTED_BASELINE_LOSSES}L actual={wins}W/{losses}L"
+        )
+    if abs(net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
+        raise RuntimeError(
+            "V70 baseline net identity mismatch "
+            f"expected={EXPECTED_BASELINE_NET_USD:.2f}+/-{EXPECTED_BASELINE_NET_TOLERANCE_USD:.2f} actual={net:.8f}"
+        )
+    print(
+        "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS "
+        f"trades={trades} wins={wins} losses={losses} net_usd={net:.8f}"
+    )
+    return result
+
+
 def main() -> int:
     _, head = ensure_repo()
     run([sys.executable, "-m", "py_compile", BUILDER, ANALYZER, STATIC_TEST, Path(__file__)])
@@ -135,6 +169,7 @@ def main() -> int:
         run_dirs.append(runner.run_terminal(root, ini, label, REAL_MODEL))
 
     output, summary = analyze(run_dirs)
+    require_accepted_baseline(output)
     print(f"V70_EXIT_HARVEST_HEAD={head}")
     print(f"V70_EXIT_HARVEST_RESULT_JSON={output}")
     print(f"V70_EXIT_HARVEST_SUMMARY={summary}")
