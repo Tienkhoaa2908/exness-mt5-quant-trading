@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 07:20 (+07)
+Updated: 2026-09-03 07:22 (+07)
 
 ## Authority / safety
 
@@ -9,7 +9,7 @@ Active research branch: `agent/v70-exit-harvest-research`.
 
 Always resolve current remote HEAD, then read `OPERATING_PROTOCOL.md`, this file, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI before acting.
 
-SHORT remains disabled/rejected. REAL authorization remains false.
+SHORT disabled/rejected. REAL authorization remains false.
 
 ## Frozen V69 identity
 
