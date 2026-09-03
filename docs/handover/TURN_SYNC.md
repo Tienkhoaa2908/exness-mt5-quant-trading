@@ -1,74 +1,113 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 18:38 (+07)
+Updated: 2026-09-03 19:25 (+07)
 
 ## User input
 
-User confirmed Gemini successfully attached the GitHub code snapshot and supplied Gemini's first technical/methodology review. User now wants the external model pushed much harder toward code-level diagnosis and concrete technical improvement: inspect the implementation deeply, find actual defects/weak architecture, propose exact code changes, and keep researching the bot systematically rather than stopping at a high-level review.
+User requested a fresh GitHub-only restoration of the Exness / MetaTrader 5 Quant Trading System and a short status report covering active branch, exact HEAD, CI, current candidate, runtime state, current blocker and next gate.
+
+The user explicitly required the canonical read order, strict separation of strategy/economic logic from broker/execution transport and harness/observability, no reliance on chat memory, one-shot operator ergonomics, no `git clean`, no `stash pop` during active runtime/evidence work, no manual EA attachment when automation can do it, silent background processes, SHORT disabled and REAL money fail-closed.
 
 ## State read before work
 
-Fresh-resolved active branch at turn start:
+Repository authority was re-verified as:
+
+`Tienkhoaa2908/exness-mt5-quant-trading`
+
+`Tienkhoaa2908/vn-quant-system` was not modified.
+
+Branch discovery showed that the frozen V69 lineage remains preserved but is no longer the newest active research branch. The canonical current research branch is:
 
 `agent/v72-eurusd-independent-validation`
 
-Remote HEAD:
+Remote HEAD before this documentation-only sync:
 
-`c08cff5eb2f8d87406f18b361e3427ced1c123e8`
+`8ae5b44fd1c90863c0d0ff3424f20b33ab675a14`
 
-Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head checks were completed success.
+The required recovery sources were then read in order on that branch:
 
-Stable Gemini review snapshot remains:
+1. remote branch/HEAD;
+2. `docs/handover/OPERATING_PROTOCOL.md`;
+3. `docs/handover/CURRENT_STATE.md`;
+4. `docs/handover/KNOWN_FAILURES.md`;
+5. `docs/handover/TURN_SYNC.md`;
+6. `docs/handover/WINDOWS_RUNTIME_FAILURE_PLAYBOOK.md`;
+7. recent commits;
+8. GitHub Actions on exact HEAD;
+9. relevant runtime index/evidence state.
 
-`external/gemini-review-20260903`
+Exact pre-sync HEAD CI was fully green: `8/8` workflow runs associated with `8ae5b44fd1c90863c0d0ff3424f20b33ab675a14` were `completed/success`.
 
-Pinned SHA:
+## Restored canonical state
 
-`f94aa2c1cd4d2e20fbfc94bc41a788658b78cc8e`
+### Frozen V69 baseline
 
-The snapshot branch was re-verified/pinned and should remain stable during the external review.
+The frozen V69 research identity remains intact and unchanged:
 
-## Review of Gemini's first answer
+- branch `agent/v69-confirm-separation-retest-research`;
+- frozen HEAD `0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`;
+- accepted V69 evidence ZIP SHA256 `e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`;
+- frozen forward parent source SHA256 `0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`;
+- XAUUSDm M15, LONG only, fixed lot `0.01`;
+- SHORT disabled/rejected;
+- REAL authorization false;
+- accepted V69 development result `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34`;
+- Sep 2025-May 2026 replay remains development evidence, not an independent holdout.
 
-Gemini's first answer is useful as a broad research critique, but it contains several claims that must be re-audited against code/data before being treated as facts, including generic/sample-size assertions, hard ATR/pip examples, GBPUSD mean-reversion characterization, exact entry-lag percentages, claims about transaction costs eliminating the edge, and prescriptive Fibonacci/ATR changes. The next prompt must force the model to separate repository fact, measured evidence, inference and hypothesis, and to retract or downgrade any unsupported statement from its own prior answer.
+Actual DEMO execution transport remains proven PASS. No new evidence justifies rerunning the forced transport probe.
 
-The external review also did not sufficiently exploit existing research infrastructure already present in the snapshot. The repository tree includes, among other assets:
+### Research lineage after V69
 
-- `RUN_MULTI_FACTOR_EDGE_LAB_V1.cmd`;
-- `RUN_SIGNAL_INTELLIGENCE_LAB_V1.cmd`;
-- `RUN_ML_DL_FEATURE_LAKE_LAB_V1.cmd`;
-- `docs/adr/ADR-028-multifactor-edge-lab-one-run-batch.md`;
-- `docs/adr/ADR-029-signal-intelligence-before-more-strategy-expansion.md`;
-- `docs/adr/ADR-030-family-specific-regime-routing-before-complex-ml.md`;
-- `docs/adr/ADR-031-ml-dl-feature-lake-before-model-escalation.md`;
-- `docs/adr/ADR-032-ml-predicts-regime-not-direction.md`;
-- `docs/adr/ADR-038-causal-feature-availability-and-opportunity-weighting.md`.
+V70 corrected actual position-lifetime excursion telemetry and did not promote the TIERED exit successor.
 
-The next external-review phase must inspect these before proposing a new offline simulator or feature-lake architecture from scratch.
+V71 tested direct no-retune FX portability with the frozen V69/V71 LONG semantics. EURUSD was the strongest FX screen but was based on only eight trades; AUDUSD ranked second with seven trades.
 
-## External-review direction
+V72 then preregistered an untouched earlier EURUSD period using the exact V71 source and zero entry/exit retuning. Evidence collection and analysis passed, but the economic candidate failed the preregistered risk gate:
 
-The next Gemini prompt should be a continuation prompt for the same chat with the attached repository. It should require a code-first engineering audit and concrete implementation plan, including:
+- `23 trades / 8W / 15L`;
+- net `+$4.11`;
+- PF `1.250457`;
+- max realized DD `$10.23`;
+- fixed preregistered DD ceiling `$5.00`.
 
-1. trace the complete V69/V71 strategy execution path from selector/context through setup/pending/retest/confirmation/order/risk/exit;
-2. identify exact functions, constants, state variables and unit conversions responsible for symbol portability, risk geometry and entry timing;
-3. distinguish true implementation defects from strategy hypotheses;
-4. inspect existing offline research labs and determine what can be reused versus what is missing;
-5. design telemetry/schema additions that capture only pre-entry causal features plus correctly bounded post-entry labels;
-6. produce exact file-level changes and, where useful, unified-diff/code-block patches for a successor research branch, without mutating the frozen V69/V70/V71/V72 evidence lineage;
-7. rank changes by information gain, expected economic impact, implementation risk and operator cost;
-8. avoid immediately requesting another long MT5 run; expensive tester work remains gated behind cheap/offline evidence;
-9. challenge and correct its own prior unsupported statements before using them to justify code changes;
-10. keep SHORT disabled and REAL unauthorized unless separately researched and explicitly approved.
+Therefore `V72_ECONOMIC_CLASSIFICATION=FAIL` and unchanged EURUSD is rejected for promotion. The failed untouched period is consumed evidence and must not be used for post-hoc rescue tuning.
 
-## Project safety / operator cost
+## Layer separation
 
-No MT5 tester run, strategy mutation, SHORT activation or REAL authorization is requested from the operator in this turn.
+### Strategy / economic logic
+
+Current economic blocker is V72 EURUSD risk-path failure: max realized DD `$10.23` exceeded the preregistered `$5.00` ceiling. This is not a broker or harness diagnosis.
+
+### Broker / execution transport
+
+Generic DEMO execution transport is already proven PASS from the V69 execution probe. There is no current transport blocker and no reason to rerun a forced broker probe absent contradictory evidence.
+
+### Harness / observability
+
+The V72 collector telemetry-root mismatch was resolved. The corrected collector rejected stale/mixed evidence, reset the exact source root and produced valid fresh V72 evidence. The prior ZIP attachment-mount issue also has an established plain-text workaround. Neither is an active strategy blocker.
+
+## Runtime state
+
+No new MT5 tester or live-forward action is currently required from the operator.
 
 `NEXT_MT5_TESTER_ACTION=PAUSED`
+
 `SHORT_ENABLED=0`
+
 `REAL_MONEY_AUTHORIZED=0`
 
-## Next action
+Frozen V69 DEMO transport status remains PASS; no current runtime/execution fault is open.
 
-Give the user a stronger continuation prompt to paste into the same Gemini chat. The prompt should explicitly demand code-level architecture tracing, exact repository evidence, concrete patch proposals, reuse of existing research-lab infrastructure, and persistent falsification-driven investigation rather than another generic quant review.
+## Current candidate / blocker / next gate
+
+There is no newly promoted EURUSD candidate. Frozen V69 remains the preserved XAU LONG baseline/family; V72 EURUSD is rejected for promotion.
+
+If FX research continues, the clean next research candidate is AUDUSD from the V71 no-retune screen (`7 trades / 3W / 4L / +$1.29 / PF 1.305687 / DD $2.10`). It is not promoted evidence because the sample is only seven trades.
+
+Current blocker: no clean FX candidate has yet passed an untouched preregistered robustness gate. Specifically, EURUSD failed on drawdown; this is an economic/risk-path blocker, not broker/harness failure.
+
+Next gate: preregister an earlier untouched AUDUSD temporal validation using the exact V71/V69 LONG source with zero symbol-specific retuning before seeing the result. Do not pool FX pairs, do not enable SHORT, and do not authorize REAL money.
+
+## Changes made this turn
+
+Only this canonical `TURN_SYNC.md` restoration record was changed. No strategy code, runtime contract, evidence artifact, broker setting, SHORT state or REAL authorization was modified.
