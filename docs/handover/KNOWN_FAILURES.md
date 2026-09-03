@@ -1,6 +1,6 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 15:45 (+07)
+Updated: 2026-09-03 16:40 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
@@ -101,6 +101,22 @@ SHORT remains disabled/rejected.
 
 ## Resolved harness / diagnostic incidents
 
+### KH-2026-09-03-10 — V72 collector telemetry-root mismatch — FIXED, RECOVERY PENDING
+
+The first V72 EURUSD tester process completed with MT5 `rc=0`, but the collector failed with `missing V64_ENTRY_EVAL.csv; root_listing=`. The exact pinned V71 source hardcodes FILE_COMMON root `mt5_quant\\v71_fx_portability`, while the original V72 runner incorrectly changed the reused V64 collector to `mt5_quant\\v72_eurusd_independent_validation`.
+
+This is a harness path mismatch only. It is not strategy, broker or tester evidence.
+
+Fix rules:
+
+- do not mutate the hash-pinned V71 source merely to rename telemetry output;
+- point the V72 collector at the source's actual `v71_fx_portability` common root;
+- before rerunning tester, attempt to recover the just-completed evidence;
+- accept recovered evidence only if the required CSVs exist and timestamped rows are confined to the preregistered `2024.09.01 -> 2025.09.01` period;
+- reject stale V71 Sep-2025+ or mixed-period data and only then rerun one tester pass.
+
+Regression tests now assert source-root/collector alignment and valid-vs-stale recovery behavior.
+
 ### KH-2026-09-03-09 — ZIP attachment mount failures — WORKAROUND ESTABLISHED
 
 Multiple V71 ZIP uploads were registered but not readable in the assistant runtime. Plain-text raw evidence bundles were readable and sufficient. Treat this as attachment transport, not packaging/MT5/strategy failure. Do not rerun tester evidence just to change transport format.
@@ -189,5 +205,6 @@ GBPUSD: 19 trades / 3W / 16L / -$14.43 / PF 0.171166 / DD $16.32 / zero positive
 - Do not equate slower losses with positive edge.
 - Do not pool FX pairs into one strategy just because all are Forex.
 - Preregister untouched validation gates before running them; never rescue a failed holdout by post-hoc threshold changes.
+- When a source is hash-pinned, collector/output paths must match the source's actual telemetry root; do not invent a new root in the harness without changing and re-pinning the source.
 - SHORT remains disabled unless separately researched and explicitly approved.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
