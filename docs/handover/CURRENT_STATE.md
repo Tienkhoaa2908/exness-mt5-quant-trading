@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 15:45 (+07)
+Updated: 2026-09-03 16:40 (+07)
 
 ## Authority / safety
 
@@ -51,48 +51,52 @@ Same-run results:
 
 ## V71 raw EUR/GBP/XAU review — completed
 
-The plain-text raw bundles made `V64_DEALS.csv`, `V64_EVENTS.csv` and `V64_ENTRY_EVAL.csv` readable after ZIP attachment mounting repeatedly failed.
-
 The strongest raw contrast is post-entry follow-through, not loss-dollar geometry:
 
-- EUR average loss `-$1.0725`, GBP average loss `-$1.088125`; normalized loss size is essentially the same.
-- EUR average winner `+$2.21`; GBP average winner only `+$0.9933`.
-- EUR reached the inherited `PROFIT_LOCK` in 4/8 trades = 50%; GBP only 3/19 = 15.8%.
-- EUR produced two full target exits (`reason=5`, about +$3.50) = 25% of all EUR trades; GBP produced zero full target exits in 19 trades.
-- GBP therefore loses primarily because far more entries fail to produce sustained favorable excursion; simply widening stops is contradicted by the evidence.
+- EUR average loss `-$1.0725`, GBP average loss `-$1.088125`;
+- EUR average winner `+$2.21`, GBP average winner `+$0.9933`;
+- EUR reached inherited `PROFIT_LOCK` in 4/8 trades and produced two full target exits;
+- GBP reached `PROFIT_LOCK` only 3/19 times and produced zero full target exits.
 
-The old <=60-second comparison was too narrow for cross-instrument timing:
+The <=60-second statistic was too narrow across instruments. GBP had 0/16 losses <=60 seconds but 8/16 <=15 minutes; EUR had 0/4 losses <=15 minutes; XAU remained the ultra-fast case at 10/14 <=60 seconds.
 
-- XAU: 10/14 losses <=60 seconds = 71.4%.
-- GBP: 0/16 losses <=60 seconds, but 8/16 = 50% of GBP losses still finish within 15 minutes.
-- EUR: 0/4 losses <=15 minutes; its four losses last about 17-39 minutes.
+Both `BREAKOUT_RETEST_BOS` and `PULLBACK_SWEEP_BOS` occur around winners and losers. No archetype pruning or naive time-of-day filter is justified from the small FX sample.
 
-So XAU has an ultra-fast failure mode, while GBP has a slower but still severe early-failure mode. EUR is materially cleaner on this timing dimension in the reused V71 sample.
-
-Raw paths show both `BREAKOUT_RETEST_BOS` and `PULLBACK_SWEEP_BOS` can appear around winners and losers. Do not prune or promote an archetype from this small FX sample alone. Session/time filters are also not justified yet; on 2026-01-27 EUR and GBP both lost around 15:22 while AUDUSD won, so a naive time block could remove a valid winner on another pair.
-
-## V72 EURUSD independent validation — prepared, not yet run
+## V72 EURUSD independent validation — tester completed, evidence recovery pending
 
 Branch: `agent/v72-eurusd-independent-validation`.
 
-Purpose: validate the selected EURUSD candidate on an earlier period that was not used by the V71 EURUSD screen, with **zero retuning** after seeing V71.
+Preregistered contract remains unchanged:
 
-Contract:
-
-- symbol `EURUSDm`, M15, real ticks;
-- exactly one tester pass;
-- period `2024.09.01 -> 2025.09.01`;
-- exact V71 source builder and source SHA256 pinned to `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
+- `EURUSDm`, M15, real ticks;
+- exactly one intended tester pass;
+- `2024.09.01 -> 2025.09.01`;
+- exact V71 source builder, source SHA256 pinned to `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
 - same V69/V71 LONG entry and exit semantics;
-- no entry retune, no exit retune, no SHORT, no REAL.
+- no entry retune, no exit retune, no SHORT, no REAL;
+- <8 trades -> `INSUFFICIENT_SAMPLE`;
+- otherwise PASS requires net >0, PF >=1.25, max realized DD <=$5.00, >=2 positive months and ex-best-trade net >0;
+- otherwise `FAIL`.
 
-Preregistered result classification before the tester is run:
+The operator ran the V72 tester at HEAD `e22da3f4ec24840db4eb735a14a3725921e944a1`. Build/compile passed with the expected pinned source SHA and MT5 returned `rc=0`, so the tester process completed. The runner then failed before analysis with:
 
-- fewer than 8 trades -> `INSUFFICIENT_SAMPLE`;
-- otherwise PASS requires all of: net > 0; PF >= 1.25; max realized DD <= $5.00; at least 2 positive months; ex-best-trade net > 0;
-- any other adequately sampled result -> `FAIL`.
+`missing V64_ENTRY_EVAL.csv; root_listing=`
 
-This gate deliberately prevents one oversized winner from manufacturing a PASS. No threshold may be changed after seeing the untouched-period result.
+This is a harness/telemetry-path defect, not strategy evidence. Root cause is exact and deterministic:
+
+- the exact pinned V71 source still hardcodes FILE_COMMON root `mt5_quant\\v71_fx_portability`;
+- the original V72 runner incorrectly changed the reused V64 harness to wait under `mt5_quant\\v72_eurusd_independent_validation`;
+- therefore MT5 wrote to the V71 source root while the Python collector inspected an empty V72 root.
+
+Fix prepared on V72:
+
+- the collector now uses `SOURCE_COMMON_DIR = "v71_fx_portability"`, matching the pinned source without changing source SHA or strategy semantics;
+- before launching any new tester pass, it checks the existing V71 telemetry root for the already-completed V72 run;
+- recovery is fail-closed: primary CSVs must exist and all timestamped rows must fall inside the preregistered `2024.09.01 -> 2025.09.01` period;
+- valid evidence is copied/analyzed with `V72_EURUSD_TEST_RERUN=0`;
+- stale V71 Sep-2025+ evidence is rejected and only then would a fresh tester pass be run.
+
+No V72 economic classification has been recorded yet because the raw result has not been recovered/analyzed after the harness fix. Acceptance thresholds remain unchanged.
 
 ## Current classification
 
@@ -106,7 +110,9 @@ This gate deliberately prevents one oversized winner from manufacturing a PASS. 
 `V71_GBPUSD_DIRECT_PORTABILITY=REJECTED`
 `V71_RAW_CONTRAST=GBP_POST_ENTRY_FOLLOW_THROUGH_FAILURE`
 `V72_RESEARCH=EURUSD_UNTOUCHED_TEMPORAL_VALIDATION`
-`V72_TESTER_RUNS=1`
+`V72_FIRST_TESTER_PROCESS=COMPLETED_RC0`
+`V72_EVIDENCE_COLLECTION=BLOCKED_BY_TELEMETRY_ROOT_MISMATCH`
+`V72_ECONOMIC_CLASSIFICATION=PENDING_RECOVERY`
 `V72_EURUSD_ENTRY_RETUNE=0`
 `V72_EURUSD_EXIT_RETUNE=0`
 `SHORT_ENABLED=0`
@@ -114,9 +120,9 @@ This gate deliberately prevents one oversized winner from manufacturing a PASS. 
 
 ## Next gate
 
-1. Run the one-pass V72 EURUSD real-tick validation on `2024.09.01 -> 2025.09.01`.
-2. Do not change acceptance thresholds after seeing the result.
-3. PASS -> EURUSD earns a stronger validation status and can proceed to a separate prospective DEMO gate.
-4. INSUFFICIENT_SAMPLE -> extend evidence only under a predeclared rule; do not call it a pass.
-5. FAIL -> reject the unchanged EURUSD portability candidate; do not rescue it by tuning on the failed holdout.
+1. Run the corrected V72 launcher once.
+2. It must first attempt to recover the already-completed tester evidence from `mt5_quant\\v71_fx_portability`; do not rerun if the recovered timestamps match the preregistered period.
+3. If recovery is valid, analyze immediately and apply the preregistered PASS/FAIL/INSUFFICIENT_SAMPLE gate unchanged.
+4. If the source root contains stale/mixed evidence and fails the date guard, archive it and perform one fresh V72 tester pass automatically.
+5. PASS -> proceed to a separate prospective DEMO EURUSD gate. FAIL -> reject the unchanged candidate. INSUFFICIENT_SAMPLE -> extend only under a new predeclared evidence rule.
 6. Do not enable SHORT. Do not authorize REAL money.
