@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 16:40 (+07)
+Updated: 2026-09-03 16:48 (+07)
 
 ## Authority / safety
 
@@ -62,41 +62,58 @@ The <=60-second statistic was too narrow across instruments. GBP had 0/16 losses
 
 Both `BREAKOUT_RETEST_BOS` and `PULLBACK_SWEEP_BOS` occur around winners and losers. No archetype pruning or naive time-of-day filter is justified from the small FX sample.
 
-## V72 EURUSD independent validation — tester completed, evidence recovery pending
+## V72 EURUSD untouched temporal validation — completed FAIL
 
 Branch: `agent/v72-eurusd-independent-validation`.
 
-Preregistered contract remains unchanged:
+Preregistered contract was fixed before the result:
 
 - `EURUSDm`, M15, real ticks;
-- exactly one intended tester pass;
-- `2024.09.01 -> 2025.09.01`;
-- exact V71 source builder, source SHA256 pinned to `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
+- period `2024.09.01 -> 2025.09.01`;
+- exact V71 source SHA256 `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
 - same V69/V71 LONG entry and exit semantics;
 - no entry retune, no exit retune, no SHORT, no REAL;
 - <8 trades -> `INSUFFICIENT_SAMPLE`;
-- otherwise PASS requires net >0, PF >=1.25, max realized DD <=$5.00, >=2 positive months and ex-best-trade net >0;
-- otherwise `FAIL`.
+- otherwise PASS required net >0, PF >=1.25, max realized DD <=$5.00, >=2 positive months and ex-best-trade net >0.
 
-The operator ran the V72 tester at HEAD `e22da3f4ec24840db4eb735a14a3725921e944a1`. Build/compile passed with the expected pinned source SHA and MT5 returned `rc=0`, so the tester process completed. The runner then failed before analysis with:
+The corrected collector first rejected mixed/stale evidence in the shared V71 telemetry root, archived it, then performed one fresh real-tick tester pass. Evidence collection and analysis completed successfully.
 
-`missing V64_ENTRY_EVAL.csv; root_listing=`
+V72 untouched-period result:
 
-This is a harness/telemetry-path defect, not strategy evidence. Root cause is exact and deterministic:
+- 23 trades, 8 wins / 15 losses;
+- net `+$4.11`;
+- gross profit `$20.52`, gross loss `$16.41`;
+- PF `1.250457`;
+- max realized DD `$10.23`;
+- best trade `+$3.51`;
+- ex-best-trade net `+$0.60`;
+- 2 positive months, 7 negative months;
+- 5/15 losses <=15 minutes = 33.33%;
+- 8 `PROFIT_LOCK` events;
+- 4,436 entry-eval rows.
 
-- the exact pinned V71 source still hardcodes FILE_COMMON root `mt5_quant\\v71_fx_portability`;
-- the original V72 runner incorrectly changed the reused V64 harness to wait under `mt5_quant\\v72_eurusd_independent_validation`;
-- therefore MT5 wrote to the V71 source root while the Python collector inspected an empty V72 root.
+Monthly realized PnL with trades:
 
-Fix prepared on V72:
+- 2024-09 `-$1.11`;
+- 2024-11 `-$1.10`;
+- 2025-01 `-$1.21`;
+- 2025-02 `-$1.08`;
+- 2025-03 `-$3.42`;
+- 2025-04 `-$2.31`;
+- 2025-05 `+$7.02`;
+- 2025-06 `+$9.42`;
+- 2025-08 `-$2.10`.
 
-- the collector now uses `SOURCE_COMMON_DIR = "v71_fx_portability"`, matching the pinned source without changing source SHA or strategy semantics;
-- before launching any new tester pass, it checks the existing V71 telemetry root for the already-completed V72 run;
-- recovery is fail-closed: primary CSVs must exist and all timestamped rows must fall inside the preregistered `2024.09.01 -> 2025.09.01` period;
-- valid evidence is copied/analyzed with `V72_EURUSD_TEST_RERUN=0`;
-- stale V71 Sep-2025+ evidence is rejected and only then would a fresh tester pass be run.
+Classification is `FAIL`. All preregistered gates except drawdown passed; DD `$10.23` exceeded the fixed `$5.00` ceiling. The result also shows strong regime/month concentration: the two positive months contributed `$16.44` while seven negative months totaled `-$12.33`.
 
-No V72 economic classification has been recorded yet because the raw result has not been recovered/analyzed after the harness fix. Acceptance thresholds remain unchanged.
+Interpretation:
+
+- unchanged EURUSD portability remains mildly profitable across this earlier period, so V71 was not a pure one-trade illusion;
+- however the risk path is not acceptable for the $40-account research objective at fixed 0.01 lot, because the untouched DD is about 25.6% of starting capital and more than twice the preregistered ceiling;
+- the V71 EURUSD screen therefore does **not** earn promotion to prospective DEMO under the unchanged V69/V71 contract;
+- do not retune EURUSD on this failed holdout to rescue the candidate.
+
+The prior telemetry-root mismatch is resolved and no longer blocks V72 evidence interpretation.
 
 ## Current classification
 
@@ -110,9 +127,10 @@ No V72 economic classification has been recorded yet because the raw result has 
 `V71_GBPUSD_DIRECT_PORTABILITY=REJECTED`
 `V71_RAW_CONTRAST=GBP_POST_ENTRY_FOLLOW_THROUGH_FAILURE`
 `V72_RESEARCH=EURUSD_UNTOUCHED_TEMPORAL_VALIDATION`
-`V72_FIRST_TESTER_PROCESS=COMPLETED_RC0`
-`V72_EVIDENCE_COLLECTION=BLOCKED_BY_TELEMETRY_ROOT_MISMATCH`
-`V72_ECONOMIC_CLASSIFICATION=PENDING_RECOVERY`
+`V72_TESTER_EVIDENCE=PASS`
+`V72_ECONOMIC_CLASSIFICATION=FAIL`
+`V72_FAILURE_GATE=MAX_REALIZED_DD`
+`V72_EURUSD_UNCHANGED_CANDIDATE=REJECTED_FOR_PROMOTION`
 `V72_EURUSD_ENTRY_RETUNE=0`
 `V72_EURUSD_EXIT_RETUNE=0`
 `SHORT_ENABLED=0`
@@ -120,9 +138,8 @@ No V72 economic classification has been recorded yet because the raw result has 
 
 ## Next gate
 
-1. Run the corrected V72 launcher once.
-2. It must first attempt to recover the already-completed tester evidence from `mt5_quant\\v71_fx_portability`; do not rerun if the recovered timestamps match the preregistered period.
-3. If recovery is valid, analyze immediately and apply the preregistered PASS/FAIL/INSUFFICIENT_SAMPLE gate unchanged.
-4. If the source root contains stale/mixed evidence and fails the date guard, archive it and perform one fresh V72 tester pass automatically.
-5. PASS -> proceed to a separate prospective DEMO EURUSD gate. FAIL -> reject the unchanged candidate. INSUFFICIENT_SAMPLE -> extend only under a new predeclared evidence rule.
-6. Do not enable SHORT. Do not authorize REAL money.
+1. Do not tune EURUSD thresholds on the failed V72 untouched period and do not promote unchanged EURUSD to prospective DEMO.
+2. If continuing FX research, the clean next candidate is AUDUSD because it ranked second in the preregistered V71 no-retune screen (+$1.29, PF 1.305687, DD $2.10), but its V71 sample was only 7 trades.
+3. Any AUDUSD successor should use the same exact V71/V69 LONG source with zero retuning and a preregistered earlier-period validation gate before the result is visible.
+4. USDJPY remains near-flat screening evidence and GBPUSD remains rejected; do not pool FX pairs to manufacture a positive aggregate.
+5. Do not enable SHORT. Do not authorize REAL money.
