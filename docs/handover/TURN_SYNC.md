@@ -1,83 +1,89 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 06:50 (+07)
+Updated: 2026-09-03 07:02 (+07)
 
 ## User input
 
-Operator supplied the complete first nine-month V70 Windows replay from checkpoint `6d4095f1903f15077fdf805fda1f4485f4ffd314`.
+Operator ran the V70 fast existing-evidence reanalysis on exact checkpoint:
 
-The campaign itself succeeded through source generation, MetaEditor compile (`0 errors, 0 warnings`), and all nine Sep 2025-May 2026 real-tick tester months. Raw evidence directories were written for every month.
+`a74e48c0bbf4d24801d798f10acbb27671e72dd7`
 
-The first Python post-processing printed 24 trades, economic round-trip net `+$6.44`, all-zero `TRUE_EXCURSION`, policy lines, then failed closed against the legacy accepted `+$7.14` headline.
+with:
+
+- `V70_EXIT_HARVEST_EXPECTED_HEAD` pinned to that SHA;
+- `V70_REANALYZE_EXISTING=1`;
+- no Strategy Tester rerun.
+
+Preflight passed:
+
+- exact branch/head guard;
+- Python 3.12 selected;
+- all seven V70 static tests passed;
+- secret scan PASS with 252 tracked files.
+
+Existing generated-source identity also passed:
+
+`V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS sha256=b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`
+
+The fast path then stopped at:
+
+`holdout_2026_02_long`
+
+with:
+
+`FATAL: RuntimeError: V70 existing evidence lacks exit-shadow lifecycle`
 
 ## Classification
 
-Do not use any policy number from that first analyzer output. The apparent `EARLY_100_025` delta is invalid.
+This is a fast-path harness-integrity bug, not a strategy, tester, broker, source-identity, or raw-evidence failure.
 
-Source audit identified two analyzer/harness defects, not a strategy/broker/tester failure:
+The accepted V69/V70 development replay is flat from Feb through May 2026. A month with zero trades has no actual owned position lifetime, so it correctly has zero `V70_EXIT_SHADOW_START/END` blocks.
 
-1. Real `V64_EVENTS.csv` numeric fields are `value1/value2/value3`; V70 read `v1/v2/v3`, so excursion and policy trigger numeric values became zero.
-2. The accepted V69 headline and full economic round-trip PnL use different cost accounting conventions. The accepted identity is 24/10/14/~+$7.14 under legacy exit-row accounting; honest policy economics use entry+exit explicit costs and produced `+$6.44` on this cohort.
+The previous fast-path implementation incorrectly required lifecycle marker strings in every one of the nine monthly directories.
 
-## Fixes completed
+No policy economics were produced by this failed fast reanalysis. The earlier first-run `POLICY_*` values remain invalid and must not be reused.
 
-V70 now:
+## Fix implemented
 
-- parses real `value1/value2/value3` event columns;
-- tests the real telemetry schema;
-- reports `legacy_accepted_identity` separately from `economic_roundtrip_actual`;
-- gates accepted V69 identity using legacy 24/10/14/~+$7.14;
-- compares policy economics consistently against the full round-trip baseline;
-- fails closed if true excursion/policy telemetry remains all-zero.
+Active branch remains:
 
-## Fast-path improvement
+`agent/v70-exit-harvest-research`.
 
-A second full nine-month tester campaign is no longer the primary recovery path because the raw tester evidence already exists and the defects were in post-processing.
+The existing-evidence guard now validates each month using the corrected analyzer's actual `analyze_run()` trade/shadow matcher rather than unconditional lifecycle-string presence.
 
-V70 now supports:
+Correct contract:
 
-`V70_REANALYZE_EXISTING=1`
+- zero trades + zero shadow blocks -> valid;
+- trade(s) present -> exactly matching completed shadow block(s) required;
+- stray shadow in a zero-trade month -> fail;
+- missing shadow in a traded month -> fail;
+- overlapping/unterminated shadow -> fail;
+- entry/shadow timestamp mismatch -> fail;
+- aggregate campaign must still contain matched trades.
 
-This mode:
+New runtime markers include one `V70_EXISTING_EVIDENCE_MONTH=PASS month=... matched_trades=...` per month and aggregate `V70_EXISTING_EVIDENCE_LIFECYCLE=PASS`.
 
-- SHA-pins local `OUTPUT_V70/V70ExitHarvestShadowLong.mq5` against the current builder output;
-- requires all nine existing monthly run directories;
-- requires non-empty `V64_DEALS.csv` and `V64_EVENTS.csv` in each;
-- requires `V70_EXIT_SHADOW_START` and `V70_EXIT_SHADOW_END` lifecycle markers;
-- runs only the corrected analyzer and fail-closed guards;
-- skips MT5 locator/process gate, MetaEditor compile and Strategy Tester launch.
+Regression coverage now includes a mixed zero-trade + valid-traded campaign and separately proves a traded month without lifecycle fails closed.
 
-Expected fast-path markers:
+No V69 entry rule, actual exit rule, candidate exit policy, LONG-only constraint, SHORT state, or REAL authorization changed.
 
-- `V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS`
-- `V70_EXISTING_EVIDENCE_MONTHS=PASS count=9`
-- `V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS`
-- `V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS`
-- `V70_EXISTING_EVIDENCE_REANALYSIS=1`
-- `V70_EXIT_HARVEST_RESEARCH=PASS`
+## GitHub / CI state
 
-If source/evidence integrity fails, only then run the full nine-month tester fallback.
+The original exact checkpoint `a74e48c0bbf4d24801d798f10acbb27671e72dd7` had all six exact-head workflows completed/success before this incident.
 
-## Current code state
+The corrected code/test checkpoint before handover synchronization is `51f9f421a30b0c7e570ff531784509e7387dcba8`; its dedicated V70 job reached Python compile, shell syntax, V70 tests, methodology contract, and secret scan successfully during inspection.
 
-Active branch: `agent/v70-exit-harvest-research`.
-
-Existing-evidence reanalysis code/test checkpoint before this handover synchronization:
-
-`a30ed2b77ec38fa82a2d184cd1db39002c1ea205`
-
-All six exact-head checks on that checkpoint completed successfully, including full `quality`, V70 exit-harvest static, V69 forward/static, V68 static and upstream read-only.
-
-No strategy semantics changed. SHORT remains disabled. REAL authorization remains false.
+Because documentation synchronization changes the branch HEAD again, resolve the final remote HEAD and require all six checks completed/success before operator rerun.
 
 ## Next operator action
 
-After resolving the final branch HEAD created by this handover sync and verifying all six exact-head workflows are green:
+1. Do not run Strategy Tester again.
+2. Fast-forward to the final exact `agent/v70-exit-harvest-research` HEAD after this sync.
+3. Export `V70_EXIT_HARVEST_EXPECTED_HEAD` to that SHA.
+4. Keep `V70_REANALYZE_EXISTING=1`.
+5. Run `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh` once.
+6. Return the per-month evidence markers, aggregate lifecycle marker, legacy/economic baseline, `TRUE_EXCURSION`, four corrected `POLICY_*` lines, both PASS guards, and final V70 PASS.
 
-1. fast-forward to the exact final HEAD;
-2. export `V70_EXIT_HARVEST_EXPECTED_HEAD` to that SHA;
-3. export `V70_REANALYZE_EXISTING=1`;
-4. run `runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh` once;
-5. return the two evidence-integrity markers, legacy/economic baseline lines, `TRUE_EXCURSION`, four corrected `POLICY_*` lines, both PASS guards and final V70 PASS.
+If this succeeds, make the exit-harvest decision immediately. Do not add another diagnostic layer unless a concrete remaining integrity failure appears.
 
-This should be a seconds-scale reanalysis, not another tester campaign. MT5/MetaEditor state is irrelevant to this reanalysis path.
+SHORT remains disabled. REAL money remains unauthorized.
