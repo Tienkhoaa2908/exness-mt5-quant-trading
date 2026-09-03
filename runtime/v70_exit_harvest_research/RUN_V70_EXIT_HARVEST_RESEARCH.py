@@ -38,6 +38,7 @@ REPO = HERE.parents[1]
 OUT = HERE / "OUTPUT_V70"
 BUILDER = REPO / "scripts" / "build_v70_exit_harvest_shadow_source.py"
 ANALYZER = REPO / "scripts" / "analyze_v70_exit_harvest_shadow.py"
+BASELINE_AUDIT = REPO / "scripts" / "audit_v70_baseline_drift_against_accepted_v69.py"
 STATIC_TEST = REPO / "tests" / "test_v70_exit_harvest_research.py"
 SECRET_SCAN = REPO / "scripts" / "secret_scan.py"
 V64_RUNNER = REPO / "runtime" / "v64_microstructure_trigger_shadow" / "RUN_V64_MICROSTRUCTURE_TRIGGER_SHADOW.py"
@@ -115,7 +116,61 @@ def analyze(run_dirs: list[Path]) -> tuple[Path, Path]:
     return output, summary
 
 
-def require_accepted_baseline(output: Path, *, emit: bool = True) -> dict:
+def audit_accepted_v69_baseline(*, emit: bool = True) -> dict:
+    audit_mod = load(BASELINE_AUDIT, "v70_hash_pinned_accepted_baseline_audit")
+    audit = audit_mod.audit(REPO)
+    accepted_trades = int(audit.get("accepted_trades") or 0)
+    v70_trades = int(audit.get("v70_trades") or 0)
+    accepted_net = float(audit.get("accepted_net_usd") or 0.0)
+    v70_net = float(audit.get("v70_net_usd") or 0.0)
+    classification = str(audit.get("classification") or "")
+    classes = audit.get("difference_classes") or {}
+    if accepted_trades != EXPECTED_BASELINE_TRADES or v70_trades != EXPECTED_BASELINE_TRADES:
+        raise RuntimeError(
+            "V70 accepted raw-deal audit trade identity mismatch "
+            f"expected={EXPECTED_BASELINE_TRADES} accepted={accepted_trades} v70={v70_trades}"
+        )
+    if abs(accepted_net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
+        raise RuntimeError(
+            "V70 accepted raw-deal audit historical net mismatch "
+            f"expected={EXPECTED_BASELINE_NET_USD:.2f}+/-{EXPECTED_BASELINE_NET_TOLERANCE_USD:.2f} "
+            f"actual={accepted_net:.8f}"
+        )
+    if classification not in {"IDENTICAL_BASELINE", "SAME_EXIT_TIMES_VALUE_DRIFT"}:
+        raise RuntimeError(f"V70 accepted raw-deal audit unsafe classification={classification}")
+    if classification == "SAME_EXIT_TIMES_VALUE_DRIFT":
+        if not classes or set(classes) != {"EXIT_COST_DRIFT"}:
+            raise RuntimeError(
+                "V70 accepted raw-deal audit permits cost-only drift only "
+                f"actual_classes={json.dumps(classes, sort_keys=True)}"
+            )
+        for diff in audit.get("differences") or []:
+            accepted = diff.get("accepted") or {}
+            current = diff.get("v70") or {}
+            if diff.get("classification") != "EXIT_COST_DRIFT":
+                raise RuntimeError("V70 accepted raw-deal audit contains non-cost difference")
+            for key in ("time", "price", "profit", "reason"):
+                if accepted.get(key) != current.get(key):
+                    raise RuntimeError(
+                        "V70 accepted raw-deal audit cost-drift row changed execution identity "
+                        f"field={key} accepted={accepted.get(key)} v70={current.get(key)}"
+                    )
+    if emit:
+        print(
+            "V70_ACCEPTED_V69_RAW_DEAL_AUDIT=PASS "
+            f"classification={classification} accepted_net_usd={accepted_net:.8f} "
+            f"v70_net_usd={v70_net:.8f} delta_usd={float(audit.get('delta_usd') or 0.0):.8f} "
+            f"classes={json.dumps(classes, sort_keys=True)}"
+        )
+    return audit
+
+
+def require_accepted_baseline(
+    output: Path,
+    *,
+    audit_result: dict | None = None,
+    emit: bool = True,
+) -> dict:
     result = json.loads(output.read_text(encoding="utf-8"))
     legacy = result.get("legacy_accepted_identity") or {}
     economic = result.get("economic_roundtrip_actual") or result.get("actual") or {}
@@ -133,17 +188,46 @@ def require_accepted_baseline(output: Path, *, emit: bool = True) -> dict:
             "V70 baseline win/loss identity mismatch "
             f"expected={EXPECTED_BASELINE_WINS}W/{EXPECTED_BASELINE_LOSSES}L actual={wins}W/{losses}L"
         )
+
+    mode = "EXACT_ACCEPTED_NET"
     if abs(legacy_net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
-        raise RuntimeError(
-            "V70 legacy baseline net identity mismatch "
-            f"expected={EXPECTED_BASELINE_NET_USD:.2f}+/-{EXPECTED_BASELINE_NET_TOLERANCE_USD:.2f} "
-            f"actual={legacy_net:.8f}"
-        )
+        if audit_result is None:
+            raise RuntimeError(
+                "V70 legacy baseline net differs from accepted V69 and requires hash-pinned raw-deal audit "
+                f"expected={EXPECTED_BASELINE_NET_USD:.2f} actual={legacy_net:.8f}"
+            )
+        audit_v70_net = float(audit_result.get("v70_net_usd") or 0.0)
+        audit_accepted_net = float(audit_result.get("accepted_net_usd") or 0.0)
+        if abs(audit_v70_net - legacy_net) > 1e-8:
+            raise RuntimeError(
+                "V70 analyzer/audit current-net mismatch "
+                f"analyzer={legacy_net:.8f} audit={audit_v70_net:.8f}"
+            )
+        if abs(audit_accepted_net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
+            raise RuntimeError(
+                "V70 audit does not reproduce accepted V69 net "
+                f"expected={EXPECTED_BASELINE_NET_USD:.2f} audit={audit_accepted_net:.8f}"
+            )
+        if audit_result.get("classification") != "SAME_EXIT_TIMES_VALUE_DRIFT":
+            raise RuntimeError(
+                "V70 non-identical baseline accepted only for same-exit-time cost drift "
+                f"classification={audit_result.get('classification')}"
+            )
+        classes = audit_result.get("difference_classes") or {}
+        if set(classes) != {"EXIT_COST_DRIFT"}:
+            raise RuntimeError(
+                "V70 non-identical baseline accepted only for exit-cost drift "
+                f"classes={json.dumps(classes, sort_keys=True)}"
+            )
+        mode = "HASH_PINNED_COST_DRIFT"
+
     if emit:
         print(
-            "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS "
-            f"trades={trades} wins={wins} losses={losses} "
-            f"legacy_net_usd={legacy_net:.8f} economic_roundtrip_net_usd={economic_net:.8f}"
+            "V70_BASELINE_ACCEPTED_V69_COHORT=PASS "
+            f"mode={mode} trades={trades} wins={wins} losses={losses} "
+            f"accepted_v69_net_usd={EXPECTED_BASELINE_NET_USD:.8f} "
+            f"current_legacy_net_usd={legacy_net:.8f} "
+            f"economic_roundtrip_net_usd={economic_net:.8f}"
         )
     return result
 
@@ -251,7 +335,7 @@ def emit_final(head: str, output: Path, summary: Path, *, reanalyzed: bool) -> N
 
 def main() -> int:
     _, head = ensure_repo()
-    run([sys.executable, "-m", "py_compile", BUILDER, ANALYZER, STATIC_TEST, Path(__file__)])
+    run([sys.executable, "-m", "py_compile", BUILDER, ANALYZER, BASELINE_AUDIT, STATIC_TEST, Path(__file__)])
     run([sys.executable, STATIC_TEST])
     run([sys.executable, SECRET_SCAN, REPO])
 
@@ -260,8 +344,9 @@ def main() -> int:
         require_existing_source_identity()
         run_dirs = existing_run_dirs()
         print(f"V70_EXISTING_EVIDENCE_MONTHS=PASS count={len(run_dirs)}")
+        audit_result = audit_accepted_v69_baseline()
         output, summary = analyze(run_dirs)
-        result = require_accepted_baseline(output)
+        result = require_accepted_baseline(output, audit_result=audit_result)
         require_shadow_integrity(result)
         emit_final(head, output, summary, reanalyzed=True)
         return 0
@@ -288,7 +373,15 @@ def main() -> int:
         run_dirs.append(runner.run_terminal(root, ini, label, REAL_MODEL))
 
     output, summary = analyze(run_dirs)
-    result = require_accepted_baseline(output)
+    audit_result = None
+    try:
+        audit_result = audit_accepted_v69_baseline()
+    except RuntimeError:
+        legacy = json.loads(output.read_text(encoding="utf-8")).get("legacy_accepted_identity") or {}
+        legacy_net = float(legacy.get("net_usd") or 0.0)
+        if abs(legacy_net - EXPECTED_BASELINE_NET_USD) > EXPECTED_BASELINE_NET_TOLERANCE_USD:
+            raise
+    result = require_accepted_baseline(output, audit_result=audit_result)
     require_shadow_integrity(result)
     emit_final(head, output, summary, reanalyzed=False)
     return 0
