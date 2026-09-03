@@ -1,16 +1,13 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 07:02 (+07)
+Updated: 2026-09-03 07:20 (+07)
 
-## Authority
+## Authority / safety
 
 Repository: `Tienkhoaa2908/exness-mt5-quant-trading`.
-
 Active research branch: `agent/v70-exit-harvest-research`.
 
-V70 parent: `12c97d81d6846b2b0c81cad234d698c25c9a3341` from `agent/v69-one-shot-prospective-demo`.
-
-Always resolve the current remote HEAD, then read `OPERATING_PROTOCOL.md`, this file, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-HEAD CI before acting.
+Always resolve current remote HEAD, then read `OPERATING_PROTOCOL.md`, this file, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI before acting.
 
 SHORT remains disabled/rejected. REAL authorization remains false.
 
@@ -19,113 +16,107 @@ SHORT remains disabled/rejected. REAL authorization remains false.
 Frozen branch: `agent/v69-confirm-separation-retest-research`.
 Frozen HEAD: `0569701be7846605ac01f94d8b5fc4ec2a6f8dd1`.
 Accepted evidence ZIP SHA256: `e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`.
-Frozen forward source SHA256: `0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a939f1d46d8d5f93`.
 
-Contract: XAUUSDm M15; LONG only; lot 0.01; structural risk about $0.85-$1.10; emergency loss guard about $1.20; target +$3.50; risk/spread >=4; reclaim -> separation >=$1.30 -> later retest -> confirm age >=30s -> entry-ready; fixed stop; inherited +$2 -> about +$1 ratchet; SHORT disabled; REAL false.
+Contract: XAUUSDm M15, LONG only, lot 0.01, planned risk about $0.85-$1.10, emergency guard about $1.20, target +$3.50, risk/spread >=4, reclaim -> separation >=$1.30 -> later retest -> confirm age >=30s -> entry-ready, fixed stop, inherited +$2 -> about +$1 profit ratchet.
 
-Accepted V69 development headline: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34` under historical legacy headline accounting. Sep 2025-May 2026 is development-only.
+Accepted V69 development headline: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34`. Gross profit `$22.58`, gross loss `$15.44`. Sep 2025-May 2026 is development-only. Month PnL: Sep -$1.84, Oct +$9.15, Nov +$1.24, Dec -$2.28, Jan +$0.87, Feb-May flat.
 
-Monthly V69 development replay: Sep `-$1.84`; Oct `+$9.15`; Nov `+$1.24`; Dec `-$2.28`; Jan `+$0.87`; **Feb-May flat with zero trades**. Ex-Oct total `-$2.01`.
-
-## Settled questions
+## Settled upstream questions
 
 - DEMO execution transport PASS: actual 0.01 XAUUSDm BUY+close returned server `10009 / done` both ways.
-- Live no-trade window: 83/83 preserved directional evals were short-edge/bearish and rejected by LONG-only isolation. Not a broker/order-send defect. SHORT remains rejected.
-- All-bar selector coverage: 23,526 M15 bars, LONG 3,576, SHORT 1,744, neutral 18,206; LONG = 67.218% of directional selections. Global LONG starvation rejected.
+- Live no-trade window: 83/83 preserved directional evals were `short_edge` / bearish and rejected by LONG-only isolation. Not broker/order-send failure.
+- All-bar selector coverage: 23,526 M15 bars; LONG 3,576; SHORT 1,744; neutral 18,206. Global LONG starvation rejected.
 - Downstream LONG funnel: `460 pending -> 404 micro-arm -> 167 touch -> 95 penetration -> 51 reversal-confirm -> 49 separation -> 24 retest/entry -> 24 deals`. Separation is not the dominant contraction.
-- Cycle economics: HARD_STRUCTURAL 235, TTL 120, CONTEXT_QUALITY 80, SENT 24, UNTERMINATED 1. BREAKOUT_RETEST_BOS produced 22/24 trades; PULLBACK_SWEEP_BOS only 2, so do not promote its PF.
-- Old `V64_NOISE_SHADOW` excursion is rejected as actual-trade MFE/MAE because it can continue after the real position exits. Valid old in-trade evidence: 9 PROFIT_LOCK modifies, all 9 modified, 0 logged failures.
+- Cycle economics: HARD_STRUCTURAL 235, TTL 120, CONTEXT_QUALITY 80, SENT 24, UNTERMINATED 1. BREAKOUT_RETEST_BOS produced 22/24 trades; PULLBACK_SWEEP_BOS only 2.
+- Old `V64_NOISE_SHADOW` MFE/MAE is rejected as actual-trade excursion because it can continue after the real position exits.
 
 ## V70 objective
 
-V70 preserves V69 entry and actual exit semantics, measures true excursion only while the owned actual position exists, and evaluates four observation-only exit policies on ordered real ticks:
+V70 preserves the V69 entry/actual-exit contract and adds observation-only true position-lifetime telemetry plus four exit shadows:
 
 1. `BASELINE_200_100`: +$2 arm / +$1 floor.
 2. `EARLY_100_025`: +$1 / +$0.25.
 3. `MID_150_050`: +$1.50 / +$0.50.
 4. `TIERED_100_025_200_100`: +$1/+0.25 then upgrade to +$1 after +$2.
 
-Shadow code does not close/modify positions and adds no orders. Result is reused development evidence only.
+The shadow code adds no orders and does not call position close/modify.
 
-## First complete Windows V70 tester campaign — RAW EVIDENCE VALID, FIRST ANALYSIS INVALID
+## V70 Windows evidence
 
-At checkpoint `6d4095f1903f15077fdf805fda1f4485f4ffd314`, the operator completed all nine real-tick months Sep 2025-May 2026.
+The full nine-month Sep 2025-May 2026 real-tick campaign completed once. Generated source SHA256: `b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`; EX5 SHA256: `af321cdfe2f91b672443ad57aa7f33606d8e41d5660607cc3f74f6bf3f6a3f5f`; compile `0 errors, 0 warnings`. Raw evidence is retained.
 
-Generated source SHA256: `b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`.
-EX5 SHA256: `af321cdfe2f91b672443ad57aa7f33606d8e41d5660607cc3f74f6bf3f6a3f5f`.
-Compile: `0 errors, 0 warnings`.
-All nine monthly evidence directories were written successfully.
+Post-processing defects already fixed:
 
-The raw CSV evidence is retained and reusable. The first analyzer output is INVALID for policy selection because of two post-replay analyzer defects:
+- real event fields are `value1/value2/value3`, not `v1/v2/v3`;
+- zero-trade months legitimately have zero position-lifetime START/END blocks; integrity is trade/shadow parity per month, not unconditional lifecycle presence.
 
-1. V70 read invented `v1/v2/v3` keys instead of real V64 event fields `value1/value2/value3`, which zeroed true excursion and corrupted policy trigger PnL.
-2. Baseline identity compared full round-trip economic PnL (`+$6.44`) against the legacy accepted headline (`+$7.14`). Legacy accepted uses exit-row costs only; economic round-trip includes entry+exit explicit costs.
+At checkpoint `f984f259f122f691b31e8aee3ed5bf639b516dfe`, the corrected fast reanalysis proved:
 
-Do not reuse any first-run `POLICY_*` number, including the apparent EARLY improvement.
+- exact V70 source identity PASS;
+- month trade counts: Sep 6, Oct 8, Nov 3, Dec 4, Jan 3, Feb-May 0;
+- lifecycle parity PASS with 24 matched trades, 5 traded months, 4 zero-trade months;
+- true position-lifetime excursion is nonzero: median MFE all $0.625, winners $2.525, losers $0; 10 trades reached >=$1, 9 reached >=$2, and no realized loser reached >=$2.
 
-## Corrected analyzer
+However the same run produced V70 actual baseline `24 / 10W / 14L / +$6.44 / PF 1.417098`, not frozen accepted V69 `+$7.14`, and the fail-closed identity gate correctly stopped the run.
 
-The analyzer/runtime now:
+## Critical correction — the $0.70 difference is NOT explained by accounting
 
-- parses canonical `value1/value2/value3` fields;
-- reports `legacy_accepted_identity` separately from `economic_roundtrip_actual`;
-- gates 24/10/14/~+$7.14 using legacy accounting;
-- compares policy economics consistently against full round-trip economic baseline;
-- fails closed if true position-lifetime excursion/policy telemetry remains all zero.
+The earlier handover explanation that `+$6.44` was full round-trip accounting while `+$7.14` was exit-row accounting was wrong.
 
-## Fast existing-evidence reanalysis — zero-trade month guard fixed
+The exact frozen V69 analyzer at HEAD `0569701...` uses exit rows and computes `profit + commission + swap + fee`. The current V70 `legacy_accepted_summary()` uses the same formula, yet still returns `+$6.44`.
 
-`V70_REANALYZE_EXISTING=1` remains the primary recovery path. It does not launch MT5, MetaEditor, compile, or Strategy Tester.
+Therefore the remaining `$0.70` is genuine baseline/evidence drift that must be localized before any V70 exit policy can be promoted. Do not change the 7.14 guard or widen tolerance to hide it.
 
-The operator ran the first fast reanalysis at exact checkpoint `a74e48c0bbf4d24801d798f10acbb27671e72dd7`.
+The V69 and V68 builder files themselves are byte-identical between frozen V69 and the current branch, and the Git compare shows the inherited builder chain was not modified after the frozen V69 checkpoint. The remaining candidates are therefore actual replay/deal-value drift or perturbation introduced by the V70 observation hook, not a known strategy-threshold change.
 
-Source pin passed:
+The current V70 policy lines are **provisional and not promotable** until baseline drift is explained. On the contemporaneous 6.44 V70 cohort they were:
 
-`V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS sha256=b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`
+- BASELINE: +$6.48, delta +$0.04;
+- EARLY: +$7.08, delta +$0.64;
+- MID: +$6.44, delta $0.00;
+- TIERED: +$7.12, delta +$0.68.
 
-The fast path then stopped at `holdout_2026_02_long` with `V70 existing evidence lacks exit-shadow lifecycle`.
+## New focused gate — accepted V69 raw-deal audit
 
-This was a harness-integrity bug, not damaged evidence. V69/V70 has zero trades from Feb through May, so a zero-trade month correctly has **zero position-lifetime shadow START/END blocks**. Requiring lifecycle markers in every month was scientifically wrong.
+A read-only script now compares the exact hash-pinned accepted V69 ZIP against the already generated V70 `V64_DEALS.csv` files trade-by-trade:
 
-The corrected fast-path integrity contract is now:
+`scripts/audit_v70_baseline_drift_against_accepted_v69.py`
 
-- every one of the nine monthly directories must exist and contain the expected CSV files;
-- each month is parsed through the same corrected V70 analyzer;
-- months with zero trades are valid only with zero shadow blocks;
-- months with trades must have exactly matching completed shadow blocks, with entry/shadow timestamp matching enforced by the analyzer;
-- stray shadows in a zero-trade month, missing shadows in a traded month, overlapping shadows, unterminated shadows, or trade/shadow count mismatch fail closed;
-- the aggregate replay must still contain at least one matched trade;
-- the final accepted identity remains 24/10/14/~+$7.14 and the global true-excursion guard must pass.
+It validates accepted ZIP SHA256 `e35306d...`, then reports per month and per differing exit:
 
-Regression tests now model a mixed campaign containing one legitimate zero-trade month plus one valid traded month, and separately prove that a traded month without lifecycle fails closed.
+- trade count;
+- exit timestamp;
+- exit price;
+- profit;
+- commission/swap/fee;
+- exit reason;
+- exact PnL delta.
 
-No V69 entry semantics, actual exit semantics, policy semantics, LONG-only boundary, SHORT state, or REAL authorization changed.
+It classifies cohort drift, exit-timing drift, same-time price/profit/cost drift, or mixed drift. It does not launch MT5/MetaEditor/tester and sends no orders.
 
 ## Current classification
 
 `V69_RESEARCH=FROZEN`
 `V69_HISTORICAL_REPLAY=DEVELOPMENT_ONLY_NOT_INDEPENDENT`
 `V69_ACTUAL_DEMO_EXECUTION_TRANSPORT=PASS`
-`V69_LONG_SELECTOR_GLOBAL_STARVATION_HYPOTHESIS=REJECTED`
-`V69_OLD_NOISE_SHADOW_MFE_AS_TRADE_MFE=REJECTED`
-`V70_FIRST_WINDOWS_POLICY_OUTPUT=INVALID_DO_NOT_USE`
-`V70_RAW_NINE_MONTH_EVIDENCE=REUSABLE_IF_SOURCE_IDENTITY_PASS`
-`V70_ACCOUNTING_CONVENTIONS=SEPARATED`
-`V70_EVENT_SCHEMA=value1_value2_value3`
-`V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS_ON_OPERATOR_MACHINE`
-`V70_ZERO_TRADE_MONTH_LIFECYCLE_REQUIREMENT=FIXED`
-`V70_ENTRY_SEMANTICS_CHANGED=0`
-`V70_REAL_EXIT_SEMANTICS_CHANGED=0`
-`V70_COUNTERFACTUAL_EXIT_SHADOW_ONLY=1`
+`V70_RAW_NINE_MONTH_EVIDENCE=RETAINED`
+`V70_EVENT_SCHEMA=CORRECTED`
+`V70_TRADE_SHADOW_PARITY=PASS_24`
+`V70_TRUE_LIFETIME_TELEMETRY=NONZERO`
+`V70_BASELINE_CURRENT_NET_USD=6.44`
+`V70_ACCEPTED_V69_NET_USD=7.14`
+`V70_BASELINE_DRIFT_USD=-0.70`
+`V70_ACCOUNTING_EXPLANATION_FOR_DRIFT=REJECTED`
+`V70_POLICY_PROMOTION=BLOCKED_PENDING_RAW_DEAL_AUDIT`
 `SHORT_ENABLED=0`
 `REAL_MONEY_AUTHORIZED=0`
 
 ## Next gate
 
-1. Require all six exact-head workflows completed/success after final handover synchronization.
-2. Fast-forward only to that exact final `agent/v70-exit-harvest-research` HEAD and export `V70_EXIT_HARVEST_EXPECTED_HEAD` to it.
-3. Keep `V70_REANALYZE_EXISTING=1` and run the normal V70 launcher again. **Do not rerun Strategy Tester.** MT5/MetaEditor state is irrelevant to this fast path.
-4. Require `V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS`, nine `V70_EXISTING_EVIDENCE_MONTH=PASS` lines, `V70_EXISTING_EVIDENCE_LIFECYCLE=PASS`, `V70_EXISTING_EVIDENCE_MONTHS=PASS count=9`, `V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS`, and `V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS` before interpreting policies.
-5. Then choose at most one policy if it materially improves economic round-trip net/PF/DD without unacceptable winner damage. Otherwise close exit-harvest research and move immediately to entry/re-entry quality.
-6. Only if source identity or actual trade/shadow matching fails after this fix should a full tester fallback be considered.
+1. Do not rerun Strategy Tester.
+2. Run only the accepted-V69-vs-V70 raw-deal audit against the local accepted V69 ZIP.
+3. If accepted ZIP is not present locally with exact SHA, stop and report that fact; do not substitute an unverified artifact.
+4. If exit timestamps are identical and only exit value/price differs, treat this as contemporaneous tester/feed/fill drift and decide whether policy deltas can be evaluated against the same-run 6.44 baseline.
+5. If exit timing differs, inspect/move the V70 observation hook so it cannot precede actual exit management, then a fresh replay may be required because instrumentation perturbed the baseline.
+6. Do not promote EARLY or TIERED before this classification.
 7. Do not enable SHORT. Do not authorize REAL money.
