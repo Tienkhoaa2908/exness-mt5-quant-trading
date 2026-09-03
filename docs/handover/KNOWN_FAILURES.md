@@ -1,16 +1,31 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 06:50 (+07)
+Updated: 2026-09-03 07:02 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
+### KD-2026-09-03-16 — zero-trade months must not be forced to contain position-lifetime lifecycle markers
+
+The first V70 existing-evidence reanalysis correctly source-pinned the previously generated V70 source, then incorrectly failed on `holdout_2026_02_long` because the fast-path harness required `V70_EXIT_SHADOW_START` and `V70_EXIT_SHADOW_END` in every monthly directory.
+
+That requirement is invalid for a month with no actual positions. Accepted V69/V70 development evidence is flat from Feb-May 2026, so those months can legitimately contain zero completed trades and therefore zero position-lifetime shadow blocks.
+
+Correct integrity rule is **trade/shadow parity per month**, not unconditional lifecycle presence:
+
+- zero trades -> zero shadow blocks is valid;
+- trades > 0 -> exactly matching completed shadow blocks are required;
+- zero trades + stray shadow, trade without shadow, overlapping/unterminated shadow, or timestamp mismatch must fail closed;
+- aggregate campaign still must contain matched trades and reproduce the accepted 24/10/14 identity.
+
+Use the analyzer's actual `analyze_run()` trade/shadow matching contract instead of grep-style lifecycle presence checks.
+
 ### KD-2026-09-03-15 — do not rerun an expensive tester campaign when raw evidence is valid and only post-processing was wrong
 
 The first full V70 campaign successfully compiled the exact source and produced all nine Sep 2025-May 2026 raw evidence directories. Its policy conclusions were invalid because the Python analyzer parsed the wrong CSV fields and mixed accounting conventions; the tester campaign itself did not need to be regenerated for those post-processing bugs.
 
-Correct recovery is source-pinned reanalysis: prove the local generated source still matches the current V70 builder, require all nine non-empty deals/events datasets and exit-shadow lifecycle markers, then rerun only the corrected analyzer. Full tester replay is fallback only when source/evidence identity fails.
+Correct recovery is source-pinned reanalysis. Full tester replay is fallback only when source/evidence identity actually fails.
 
 ### KD-2026-09-03-14 — accepted headline accounting and economic round-trip accounting are different contracts
 
@@ -72,6 +87,23 @@ Use deterministic telemetry rather than passive waiting.
 
 ## Resolved harness / diagnostic incidents
 
+### KH-2026-09-03-06 — existing-evidence fast path required lifecycle in a zero-trade month — RESOLVED
+
+At exact checkpoint `a74e48c0bbf4d24801d798f10acbb27671e72dd7`, the operator reran V70 in `V70_REANALYZE_EXISTING=1` mode. Source identity passed with SHA256 `b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`, but the harness stopped at `holdout_2026_02_long` because no V70 START/END lifecycle marker existed.
+
+Root cause: the fast-path integrity gate assumed every replay month must contain at least one real position. That contradicts the accepted sample, where Feb-May 2026 are flat/zero-trade months.
+
+Resolution:
+
+- remove unconditional lifecycle-string presence check;
+- run each monthly directory through the corrected analyzer's `analyze_run()` function;
+- accept 0 trades / 0 shadows;
+- require exact trade/shadow parity and timestamp matching when trades exist;
+- keep aggregate nonzero-trade guard;
+- add regression with mixed zero-trade + traded months and a separate traded-month-without-shadow rejection.
+
+No tester replay is required for this incident.
+
 ### KH-2026-09-03-05 — first full V70 replay parsed wrong event numeric columns and mixed accounting — RESOLVED
 
 At checkpoint `6d4095f1903f15077fdf805fda1f4485f4ffd314`, all nine tester months completed, but analyzer output had all-zero true excursion and baseline `6.44` versus accepted `7.14`.
@@ -91,7 +123,7 @@ Resolution:
 - gate accepted 24/10/14/~+7.14 on legacy accounting;
 - compare policies to full round-trip baseline;
 - fail closed if excursion/policy telemetry is all zero;
-- add `V70_REANALYZE_EXISTING=1`, source-hash pinning and all-nine-month evidence integrity checks so corrected analysis can reuse the already generated raw tester evidence without another full campaign.
+- add source-pinned existing-evidence reanalysis.
 
 ### KH-2026-09-03-04 — V69 MFE/giveback attribution used a post-exit shadow — RESOLVED BY V70 DESIGN
 
@@ -201,5 +233,6 @@ BREAKOUT_RETEST_BOS: 241 cycles, 22 trades, 9W/13L, +$4.76, PF 1.332402. Pullbac
 - Do not mix accounting conventions when asserting identity or policy deltas.
 - Synthetic telemetry tests must use the real CSV field schema.
 - Prefer source-pinned reanalysis of valid raw evidence over unnecessary full tester reruns after post-processing-only fixes.
+- Validate existing V70 evidence by per-month trade/shadow parity; do not require lifecycle markers in a legitimate zero-trade month.
 - SHORT remains disabled unless separately researched and explicitly approved.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
