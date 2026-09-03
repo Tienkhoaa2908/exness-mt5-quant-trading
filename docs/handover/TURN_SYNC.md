@@ -1,47 +1,61 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 17:35 (+07)
+Updated: 2026-09-03 17:xx (+07)
 
 ## User input
 
-User asked for a reusable prompt to give another LLM so it can independently diagnose the trading system and research workflow, propose technical and research-process improvements, and explicitly inspect the GitHub repository rather than relying on a chat summary.
+User supplied Gemini's response saying its browser/search/sandbox could not read the now-public GitHub repository and asking for a reliable way to let Gemini inspect the repository directly, or alternatively to prepare the Google Drive route Gemini suggested.
 
 ## State read before work
 
 Fresh-resolved remote HEAD on `agent/v72-eurusd-independent-validation`:
 
-`c92836f194a6cf7590d5a9cace057b75c5c64c1d`
+`79140c5ecf52bcc2f041d232a1222e5c9c34608f`
 
-Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head CI had 8 checks, all completed success.
+Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head GitHub checks were green before this docs-only sync.
 
-## Prompt-design decision
+## External product research
 
-The external-LLM prompt should require repo-first recovery and explicitly distinguish source-of-truth evidence from model inference. It should instruct the other model to:
+Official current Google Gemini Apps documentation was checked rather than relying on the external model's self-description.
 
-1. access `Tienkhoaa2908/exness-mt5-quant-trading` directly;
-2. fresh-resolve the active branch and current remote HEAD rather than trusting a pasted SHA;
-3. read `docs/handover/OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, and `TURN_SYNC.md` first;
-4. inspect recent commits and exact-head CI;
-5. then inspect frozen V69 source lineage, V70 exit-harvest diagnostics, V71 FX portability code/evidence, and V72 EURUSD untouched-validation code/evidence;
-6. separate strategy/economic logic, execution/broker transport, and harness/observability defects;
-7. critique both strategy design and research methodology, including overfitting risk, evidence reuse, sample size, regime concentration, cross-symbol portability, drawdown criteria, operator cost, tester turnaround time, and prospective validation design;
-8. propose a prioritized low-operator-cost research plan that reuses accepted raw evidence before requesting new MT5 real-tick runs;
-9. avoid post-hoc rescue tuning on the consumed V72 holdout;
-10. keep SHORT disabled and REAL unauthorized unless separately researched and explicitly approved.
+Gemini web on desktop has a native GitHub repository import path:
 
-The prompt should ask for concrete repository paths/files inspected, claims tied to commits/evidence, alternative hypotheses, falsification tests, and a ranked action plan rather than generic trading advice.
+`Add files -> More uploads -> Import code -> enter repository or branch URL -> Import`.
 
-## Settled project state that the external LLM should discover from the repo
+Important properties from Google's documentation:
 
-- Frozen V69 is development-only XAU LONG research with accepted headline `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34`.
-- V70 did not justify promoting a new real-exit policy.
-- V71 direct portability showed strong symbol dispersion: EURUSD was the best small-sample FX screen, GBPUSD failed badly, AUDUSD was mildly positive, USDJPY near flat.
-- V72 untouched EURUSD earlier-period validation produced `23 trades / +$4.11 / PF 1.250457 / DD $10.23` and formally failed the preregistered DD gate.
-- Further operator-heavy MT5 campaigns are paused by default; next research should start offline/cheap using existing evidence.
+- public GitHub repositories can be imported without linking a GitHub account;
+- private repositories require the GitHub account with access to be linked;
+- one repository can be attached per chat, up to 5,000 files and 100 MB;
+- the repository is a snapshot at import time and later GitHub changes are not synchronized into that Gemini chat;
+- Gemini's GitHub app cannot retrieve commit history, pull requests or other repository metadata;
+- merely putting a GitHub URL in the text prompt does **not** make Gemini read the repository;
+- the native import is therefore the preferred route for source-code review and avoids the browser/indexing/outbound-network failures Gemini reported.
 
-These facts should be verified by the external LLM from the repository, not merely accepted from the prompt.
+Google's file-upload documentation also states that a code folder can be uploaded/imported with the same 5,000-file / 100-MB class of limits, while ordinary ZIP uploads are much less suitable for a full repository because ZIPs are limited to 10 contained files. Therefore a giant repository ZIP on Drive is not the preferred fallback.
 
-## Safety
+## Recommended review transport
+
+Primary route:
+
+1. use Gemini web on a computer;
+2. attach the repository through the native **Import code** UI, not by pasting the URL into the prompt;
+3. prefer an immutable review-snapshot branch so the external review has stable source content;
+4. after the repository card is attached, paste the independent-review prompt and tell Gemini to treat the attached repository as the code source of truth;
+5. because GitHub import cannot expose commit history/PR metadata, require the reviewer to use handover docs and repository files for code/evidence claims and explicitly mark unavailable Git metadata instead of inventing it.
+
+Fallback route if native GitHub import is unavailable in that Gemini account/mode:
+
+- create a sanitized code-folder snapshot from Git-tracked files at a pinned commit and use Gemini's **Import code -> Upload folder** path;
+- only if that path is also unavailable, use Drive with a small number of consolidated text/Markdown evidence bundles rather than a many-file ZIP.
+
+## Correction to the external Gemini response
+
+Its statement that browser/search/VM networking prevented source access may be true for that execution attempt, but it missed Gemini Apps' separate native GitHub import mechanism. Its claimed GitHub notification state should not be treated as repository authority unless independently verified, because the actual project branch/head/CI must be read from GitHub source-of-truth tooling.
+
+## Project safety / operator cost
+
+No MT5 tester, strategy mutation, SHORT activation or REAL authorization is required for this review-transport work.
 
 `NEXT_MT5_TESTER_ACTION=PAUSED`
 `SHORT_ENABLED=0`
@@ -49,4 +63,4 @@ These facts should be verified by the external LLM from the repository, not mere
 
 ## Next action
 
-No operator command is required. User will copy the prepared diagnostic/research-review prompt into another LLM. That model should inspect GitHub directly and return an independent critique and prioritized research plan.
+Create/use a stable GitHub snapshot branch for Gemini import and have the user attach that branch through Gemini web's **Import code** UI. Use Drive/code-folder fallback only if native GitHub import is unavailable or errors in the user's Gemini account.
