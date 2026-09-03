@@ -4,52 +4,49 @@ Updated: 2026-09-03 17:35 (+07)
 
 ## User input
 
-User expressed operator fatigue after the long V71/V72 MT5 research sequence and the final V72 EURUSD untouched validation failed. User does not want to immediately continue another long symbol validation cycle.
+User asked for a reusable prompt to give another LLM so it can independently diagnose the trading system and research workflow, propose technical and research-process improvements, and explicitly inspect the GitHub repository rather than relying on a chat summary.
 
 ## State read before work
 
 Fresh-resolved remote HEAD on `agent/v72-eurusd-independent-validation`:
 
-`4e73733d9d8a3291639a3f03b363aa4dd72a5483`
+`c92836f194a6cf7590d5a9cace057b75c5c64c1d`
 
-Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head CI was 8/8 completed success.
+Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head CI had 8 checks, all completed success.
 
-## Settled result preserved
+## Prompt-design decision
 
-V72 EURUSD untouched validation remains a formal `FAIL` under the preregistered gate:
+The external-LLM prompt should require repo-first recovery and explicitly distinguish source-of-truth evidence from model inference. It should instruct the other model to:
 
-- 23 trades, 8W / 15L;
-- net `+$4.11`;
-- PF `1.250457`;
-- max realized DD `$10.23` versus fixed `$5.00` ceiling;
-- ex-best-trade net `+$0.60`;
-- 2 positive months, 7 negative months;
-- no entry retune, no exit retune, SHORT disabled, REAL unauthorized.
+1. access `Tienkhoaa2908/exness-mt5-quant-trading` directly;
+2. fresh-resolve the active branch and current remote HEAD rather than trusting a pasted SHA;
+3. read `docs/handover/OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, and `TURN_SYNC.md` first;
+4. inspect recent commits and exact-head CI;
+5. then inspect frozen V69 source lineage, V70 exit-harvest diagnostics, V71 FX portability code/evidence, and V72 EURUSD untouched-validation code/evidence;
+6. separate strategy/economic logic, execution/broker transport, and harness/observability defects;
+7. critique both strategy design and research methodology, including overfitting risk, evidence reuse, sample size, regime concentration, cross-symbol portability, drawdown criteria, operator cost, tester turnaround time, and prospective validation design;
+8. propose a prioritized low-operator-cost research plan that reuses accepted raw evidence before requesting new MT5 real-tick runs;
+9. avoid post-hoc rescue tuning on the consumed V72 holdout;
+10. keep SHORT disabled and REAL unauthorized unless separately researched and explicitly approved.
 
-The result is valid strategy/risk-path evidence. It is not a harness failure and must not be post-hoc rescued on the consumed V72 period.
+The prompt should ask for concrete repository paths/files inspected, claims tied to commits/evidence, alternative hypotheses, falsification tests, and a ranked action plan rather than generic trading advice.
 
-## Operator-workflow decision
+## Settled project state that the external LLM should discover from the repo
 
-Pause further operator-heavy MT5 tester campaigns. Do **not** immediately launch AUDUSD or another symbol simply because it is the next ranked candidate.
+- Frozen V69 is development-only XAU LONG research with accepted headline `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34`.
+- V70 did not justify promoting a new real-exit policy.
+- V71 direct portability showed strong symbol dispersion: EURUSD was the best small-sample FX screen, GBPUSD failed badly, AUDUSD was mildly positive, USDJPY near flat.
+- V72 untouched EURUSD earlier-period validation produced `23 trades / +$4.11 / PF 1.250457 / DD $10.23` and formally failed the preregistered DD gate.
+- Further operator-heavy MT5 campaigns are paused by default; next research should start offline/cheap using existing evidence.
 
-If research resumes, first redesign the next gate to minimize operator cost:
-
-1. reuse all already accepted raw evidence before asking for new tester work;
-2. prefer offline analysis / cheap viability screens first;
-3. only request a long MT5 real-tick pass after the candidate clears a predeclared cheap gate;
-4. avoid sequential one-symbol-at-a-time long runs unless they can materially change a deployment decision;
-5. preserve the V72 failure and do not lower its acceptance threshold.
-
-No new tester, branch, strategy mutation or deployment action is required in this turn.
+These facts should be verified by the external LLM from the repository, not merely accepted from the prompt.
 
 ## Safety
 
-`V72_ECONOMIC_CLASSIFICATION=FAIL`
-`V72_EURUSD_UNCHANGED_CANDIDATE=REJECTED_FOR_PROMOTION`
 `NEXT_MT5_TESTER_ACTION=PAUSED`
 `SHORT_ENABLED=0`
 `REAL_MONEY_AUTHORIZED=0`
 
 ## Next action
 
-None for the operator now. Resume only if the user explicitly wants to continue. On resume, start from offline/low-cost research using existing evidence rather than another long tester campaign by default.
+No operator command is required. User will copy the prepared diagnostic/research-review prompt into another LLM. That model should inspect GitHub directly and return an independent critique and prioritized research plan.
