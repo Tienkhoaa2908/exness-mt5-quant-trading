@@ -20,12 +20,18 @@ jobs:
           python -m py_compile \
             scripts/build_v71_fx_portability_source.py \
             scripts/analyze_v71_fx_portability.py \
+            scripts/package_v71_fx_evidence.py \
             runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH.py \
-            tests/test_v71_fx_portability_research.py
+            tests/test_v71_fx_portability_research.py \
+            tests/test_v71_fx_evidence_packaging.py
       - name: Shell syntax
-        run: bash -n runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH_GIT_BASH.sh
+        run: |
+          bash -n runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH_GIT_BASH.sh
+          bash -n runtime/v71_fx_portability_research/PACK_V71_FX_EVIDENCE_GIT_BASH.sh
       - name: V71 FX portability tests
         run: python tests/test_v71_fx_portability_research.py
+      - name: V71 FX evidence packaging tests
+        run: python tests/test_v71_fx_evidence_packaging.py
       - name: Safety and methodology contract
         run: |
           grep -Fq 'V71_V69_LONG_STRATEGY_EQUIVALENT=1' scripts/build_v71_fx_portability_source.py
@@ -33,5 +39,8 @@ jobs:
           grep -Fq 'V71_SHORT_ENABLED=0' runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH.py
           grep -Fq 'REAL_MONEY_AUTHORIZED=0' runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH.py
           grep -Fq 'V71_FX_EXPECTED_HEAD is required' runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH_GIT_BASH.sh
+          grep -Fq 'V71_FX_EVIDENCE_TESTER_RERUN=0' runtime/v71_fx_portability_research/PACK_V71_FX_EVIDENCE_GIT_BASH.sh
+          grep -Fq 'V71_FX_EVIDENCE_MT5_CLOSE_REQUIRED=0' runtime/v71_fx_portability_research/PACK_V71_FX_EVIDENCE_GIT_BASH.sh
+          grep -Fq 'real_money_authorized' scripts/package_v71_fx_evidence.py
       - name: Secret scan
         run: python scripts/secret_scan.py .
