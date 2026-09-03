@@ -130,13 +130,13 @@ def test_dual_accounting_separates_legacy_identity_from_roundtrip_economics() ->
     assert abs(economic[0]["explicit_cost_usd"] + 0.15) < 1e-9
 
 
-def test_runtime_gates_on_legacy_identity_not_economic_roundtrip_net() -> None:
+def test_runtime_accepts_only_hash_audited_same_execution_cost_drift() -> None:
     m = load(RUNTIME, "v70_exit_runtime_identity_test")
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "analysis.json"
-        good = {
+        exact = {
             "legacy_accepted_identity": {"trades": 24, "wins": 10, "losses": 14, "net_usd": 7.14},
-            "economic_roundtrip_actual": {"trades": 24, "wins": 10, "losses": 14, "net_usd": 6.44},
+            "economic_roundtrip_actual": {"trades": 24, "wins": 10, "losses": 14, "net_usd": 7.14},
             "true_in_position_excursion": {
                 "trades": 24,
                 "median_true_mfe_all_usd": 0.5,
@@ -150,28 +150,80 @@ def test_runtime_gates_on_legacy_identity_not_economic_roundtrip_net() -> None:
                 "TIERED_100_025_200_100": {"changed_trade_count": 2},
             },
         }
-        p.write_text(json.dumps(good), encoding="utf-8")
+        p.write_text(json.dumps(exact), encoding="utf-8")
         result = m.require_accepted_baseline(p, emit=False)
         assert result["legacy_accepted_identity"]["net_usd"] == 7.14
-        assert result["economic_roundtrip_actual"]["net_usd"] == 6.44
         m.require_shadow_integrity(result, emit=False)
 
-        bad_identity = dict(good)
-        bad_identity["legacy_accepted_identity"] = {
+        drift = dict(exact)
+        drift["legacy_accepted_identity"] = {
             "trades": 24,
             "wins": 10,
             "losses": 14,
             "net_usd": 6.44,
         }
-        p.write_text(json.dumps(bad_identity), encoding="utf-8")
+        drift["economic_roundtrip_actual"] = {
+            "trades": 24,
+            "wins": 10,
+            "losses": 14,
+            "net_usd": 6.44,
+        }
+        p.write_text(json.dumps(drift), encoding="utf-8")
         try:
             m.require_accepted_baseline(p, emit=False)
         except RuntimeError as exc:
-            assert "legacy baseline net identity mismatch" in str(exc)
+            assert "requires hash-pinned raw-deal audit" in str(exc)
         else:
-            raise AssertionError("legacy baseline identity guard must fail closed")
+            raise AssertionError("non-identical baseline without raw audit must fail closed")
 
-        zero_shadow = dict(good)
+        accepted = {
+            "time": "2025.09.21 22:05:00",
+            "price": 3687.969,
+            "profit": 3.64,
+            "reason": 5,
+            "swap": 0.0,
+        }
+        current = dict(accepted)
+        current["swap"] = -0.70
+        cost_only_audit = {
+            "accepted_trades": 24,
+            "v70_trades": 24,
+            "accepted_net_usd": 7.14,
+            "v70_net_usd": 6.44,
+            "delta_usd": -0.70,
+            "classification": "SAME_EXIT_TIMES_VALUE_DRIFT",
+            "difference_classes": {"EXIT_COST_DRIFT": 1},
+            "differences": [
+                {
+                    "classification": "EXIT_COST_DRIFT",
+                    "accepted": accepted,
+                    "v70": current,
+                }
+            ],
+        }
+        result = m.require_accepted_baseline(p, audit_result=cost_only_audit, emit=False)
+        assert result["legacy_accepted_identity"]["net_usd"] == 6.44
+
+        price_drift_audit = dict(cost_only_audit)
+        price_drift_audit["difference_classes"] = {"EXIT_PRICE_DRIFT": 1}
+        price_drift_audit["classification"] = "SAME_EXIT_TIMES_VALUE_DRIFT"
+        try:
+            m.require_accepted_baseline(p, audit_result=price_drift_audit, emit=False)
+        except RuntimeError as exc:
+            assert "only for exit-cost drift" in str(exc)
+        else:
+            raise AssertionError("price/profit drift must not bypass accepted baseline gate")
+
+        timing_drift_audit = dict(cost_only_audit)
+        timing_drift_audit["classification"] = "EXIT_TIMING_DRIFT"
+        try:
+            m.require_accepted_baseline(p, audit_result=timing_drift_audit, emit=False)
+        except RuntimeError as exc:
+            assert "same-exit-time cost drift" in str(exc)
+        else:
+            raise AssertionError("exit timing drift must fail closed")
+
+        zero_shadow = dict(exact)
         zero_shadow["true_in_position_excursion"] = {
             "trades": 24,
             "median_true_mfe_all_usd": 0.0,
@@ -192,6 +244,50 @@ def test_runtime_gates_on_legacy_identity_not_economic_roundtrip_net() -> None:
             raise AssertionError("all-zero shadow telemetry must fail closed")
 
 
+def test_audit_gate_rejects_hidden_execution_identity_change() -> None:
+    m = load(RUNTIME, "v70_exit_runtime_audit_gate_test")
+    accepted = {
+        "time": "2025.09.21 22:05:00",
+        "price": 3687.969,
+        "profit": 3.64,
+        "reason": 5,
+    }
+    changed = dict(accepted)
+    changed["reason"] = 4
+    audit = {
+        "accepted_trades": 24,
+        "v70_trades": 24,
+        "accepted_net_usd": 7.14,
+        "v70_net_usd": 6.44,
+        "classification": "SAME_EXIT_TIMES_VALUE_DRIFT",
+        "difference_classes": {"EXIT_COST_DRIFT": 1},
+        "differences": [
+            {"classification": "EXIT_COST_DRIFT", "accepted": accepted, "v70": changed}
+        ],
+    }
+    old_load = m.load
+    try:
+        class FakeAudit:
+            @staticmethod
+            def audit(_repo):
+                return audit
+
+        def fake_load(path, name):
+            if path == m.BASELINE_AUDIT:
+                return FakeAudit
+            return old_load(path, name)
+
+        m.load = fake_load
+        try:
+            m.audit_accepted_v69_baseline(emit=False)
+        except RuntimeError as exc:
+            assert "changed execution identity" in str(exc)
+        else:
+            raise AssertionError("hidden reason drift must fail closed")
+    finally:
+        m.load = old_load
+
+
 def test_existing_evidence_reanalysis_is_source_pinned_and_skips_tester() -> None:
     src = RUNTIME.read_text(encoding="utf-8")
     assert 'REANALYZE_ENV = "V70_REANALYZE_EXISTING"' in src
@@ -202,6 +298,7 @@ def test_existing_evidence_reanalysis_is_source_pinned_and_skips_tester() -> Non
     assert "builder.transform()" in src
     assert '"V64_DEALS.csv", "V64_EVENTS.csv"' in src
     assert "analyzer.analyze_run(run_dir)" in src
+    assert "audit_accepted_v69_baseline()" in src
     assert "events_text" not in src
     assert src.index("if reanalyze_existing:") < src.index("data = runner.base.find_mt5_data_dir()")
 
@@ -282,8 +379,11 @@ def test_runtime_is_exact_head_tester_only_long_only() -> None:
     assert "EXPECTED_BASELINE_LOSSES = 14" in src
     assert "EXPECTED_BASELINE_NET_USD = 7.14" in src
     assert "legacy_accepted_identity" in src
-    assert "V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS" in src
+    assert "V70_ACCEPTED_V69_RAW_DEAL_AUDIT=PASS" in src
+    assert "V70_BASELINE_ACCEPTED_V69_COHORT=PASS" in src
     assert "V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS" in src
+    assert "SAME_EXIT_TIMES_VALUE_DRIFT" in src
+    assert 'set(classes) != {"EXIT_COST_DRIFT"}' in src
     assert "MetaTrader 5 must be closed for the one-pass V70 tester replay" in src
     assert "REAL_MONEY_AUTHORIZED=0" in src
     assert "V70_SHORT_ENABLED=0" in src
