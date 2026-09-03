@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 07:22 (+07)
+Updated: 2026-09-03 07:45 (+07)
 
 ## Authority / safety
 
@@ -9,7 +9,7 @@ Active research branch: `agent/v70-exit-harvest-research`.
 
 Always resolve current remote HEAD, then read `OPERATING_PROTOCOL.md`, this file, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI before acting.
 
-SHORT disabled/rejected. REAL authorization remains false.
+SHORT remains disabled/rejected. REAL authorization remains false.
 
 ## Frozen V69 identity
 
@@ -30,69 +30,73 @@ Accepted V69 development headline: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / 
 - Cycle economics: HARD_STRUCTURAL 235, TTL 120, CONTEXT_QUALITY 80, SENT 24, UNTERMINATED 1. BREAKOUT_RETEST_BOS produced 22/24 trades; PULLBACK_SWEEP_BOS only 2.
 - Old `V64_NOISE_SHADOW` MFE/MAE is rejected as actual-trade excursion because it can continue after the real position exits.
 
-## V70 objective
+## V70 objective and evidence
 
-V70 preserves the V69 entry/actual-exit contract and adds observation-only true position-lifetime telemetry plus four exit shadows:
+V70 preserves V69 entry/actual-exit semantics and adds observation-only true position-lifetime telemetry plus four exit shadows:
 
 1. `BASELINE_200_100`: +$2 arm / +$1 floor.
 2. `EARLY_100_025`: +$1 / +$0.25.
 3. `MID_150_050`: +$1.50 / +$0.50.
 4. `TIERED_100_025_200_100`: +$1/+0.25 then upgrade to +$1 after +$2.
 
-The shadow code adds no orders and does not call position close/modify.
+The nine-month Sep 2025-May 2026 real-tick campaign completed once. Generated source SHA256: `b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`; EX5 SHA256: `af321cdfe2f91b672443ad57aa7f33606d8e41d5660607cc3f74f6bf3f6a3f5f`; compile `0 errors, 0 warnings`. Raw evidence is retained and source-pinned.
 
-## V70 Windows evidence
+Corrected fast reanalysis proved:
 
-The full nine-month Sep 2025-May 2026 real-tick campaign completed once. Generated source SHA256: `b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`; EX5 SHA256: `af321cdfe2f91b672443ad57aa7f33606d8e41d5660607cc3f74f6bf3f6a3f5f`; compile `0 errors, 0 warnings`. Raw evidence is retained.
+- month trade counts Sep 6, Oct 8, Nov 3, Dec 4, Jan 3, Feb-May 0;
+- 24 matched trade/shadow lifecycles;
+- true median MFE all `$0.625`, winners `$2.525`, losers `$0.00`;
+- loser median true MAE `-$1.08`;
+- 10 trades reached MFE >=$1, 9 reached >=$2, no realized loser reached >=$2.
 
-Post-processing defects already fixed:
+Current contemporaneous V70 actual baseline: `24 / 10W / 14L / +$6.44 / PF 1.417098 / DD $3.65`.
 
-- real event fields are `value1/value2/value3`, not `v1/v2/v3`;
-- zero-trade months legitimately have zero position-lifetime START/END blocks; integrity is trade/shadow parity per month, not unconditional lifecycle presence.
+## Baseline drift resolved by hash-pinned raw-deal audit
 
-At checkpoint `f984f259f122f691b31e8aee3ed5bf639b516dfe`, the corrected fast reanalysis proved:
+Operator ran `scripts/audit_v70_baseline_drift_against_accepted_v69.py` against the exact accepted V69 ZIP SHA256 `e35306d...`.
 
-- exact V70 source identity PASS;
-- month trade counts: Sep 6, Oct 8, Nov 3, Dec 4, Jan 3, Feb-May 0;
-- lifecycle parity PASS with 24 matched trades, 5 traded months, 4 zero-trade months;
-- true position-lifetime excursion is nonzero: median MFE all $0.625, winners $2.525, losers $0; 10 trades reached >=$1, 9 reached >=$2, and no realized loser reached >=$2.
+Result:
 
-However the same run produced V70 actual baseline `24 / 10W / 14L / +$6.44 / PF 1.417098`, not frozen accepted V69 `+$7.14`, and the fail-closed identity gate correctly stopped the run.
+- accepted trades 24, current V70 trades 24;
+- accepted net +$7.14, current V70 net +$6.44, delta -$0.70;
+- classification `SAME_EXIT_TIMES_VALUE_DRIFT`;
+- difference classes exactly `{"EXIT_COST_DRIFT": 1}`;
+- all months except Sep are numerically identical;
+- only differing exit is Sep trade index 4 at `2025.09.21 22:05:00`;
+- accepted/current exit price both `3687.969`;
+- accepted/current gross profit both `$3.64`;
+- accepted/current exit reason both `5`;
+- commission and fee unchanged at zero;
+- only swap changed: accepted `$0.00`, current `-$0.70`.
 
-## Critical correction — the $0.70 difference is NOT explained by accounting
+Therefore the V70 observation hook did **not** perturb the tested exit timestamp, exit price, gross profit or exit reason. The -$0.70 is a historical exit-cost/swap value drift, consistent with historical financing-data/model changes between tester runs. The audit does not prove why the swap table changed, so do not label a more specific cause without evidence.
 
-The earlier handover explanation that `+$6.44` was full round-trip accounting while `+$7.14` was exit-row accounting was wrong.
+The accepted V69 +$7.14 headline remains frozen historical evidence. The V70 same-run policy comparison uses the contemporaneous +$6.44 baseline; do not rewrite V69 history to 6.44.
 
-The exact frozen V69 analyzer at HEAD `0569701...` uses exit rows and computes `profit + commission + swap + fee`. The current V70 `legacy_accepted_summary()` uses the same formula, yet still returns `+$6.44`.
+## Harness correction after the audit
 
-Therefore the remaining `$0.70` is genuine baseline/evidence drift that must be localized before any V70 exit policy can be promoted. Do not change the 7.14 guard or widen tolerance to hide it.
+The V70 runtime no longer fails merely because the contemporaneous baseline net differs from 7.14. It accepts a non-identical net **only** when a hash-pinned raw-deal audit proves all of the following:
 
-The V69 and V68 builder files themselves are byte-identical between frozen V69 and the current branch, and the Git compare shows the inherited builder chain was not modified after the frozen V69 checkpoint. The remaining candidates are therefore actual replay/deal-value drift or perturbation introduced by the V70 observation hook, not a known strategy-threshold change.
+- accepted ZIP reproduces 24 trades and about +$7.14;
+- current analyzer net equals current raw-deal audit net;
+- classification is `SAME_EXIT_TIMES_VALUE_DRIFT`;
+- the only difference class is `EXIT_COST_DRIFT`;
+- every differing row keeps identical exit time, exit price, gross profit and exit reason.
 
-The current V70 policy lines are **provisional and not promotable** until baseline drift is explained. On the contemporaneous 6.44 V70 cohort they were:
+Any cohort, timing, price, profit or reason drift still fails closed. The 7.14 tolerance was not widened and no strategy threshold changed.
 
-- BASELINE: +$6.48, delta +$0.04;
-- EARLY: +$7.08, delta +$0.64;
-- MID: +$6.44, delta $0.00;
-- TIERED: +$7.12, delta +$0.68.
+## V70 exit-harvest decision
 
-## New focused gate — accepted V69 raw-deal audit
+Same-run policy results on the 6.44 contemporaneous cohort:
 
-A read-only script now compares the exact hash-pinned accepted V69 ZIP against the already generated V70 `V64_DEALS.csv` files trade-by-trade:
+- BASELINE_200_100: +$6.48, delta +$0.04, PF 1.419689, DD $3.65, 2 changed trades;
+- EARLY_100_025: +$7.08, delta +$0.64, PF 1.494759, DD $3.27, 2 changed trades, one baseline loser improved and one baseline winner cut;
+- MID_150_050: +$6.44, delta $0.00, no changed trades;
+- TIERED_100_025_200_100: +$7.12, delta +$0.68, PF 1.497554, DD $3.27, 4 changed trades, one baseline loser improved and one baseline winner cut.
 
-`scripts/audit_v70_baseline_drift_against_accepted_v69.py`
+Decision: **do not promote an exit-policy semantic change from V70**. TIERED is the best tested candidate and is retained for future validation, but its advantage is only +$0.68 on a reused 24-trade development sample; it changes only four trades, and its incremental gain over EARLY is only $0.04. That is insufficient evidence to mutate the frozen/forward exit contract.
 
-It validates accepted ZIP SHA256 `e35306d...`, then reports per month and per differing exit:
-
-- trade count;
-- exit timestamp;
-- exit price;
-- profit;
-- commission/swap/fee;
-- exit reason;
-- exact PnL delta.
-
-It classifies cohort drift, exit-timing drift, same-time price/profit/cost drift, or mixed drift. It does not launch MT5/MetaEditor/tester and sends no orders.
+The larger verified economic weaknesses remain entry/regime quality: October concentration, ex-October negative development PnL, and fast-loss-heavy losers. Next research should attack entry/re-entry quality rather than keep tuning exit thresholds on the same 24 trades.
 
 ## Current classification
 
@@ -100,23 +104,26 @@ It classifies cohort drift, exit-timing drift, same-time price/profit/cost drift
 `V69_HISTORICAL_REPLAY=DEVELOPMENT_ONLY_NOT_INDEPENDENT`
 `V69_ACTUAL_DEMO_EXECUTION_TRANSPORT=PASS`
 `V70_RAW_NINE_MONTH_EVIDENCE=RETAINED`
-`V70_EVENT_SCHEMA=CORRECTED`
 `V70_TRADE_SHADOW_PARITY=PASS_24`
 `V70_TRUE_LIFETIME_TELEMETRY=NONZERO`
-`V70_BASELINE_CURRENT_NET_USD=6.44`
-`V70_ACCEPTED_V69_NET_USD=7.14`
-`V70_BASELINE_DRIFT_USD=-0.70`
-`V70_ACCOUNTING_EXPLANATION_FOR_DRIFT=REJECTED`
-`V70_POLICY_PROMOTION=BLOCKED_PENDING_RAW_DEAL_AUDIT`
+`V70_ACCEPTED_V69_NET_USD=7.14_FROZEN_HISTORY`
+`V70_CONTEMPORANEOUS_BASELINE_NET_USD=6.44`
+`V70_BASELINE_DRIFT_CLASS=SAME_EXIT_TIMES_EXIT_COST_ONLY`
+`V70_BASELINE_DRIFT_SWAP_USD=-0.70_ONE_EXIT`
+`V70_EXIT_TIMING_PERTURBATION_HYPOTHESIS=REJECTED_BY_RAW_AUDIT`
+`V70_EXIT_POLICY_DECISION=NO_PROMOTION`
+`V70_TIERED_POLICY=RETAIN_AS_CANDIDATE_ONLY`
+`V70_ENTRY_SEMANTICS_CHANGED=0`
+`V70_REAL_EXIT_SEMANTICS_CHANGED=0`
 `SHORT_ENABLED=0`
 `REAL_MONEY_AUTHORIZED=0`
 
 ## Next gate
 
-1. Do not rerun Strategy Tester.
-2. Run only the accepted-V69-vs-V70 raw-deal audit against the local accepted V69 ZIP.
-3. If accepted ZIP is not present locally with exact SHA, stop and report that fact; do not substitute an unverified artifact.
-4. If exit timestamps are identical and only exit value/price differs, treat this as contemporaneous tester/feed/fill drift and decide whether policy deltas can be evaluated against the same-run 6.44 baseline.
-5. If exit timing differs, inspect/move the V70 observation hook so it cannot precede actual exit management, then a fresh replay may be required because instrumentation perturbed the baseline.
-6. Do not promote EARLY or TIERED before this classification.
+1. No Strategy Tester rerun is required for V70.
+2. Require exact-head CI success after the cost-drift gate and handover synchronization.
+3. Close V70 exit-harvest as research-only / no promotion.
+4. Start the next successor research on a separate branch focused on LONG entry/re-entry quality and regime breadth, not on forcing more trades and not on enabling SHORT.
+5. Prioritize features tied to the verified weaknesses: fast-loss avoidance, session/regime conditioning, breakout-retest follow-through and post-retest quality, using past-only data and month-aware validation.
+6. Keep TIERED exit policy as a shadow candidate for later independent/prospective validation; do not activate it in frozen V69 or REAL.
 7. Do not enable SHORT. Do not authorize REAL money.
