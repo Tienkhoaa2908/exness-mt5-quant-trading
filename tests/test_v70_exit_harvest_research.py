@@ -213,30 +213,49 @@ def test_existing_evidence_zero_trade_month_needs_zero_shadows_not_fake_lifecycl
     try:
         with tempfile.TemporaryDirectory() as td:
             m.OUT = Path(td)
-            m.REPLAY_MONTHS = [("zero", "2026.02.01", "2026.03.01")]
-            run_dir = m.OUT / "holdout_zero_long"
-            run_dir.mkdir(parents=True)
-            (run_dir / "V64_DEALS.csv").write_text(
+            m.REPLAY_MONTHS = [
+                ("zero", "2026.02.01", "2026.03.01"),
+                ("valid", "2025.09.01", "2025.10.01"),
+            ]
+
+            zero = m.OUT / "holdout_zero_long"
+            zero.mkdir(parents=True)
+            (zero / "V64_DEALS.csv").write_text(
                 "time,entry,profit,commission,swap,fee,price,reason\n",
                 encoding="utf-8",
             )
-            (run_dir / "V64_EVENTS.csv").write_text(
+            (zero / "V64_EVENTS.csv").write_text(
                 "time,event,detail,value1,value2,value3\n",
                 encoding="utf-8",
             )
-            dirs = m.existing_run_dirs()
-            assert dirs == [run_dir]
 
-            m.REPLAY_MONTHS = [("trade", "2025.09.01", "2025.10.01")]
-            traded = m.OUT / "holdout_trade_long"
-            traded.mkdir(parents=True)
-            (traded / "V64_DEALS.csv").write_text(
+            valid = m.OUT / "holdout_valid_long"
+            valid.mkdir(parents=True)
+            (valid / "V64_DEALS.csv").write_text(
                 "time,entry,profit,commission,swap,fee,price,reason\n"
                 "2025.09.01 00:00:01,0,0,-0.10,0,0,3500,0\n"
                 "2025.09.01 00:01:01,1,1.00,-0.05,0,0,3501,0\n",
                 encoding="utf-8",
             )
-            (traded / "V64_EVENTS.csv").write_text(
+            (valid / "V64_EVENTS.csv").write_text(
+                "time,event,detail,value1,value2,value3\n"
+                "2025.09.01 00:00:01,V70_EXIT_SHADOW_START,actual_position_lifetime,3500,1,0\n"
+                "2025.09.01 00:01:01,V70_EXIT_SHADOW_END,actual_position_closed,1.10,-0.20,60\n",
+                encoding="utf-8",
+            )
+            dirs = m.existing_run_dirs()
+            assert dirs == [zero, valid]
+
+            m.REPLAY_MONTHS = [("bad", "2025.09.01", "2025.10.01")]
+            bad = m.OUT / "holdout_bad_long"
+            bad.mkdir(parents=True)
+            (bad / "V64_DEALS.csv").write_text(
+                "time,entry,profit,commission,swap,fee,price,reason\n"
+                "2025.09.01 00:00:01,0,0,-0.10,0,0,3500,0\n"
+                "2025.09.01 00:01:01,1,1.00,-0.05,0,0,3501,0\n",
+                encoding="utf-8",
+            )
+            (bad / "V64_EVENTS.csv").write_text(
                 "time,event,detail,value1,value2,value3\n",
                 encoding="utf-8",
             )
