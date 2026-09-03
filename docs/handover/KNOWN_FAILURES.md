@@ -1,18 +1,32 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 14:15 (+07)
+Updated: 2026-09-03 15:45 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
+### KD-2026-09-03-25 — a zero <=60s loss rate can still hide severe early-entry failure
+
+V71 GBPUSD had 0/16 losing trades closed within 60 seconds, but raw trade durations show 8/16 = 50% of GBP losses closed within 15 minutes. EURUSD had 0/4 losses within 15 minutes; its losing trades lasted about 17-39 minutes. XAU remained the ultra-fast case with 10/14 losses <=60 seconds.
+
+Therefore cross-symbol timing diagnostics need instrument-appropriate horizons. Do not conclude "FX has no fast-loss problem" from the <=60-second statistic alone.
+
+### KD-2026-09-03-24 — GBPUSD failure is follow-through failure, not wider loss geometry
+
+Raw V71 evidence shows EURUSD average loss -$1.0725 and GBPUSD average loss -$1.088125, so normalized downside per loser is nearly identical. The economic divergence comes from favorable follow-through: EUR average winner +$2.21, GBP +$0.9933; EUR produced 4 PROFIT_LOCK events in 8 trades and two full target exits, while GBP produced only 3 PROFIT_LOCK events in 19 trades and zero full target exits.
+
+Do not widen GBP stops to "fix" V71. The unchanged strategy is entering GBP conditions that rarely sustain favorable excursion.
+
+### KD-2026-09-03-23 — do not rescue a selected candidate by tuning on its first untouched validation
+
+After V71 selected EURUSD from reused development history, V72 preregisters one earlier untouched temporal pass (`2024.09.01 -> 2025.09.01`) using the exact V71 source SHA and zero retuning. Acceptance thresholds are fixed before the run. If adequately sampled validation fails, reject the unchanged candidate rather than tuning on the failed holdout.
+
 ### KD-2026-09-03-22 — do not generalize XAU fast-loss timing to FX
 
 V71 direct no-retune portability produced XAU fast-loss share 10/14 = 71.43%, but all tested FX pairs had zero losing trades closed within 60 seconds: EURUSD 0/4, AUDUSD 0/4, USDJPY 0/4, GBPUSD 0/16.
 
-This supports an instrument-speed explanation for the <=60s statistic. It does **not** mean the FX strategy is profitable: GBPUSD still lost -$14.43 with PF 0.171 despite zero fast losses.
-
-Therefore fast-loss duration and economic edge must be treated as separate dimensions.
+This supports an instrument-speed explanation for the <=60s statistic, but KD-25 refines it: GBP still has substantial <=15-minute early failures.
 
 ### KD-2026-09-03-21 — direct portability can fail catastrophically even when risk dollars are normalized
 
@@ -27,17 +41,11 @@ Do not create a generic "Forex version" by pooling these instruments. If one pai
 
 ### KD-2026-09-03-20 — package accepted raw evidence instead of requesting giant pasted logs
 
-For completed tester campaigns, preserve source-pinned raw evidence in deterministic ZIPs containing analysis, summary, generated source, compile/config text and per-symbol raw CSV telemetry. Include SHA256 manifest metadata and keep packaging read-only with no tester rerun.
-
-V71 packer exports combined full/core packages and per-symbol packages. It excludes EX5 binaries and verifies raw deal-pair counts against analyzed trades.
+Preserve source-pinned raw evidence in deterministic packages, but if binary attachment transport is unreliable, export the exact raw CSV evidence as plain text rather than rerunning MT5.
 
 ### KD-2026-09-03-19 — cross-symbol portability must be tested before symbol-specific retuning
 
-V71 started with XAUUSDm control plus EURUSDm, GBPUSDm, USDJPYm and AUDUSDm using exact V69 LONG strategy semantics after metadata normalization.
-
-Do not optimize cash-risk, target, separation, ATR, score or timing thresholds per FX pair in the first comparison. Symbol-specific tuning is a later research question and must not contaminate portability screening.
-
-Use one full-period real-tick run per symbol and reconstruct monthly metrics from deals.
+Do not optimize cash-risk, target, separation, ATR, score or timing thresholds per FX pair in the first comparison. V71 established the no-retune baseline first.
 
 ### KD-2026-09-03-18 — accepted historical PnL and contemporaneous replay PnL may differ because tester costs drift
 
@@ -67,9 +75,9 @@ Use ordered intra-trade path/ticks for exit counterfactuals.
 
 Do not infer missed edge from chronological proximity alone.
 
-### KD-2026-09-03-10 — do not promote an archetype from two trades
+### KD-2026-09-03-10 — do not promote an archetype from tiny samples
 
-PULLBACK_SWEEP_BOS has only 2 sent XAU trades; BREAKOUT_RETEST_BOS produced 22/24.
+XAU PULLBACK_SWEEP_BOS had only 2 sent trades. V71 FX raw paths also show both archetypes around winners and losers. Do not hard-prune one archetype from these small samples.
 
 ### KD-2026-09-03-09 — selector bars are not independent setups
 
@@ -92,6 +100,10 @@ SHORT remains disabled/rejected.
 0.01 XAUUSDm BUY+close both returned server `10009 / done`. Do not rerun forced transport without contradictory evidence.
 
 ## Resolved harness / diagnostic incidents
+
+### KH-2026-09-03-09 — ZIP attachment mount failures — WORKAROUND ESTABLISHED
+
+Multiple V71 ZIP uploads were registered but not readable in the assistant runtime. Plain-text raw evidence bundles were readable and sufficient. Treat this as attachment transport, not packaging/MT5/strategy failure. Do not rerun tester evidence just to change transport format.
 
 ### KH-2026-09-03-08 — V70 7.14 baseline gate rejected valid cost-only replay drift — RESOLVED
 
@@ -121,9 +133,9 @@ Bridge and regression-test exact-head contracts.
 
 ## Trading-system lessons that must not be lost
 
-### KL-01 — V69 XAU losers are fast-loss dominated, but V71 FX losers are not
+### KL-01 — early-loss timing is symbol-specific
 
-XAU: 24 trades / 10W / 14L; 10/14 losers <=60 seconds. V71 FX: zero <=60-second losers across EURUSD/AUDUSD/USDJPY/GBPUSD. Do not use one timing threshold across instruments without evidence.
+XAU: 10/14 losers <=60 seconds. GBP: 8/16 losers <=15 minutes despite 0 <=60 seconds. EUR: 0/4 losers <=15 minutes. Do not use a single absolute timing threshold across instruments.
 
 ### KL-02 — XAU October concentration indicates regime sensitivity
 
@@ -145,13 +157,13 @@ Accepted XAU funnel: `460 -> 404 -> 167 -> 95 -> 51 -> 49 -> 24 -> 24`.
 
 BREAKOUT_RETEST_BOS accounts for 22/24 XAU trades.
 
-### KL-08 — EURUSD is the leading V71 FX screen, not a validated strategy
+### KL-08 — EURUSD is the leading V71 FX screen, not yet a validated strategy
 
-EURUSD: 8 trades / 4W / 4L / +$4.55 / PF 2.060606 / DD $3.30. Only two positive months and two negative months; five months flat. Treat as candidate-selection evidence only.
+EURUSD: 8 trades / 4W / 4L / +$4.55 / PF 2.060606 / DD $3.30. Raw evidence improves coherence but does not convert reused development data into independent evidence. V72 is the untouched temporal gate.
 
 ### KL-09 — GBPUSD direct portability is rejected
 
-GBPUSD: 19 trades / 3W / 16L / -$14.43 / PF 0.171166 / DD $16.32 / zero positive months. Do not tune around this failure inside the same portability screen.
+GBPUSD: 19 trades / 3W / 16L / -$14.43 / PF 0.171166 / DD $16.32 / zero positive months. Raw evidence identifies weak post-entry follow-through as the main observed mechanism. Do not tune around this failure inside V71.
 
 ## Permanent rules
 
@@ -169,12 +181,13 @@ GBPUSD: 19 trades / 3W / 16L / -$14.43 / PF 0.171166 / DD $16.32 / zero positive
 - All-bar selector rows are context, not setups.
 - `short_edge` in LONG-only runtime is abstention, not authorization to activate SHORT.
 - Do not loosen a gate from funnel volume alone.
-- Do not promote an archetype from two trades.
+- Do not promote an archetype from tiny samples.
 - Do not simulate trailing exits from peak MFE alone.
 - Prefer source-pinned reanalysis/packaging over unnecessary tester reruns.
 - For cross-symbol research, establish a no-retune portability baseline before any per-symbol optimization.
 - Keep one same-run control symbol when comparing instruments so tester cost/feed regime is contemporaneous.
 - Do not equate slower losses with positive edge.
 - Do not pool FX pairs into one strategy just because all are Forex.
+- Preregister untouched validation gates before running them; never rescue a failed holdout by post-hoc threshold changes.
 - SHORT remains disabled unless separately researched and explicitly approved.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
