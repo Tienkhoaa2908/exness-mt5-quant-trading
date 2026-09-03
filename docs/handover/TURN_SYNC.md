@@ -1,74 +1,69 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 18:xx (+07)
+Updated: 2026-09-03 18:38 (+07)
 
 ## User input
 
-User supplied Gemini's response saying its browser/search/sandbox could not read the now-public GitHub repository and asked for a reliable way to let Gemini inspect the repository directly, or alternatively to prepare the Google Drive route Gemini suggested.
+User confirmed Gemini successfully attached the GitHub code snapshot and supplied Gemini's first technical/methodology review. User now wants the external model pushed much harder toward code-level diagnosis and concrete technical improvement: inspect the implementation deeply, find actual defects/weak architecture, propose exact code changes, and keep researching the bot systematically rather than stopping at a high-level review.
 
 ## State read before work
 
-Fresh-resolved remote HEAD on `agent/v72-eurusd-independent-validation` at turn start:
+Fresh-resolved active branch at turn start:
 
-`79140c5ecf52bcc2f041d232a1222e5c9c34608f`
+`agent/v72-eurusd-independent-validation`
 
-Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Pre-change exact-head checks were green.
+Remote HEAD:
 
-## External product research
+`c08cff5eb2f8d87406f18b361e3427ced1c123e8`
 
-Official current Google Gemini Apps documentation was checked rather than relying on the external model's self-description.
+Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Exact-head checks were completed success.
 
-Gemini web on desktop has a native GitHub repository import path:
-
-`Add files -> More uploads -> Import code -> enter repository or branch URL -> Import`.
-
-Important properties from Google's documentation:
-
-- public GitHub repositories can be imported without linking a GitHub account;
-- private repositories require the GitHub account with access to be linked;
-- one repository can be attached per chat, up to 5,000 files and 100 MB;
-- the repository is a snapshot at import time and later GitHub changes are not synchronized into that Gemini chat;
-- Gemini's GitHub app cannot retrieve commit history, pull requests or other repository metadata;
-- merely putting a GitHub URL in the text prompt does **not** make Gemini read the repository;
-- the native import therefore bypasses the browser/indexing/outbound-network failures Gemini reported for source-code review.
-
-Google's file-upload documentation also states that a code folder has the same 5,000-file / 100-MB class of limits, while an ordinary ZIP can contain only up to 10 files. A giant repository ZIP on Drive is therefore not the preferred transport.
-
-Repository metadata confirms this public project is comfortably below the native Gemini repository size limit.
-
-## Stable Gemini review snapshot created
-
-Created a dedicated read-only-by-convention snapshot branch for the external review:
+Stable Gemini review snapshot remains:
 
 `external/gemini-review-20260903`
 
-Pinned commit:
+Pinned SHA:
 
 `f94aa2c1cd4d2e20fbfc94bc41a788658b78cc8e`
 
-This branch is intentionally not the active development branch and should not be advanced during the Gemini review. Its purpose is to give Gemini one stable branch URL for **Import code** while active research remains paused.
+The snapshot branch was re-verified/pinned and should remain stable during the external review.
 
-## Recommended review transport
+## Review of Gemini's first answer
 
-Primary route:
+Gemini's first answer is useful as a broad research critique, but it contains several claims that must be re-audited against code/data before being treated as facts, including generic/sample-size assertions, hard ATR/pip examples, GBPUSD mean-reversion characterization, exact entry-lag percentages, claims about transaction costs eliminating the edge, and prescriptive Fibonacci/ATR changes. The next prompt must force the model to separate repository fact, measured evidence, inference and hypothesis, and to retract or downgrade any unsupported statement from its own prior answer.
 
-1. use Gemini web on a computer;
-2. attach `external/gemini-review-20260903` through the native **Import code** UI, not by pasting the URL as prompt text;
-3. after the repository card is attached, paste the independent-review prompt and tell Gemini to treat the attached repository as the source-code truth;
-4. because GitHub import cannot expose commit history/PR metadata, require Gemini to mark that metadata unavailable instead of inventing it, and use the handover docs plus `.github/workflows/` for repository-grounded context.
+The external review also did not sufficiently exploit existing research infrastructure already present in the snapshot. The repository tree includes, among other assets:
 
-Fallback route if native GitHub import is unavailable in that Gemini account/mode:
+- `RUN_MULTI_FACTOR_EDGE_LAB_V1.cmd`;
+- `RUN_SIGNAL_INTELLIGENCE_LAB_V1.cmd`;
+- `RUN_ML_DL_FEATURE_LAKE_LAB_V1.cmd`;
+- `docs/adr/ADR-028-multifactor-edge-lab-one-run-batch.md`;
+- `docs/adr/ADR-029-signal-intelligence-before-more-strategy-expansion.md`;
+- `docs/adr/ADR-030-family-specific-regime-routing-before-complex-ml.md`;
+- `docs/adr/ADR-031-ml-dl-feature-lake-before-model-escalation.md`;
+- `docs/adr/ADR-032-ml-predicts-regime-not-direction.md`;
+- `docs/adr/ADR-038-causal-feature-availability-and-opportunity-weighting.md`.
 
-- create a sanitized code-folder snapshot from Git-tracked files at the pinned commit and use Gemini's **Import code -> Upload folder** path;
-- only if that is also unavailable, use Drive with a small number of consolidated text/Markdown evidence bundles rather than a many-file repository ZIP.
+The next external-review phase must inspect these before proposing a new offline simulator or feature-lake architecture from scratch.
 
-## Correction to the external Gemini response
+## External-review direction
 
-Its browser/search/VM networking failures may be genuine for that execution attempt, but they do not establish that Gemini Apps lacks repository access: the separate native GitHub import feature exists. Its claimed GitHub notification state must not be treated as repository authority unless independently verified; the actual active branch/head at turn start was `79140c5...`, not the unrelated short SHAs it reported.
+The next Gemini prompt should be a continuation prompt for the same chat with the attached repository. It should require a code-first engineering audit and concrete implementation plan, including:
+
+1. trace the complete V69/V71 strategy execution path from selector/context through setup/pending/retest/confirmation/order/risk/exit;
+2. identify exact functions, constants, state variables and unit conversions responsible for symbol portability, risk geometry and entry timing;
+3. distinguish true implementation defects from strategy hypotheses;
+4. inspect existing offline research labs and determine what can be reused versus what is missing;
+5. design telemetry/schema additions that capture only pre-entry causal features plus correctly bounded post-entry labels;
+6. produce exact file-level changes and, where useful, unified-diff/code-block patches for a successor research branch, without mutating the frozen V69/V70/V71/V72 evidence lineage;
+7. rank changes by information gain, expected economic impact, implementation risk and operator cost;
+8. avoid immediately requesting another long MT5 run; expensive tester work remains gated behind cheap/offline evidence;
+9. challenge and correct its own prior unsupported statements before using them to justify code changes;
+10. keep SHORT disabled and REAL unauthorized unless separately researched and explicitly approved.
 
 ## Project safety / operator cost
 
-No MT5 tester, strategy mutation, SHORT activation or REAL authorization is required for this review-transport work.
+No MT5 tester run, strategy mutation, SHORT activation or REAL authorization is requested from the operator in this turn.
 
 `NEXT_MT5_TESTER_ACTION=PAUSED`
 `SHORT_ENABLED=0`
@@ -76,4 +71,4 @@ No MT5 tester, strategy mutation, SHORT activation or REAL authorization is requ
 
 ## Next action
 
-User should attach the stable snapshot branch in Gemini web using **Add files -> More uploads -> Import code**, then paste a revised review prompt that refers to the attached repository rather than asking Gemini's browser to fetch GitHub. Use code-folder/Drive fallback only if native import is unavailable or errors in the user's Gemini account.
+Give the user a stronger continuation prompt to paste into the same Gemini chat. The prompt should explicitly demand code-level architecture tracing, exact repository evidence, concrete patch proposals, reuse of existing research-lab infrastructure, and persistent falsification-driven investigation rather than another generic quant review.
