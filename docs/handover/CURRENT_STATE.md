@@ -1,6 +1,6 @@
 # CURRENT STATE — Exness / MetaTrader 5 Quant Trading System
 
-Updated: 2026-09-03 06:50 (+07)
+Updated: 2026-09-03 07:02 (+07)
 
 ## Authority
 
@@ -23,7 +23,9 @@ Frozen forward source SHA256: `0e3f168fa3de9ea62d7ec12d06efbf4d8d67989815056683a
 
 Contract: XAUUSDm M15; LONG only; lot 0.01; structural risk about $0.85-$1.10; emergency loss guard about $1.20; target +$3.50; risk/spread >=4; reclaim -> separation >=$1.30 -> later retest -> confirm age >=30s -> entry-ready; fixed stop; inherited +$2 -> about +$1 ratchet; SHORT disabled; REAL false.
 
-Accepted V69 development headline: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34` under the historical legacy headline accounting. Sep 2025-May 2026 is development-only.
+Accepted V69 development headline: `24 trades / 10W / 14L / +$7.14 / PF 1.462 / DD $3.34` under historical legacy headline accounting. Sep 2025-May 2026 is development-only.
+
+Monthly V69 development replay: Sep `-$1.84`; Oct `+$9.15`; Nov `+$1.24`; Dec `-$2.28`; Jan `+$0.87`; **Feb-May flat with zero trades**. Ex-Oct total `-$2.01`.
 
 ## Settled questions
 
@@ -57,11 +59,11 @@ All nine monthly evidence directories were written successfully.
 The raw CSV evidence is retained and reusable. The first analyzer output is INVALID for policy selection because of two post-replay analyzer defects:
 
 1. V70 read invented `v1/v2/v3` keys instead of real V64 event fields `value1/value2/value3`, which zeroed true excursion and corrupted policy trigger PnL.
-2. Baseline identity compared full round-trip economic PnL (`+$6.44`) against the legacy accepted headline (`+$7.14`). The difference is accounting convention: legacy accepted uses exit-row costs only; economic round-trip includes entry+exit explicit costs.
+2. Baseline identity compared full round-trip economic PnL (`+$6.44`) against the legacy accepted headline (`+$7.14`). Legacy accepted uses exit-row costs only; economic round-trip includes entry+exit explicit costs.
 
 Do not reuse any first-run `POLICY_*` number, including the apparent EARLY improvement.
 
-## Patched analyzer and fast recovery path
+## Corrected analyzer
 
 The analyzer/runtime now:
 
@@ -71,17 +73,33 @@ The analyzer/runtime now:
 - compares policy economics consistently against full round-trip economic baseline;
 - fails closed if true position-lifetime excursion/policy telemetry remains all zero.
 
-To avoid wasting another ~9-month tester campaign, V70 now supports source-pinned existing-evidence reanalysis with `V70_REANALYZE_EXISTING=1`.
+## Fast existing-evidence reanalysis — zero-trade month guard fixed
 
-The fast path:
+`V70_REANALYZE_EXISTING=1` remains the primary recovery path. It does not launch MT5, MetaEditor, compile, or Strategy Tester.
 
-- regenerates expected source text in memory and SHA-checks it against local `OUTPUT_V70/V70ExitHarvestShadowLong.mq5`;
-- requires all nine existing monthly directories with non-empty `V64_DEALS.csv` and `V64_EVENTS.csv`;
-- requires V70 exit-shadow START/END lifecycle markers;
-- then runs only the corrected analyzer and the baseline/telemetry fail-closed guards;
-- does not launch MT5, MetaEditor, compile, or Strategy Tester.
+The operator ran the first fast reanalysis at exact checkpoint `a74e48c0bbf4d24801d798f10acbb27671e72dd7`.
 
-Only if source identity/evidence integrity fails should the full tester campaign be rerun.
+Source pin passed:
+
+`V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS sha256=b67656b5aae22783eb949d72f60d6a42a51a4a7bf10178af0032c3e7747a5536`
+
+The fast path then stopped at `holdout_2026_02_long` with `V70 existing evidence lacks exit-shadow lifecycle`.
+
+This was a harness-integrity bug, not damaged evidence. V69/V70 has zero trades from Feb through May, so a zero-trade month correctly has **zero position-lifetime shadow START/END blocks**. Requiring lifecycle markers in every month was scientifically wrong.
+
+The corrected fast-path integrity contract is now:
+
+- every one of the nine monthly directories must exist and contain the expected CSV files;
+- each month is parsed through the same corrected V70 analyzer;
+- months with zero trades are valid only with zero shadow blocks;
+- months with trades must have exactly matching completed shadow blocks, with entry/shadow timestamp matching enforced by the analyzer;
+- stray shadows in a zero-trade month, missing shadows in a traded month, overlapping shadows, unterminated shadows, or trade/shadow count mismatch fail closed;
+- the aggregate replay must still contain at least one matched trade;
+- the final accepted identity remains 24/10/14/~+$7.14 and the global true-excursion guard must pass.
+
+Regression tests now model a mixed campaign containing one legitimate zero-trade month plus one valid traded month, and separately prove that a traded month without lifecycle fails closed.
+
+No V69 entry semantics, actual exit semantics, policy semantics, LONG-only boundary, SHORT state, or REAL authorization changed.
 
 ## Current classification
 
@@ -94,7 +112,8 @@ Only if source identity/evidence integrity fails should the full tester campaign
 `V70_RAW_NINE_MONTH_EVIDENCE=REUSABLE_IF_SOURCE_IDENTITY_PASS`
 `V70_ACCOUNTING_CONVENTIONS=SEPARATED`
 `V70_EVENT_SCHEMA=value1_value2_value3`
-`V70_EXISTING_EVIDENCE_REANALYSIS=IMPLEMENTED`
+`V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS_ON_OPERATOR_MACHINE`
+`V70_ZERO_TRADE_MONTH_LIFECYCLE_REQUIREMENT=FIXED`
 `V70_ENTRY_SEMANTICS_CHANGED=0`
 `V70_REAL_EXIT_SEMANTICS_CHANGED=0`
 `V70_COUNTERFACTUAL_EXIT_SHADOW_ONLY=1`
@@ -104,9 +123,9 @@ Only if source identity/evidence integrity fails should the full tester campaign
 ## Next gate
 
 1. Require all six exact-head workflows completed/success after final handover synchronization.
-2. Fast-forward to that exact HEAD and export `V70_EXIT_HARVEST_EXPECTED_HEAD`.
-3. Export `V70_REANALYZE_EXISTING=1` and run the normal V70 launcher. MT5/MetaEditor state is irrelevant because this fast path exits before those process checks and does not launch them.
-4. Require `V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS`, `V70_EXISTING_EVIDENCE_MONTHS=PASS count=9`, `V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS`, and `V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS` before interpreting policies.
+2. Fast-forward only to that exact final `agent/v70-exit-harvest-research` HEAD and export `V70_EXIT_HARVEST_EXPECTED_HEAD` to it.
+3. Keep `V70_REANALYZE_EXISTING=1` and run the normal V70 launcher again. **Do not rerun Strategy Tester.** MT5/MetaEditor state is irrelevant to this fast path.
+4. Require `V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS`, nine `V70_EXISTING_EVIDENCE_MONTH=PASS` lines, `V70_EXISTING_EVIDENCE_LIFECYCLE=PASS`, `V70_EXISTING_EVIDENCE_MONTHS=PASS count=9`, `V70_BASELINE_ACCEPTED_V69_IDENTITY=PASS`, and `V70_TRUE_POSITION_LIFETIME_TELEMETRY=PASS` before interpreting policies.
 5. Then choose at most one policy if it materially improves economic round-trip net/PF/DD without unacceptable winner damage. Otherwise close exit-harvest research and move immediately to entry/re-entry quality.
-6. If existing source/evidence identity fails, only then fall back to a full nine-month tester replay.
+6. Only if source identity or actual trade/shadow matching fails after this fix should a full tester fallback be considered.
 7. Do not enable SHORT. Do not authorize REAL money.
