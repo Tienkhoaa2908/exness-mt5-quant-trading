@@ -1,16 +1,24 @@
 # KNOWN FAILURES / DO-NOT-REPEAT REGISTRY
 
-Updated: 2026-09-03 16:40 (+07)
+Updated: 2026-09-03 16:48 (+07)
 
 Read this before modifying Windows/MT5 runtime or strategy code.
 
 ## Active diagnostic lessons
 
+### KD-2026-09-03-26 — positive net and threshold PF do not rescue a failed risk-path gate
+
+V72 untouched EURUSD validation (`2024.09.01 -> 2025.09.01`) produced 23 trades, +$4.11 net, PF 1.250457, 2 positive months and +$0.60 ex-best-trade net, but max realized DD reached $10.23 versus the preregistered $5.00 ceiling.
+
+This is a formal FAIL even though several headline metrics are positive. The unchanged EURUSD candidate must not be promoted or post-hoc retuned on the failed holdout.
+
+The monthly path is also concentrated: May +$7.02 and June +$9.42 account for $16.44 of positive PnL, while seven negative months total -$12.33. Treat month/regime concentration and drawdown as first-class robustness evidence, not secondary statistics.
+
 ### KD-2026-09-03-25 — a zero <=60s loss rate can still hide severe early-entry failure
 
-V71 GBPUSD had 0/16 losing trades closed within 60 seconds, but raw trade durations show 8/16 = 50% of GBP losses closed within 15 minutes. EURUSD had 0/4 losses within 15 minutes; its losing trades lasted about 17-39 minutes. XAU remained the ultra-fast case with 10/14 losses <=60 seconds.
+V71 GBPUSD had 0/16 losing trades closed within 60 seconds, but raw trade durations show 8/16 = 50% of GBP losses closed within 15 minutes. EURUSD had 0/4 losses within 15 minutes in V71, but V72 later showed 5/15 = 33.33% EUR losses <=15 minutes on the earlier untouched period. Early-loss timing is therefore both symbol-specific and regime-specific.
 
-Therefore cross-symbol timing diagnostics need instrument-appropriate horizons. Do not conclude "FX has no fast-loss problem" from the <=60-second statistic alone.
+Do not conclude "FX has no fast-loss problem" from one period or one absolute horizon.
 
 ### KD-2026-09-03-24 — GBPUSD failure is follow-through failure, not wider loss geometry
 
@@ -20,13 +28,15 @@ Do not widen GBP stops to "fix" V71. The unchanged strategy is entering GBP cond
 
 ### KD-2026-09-03-23 — do not rescue a selected candidate by tuning on its first untouched validation
 
-After V71 selected EURUSD from reused development history, V72 preregisters one earlier untouched temporal pass (`2024.09.01 -> 2025.09.01`) using the exact V71 source SHA and zero retuning. Acceptance thresholds are fixed before the run. If adequately sampled validation fails, reject the unchanged candidate rather than tuning on the failed holdout.
+After V71 selected EURUSD from reused development history, V72 preregistered one earlier untouched temporal pass (`2024.09.01 -> 2025.09.01`) using the exact V71 source SHA and zero retuning. V72 was adequately sampled and failed the preregistered drawdown gate.
+
+That failed period is now consumed evidence. Do not change EURUSD thresholds on it and then call the resulting variant independently validated.
 
 ### KD-2026-09-03-22 — do not generalize XAU fast-loss timing to FX
 
-V71 direct no-retune portability produced XAU fast-loss share 10/14 = 71.43%, but all tested FX pairs had zero losing trades closed within 60 seconds: EURUSD 0/4, AUDUSD 0/4, USDJPY 0/4, GBPUSD 0/16.
+V71 direct no-retune portability produced XAU fast-loss share 10/14 = 71.43%, while the four FX pairs had zero losing trades closed within 60 seconds in that campaign. Later raw/V72 evidence refined this: GBP had substantial <=15-minute losses and EUR's <=15-minute loss share rose to 33.33% in the earlier untouched period.
 
-This supports an instrument-speed explanation for the <=60s statistic, but KD-25 refines it: GBP still has substantial <=15-minute early failures.
+Instrument speed matters, but regime also changes the timing distribution.
 
 ### KD-2026-09-03-21 — direct portability can fail catastrophically even when risk dollars are normalized
 
@@ -101,21 +111,13 @@ SHORT remains disabled/rejected.
 
 ## Resolved harness / diagnostic incidents
 
-### KH-2026-09-03-10 — V72 collector telemetry-root mismatch — FIXED, RECOVERY PENDING
+### KH-2026-09-03-10 — V72 collector telemetry-root mismatch — RESOLVED
 
-The first V72 EURUSD tester process completed with MT5 `rc=0`, but the collector failed with `missing V64_ENTRY_EVAL.csv; root_listing=`. The exact pinned V71 source hardcodes FILE_COMMON root `mt5_quant\\v71_fx_portability`, while the original V72 runner incorrectly changed the reused V64 collector to `mt5_quant\\v72_eurusd_independent_validation`.
+The first V72 EURUSD tester process completed with MT5 `rc=0`, but the collector looked under `mt5_quant\\v72_eurusd_independent_validation` while the exact hash-pinned V71 source wrote to `mt5_quant\\v71_fx_portability`.
 
-This is a harness path mismatch only. It is not strategy, broker or tester evidence.
+The corrected collector now follows the source root. On the successful rerun it correctly rejected mixed/stale V71+V72 root contents, archived them, reset the exact source root, ran one fresh real-tick pass and exported valid V72 evidence. No strategy change was involved.
 
-Fix rules:
-
-- do not mutate the hash-pinned V71 source merely to rename telemetry output;
-- point the V72 collector at the source's actual `v71_fx_portability` common root;
-- before rerunning tester, attempt to recover the just-completed evidence;
-- accept recovered evidence only if the required CSVs exist and timestamped rows are confined to the preregistered `2024.09.01 -> 2025.09.01` period;
-- reject stale V71 Sep-2025+ or mixed-period data and only then rerun one tester pass.
-
-Regression tests now assert source-root/collector alignment and valid-vs-stale recovery behavior.
+Permanent rule: when a source is hash-pinned, collector/output paths must match the source's actual telemetry root; do not invent a new root in the harness without changing and re-pinning the source.
 
 ### KH-2026-09-03-09 — ZIP attachment mount failures — WORKAROUND ESTABLISHED
 
@@ -149,9 +151,9 @@ Bridge and regression-test exact-head contracts.
 
 ## Trading-system lessons that must not be lost
 
-### KL-01 — early-loss timing is symbol-specific
+### KL-01 — early-loss timing is symbol- and regime-specific
 
-XAU: 10/14 losers <=60 seconds. GBP: 8/16 losers <=15 minutes despite 0 <=60 seconds. EUR: 0/4 losers <=15 minutes. Do not use a single absolute timing threshold across instruments.
+XAU V69/V71: 10/14 losers <=60 seconds. GBP V71: 8/16 losers <=15 minutes despite 0 <=60 seconds. EUR V71: 0/4 losers <=15 minutes; EUR V72 earlier period: 5/15 <=15 minutes. Do not use a single absolute timing threshold across instruments or assume one period's timing profile persists.
 
 ### KL-02 — XAU October concentration indicates regime sensitivity
 
@@ -173,9 +175,11 @@ Accepted XAU funnel: `460 -> 404 -> 167 -> 95 -> 51 -> 49 -> 24 -> 24`.
 
 BREAKOUT_RETEST_BOS accounts for 22/24 XAU trades.
 
-### KL-08 — EURUSD is the leading V71 FX screen, not yet a validated strategy
+### KL-08 — EURUSD no-retune screen did not survive the preregistered risk gate
 
-EURUSD: 8 trades / 4W / 4L / +$4.55 / PF 2.060606 / DD $3.30. Raw evidence improves coherence but does not convert reused development data into independent evidence. V72 is the untouched temporal gate.
+V71 EURUSD screen: 8 trades / 4W / 4L / +$4.55 / PF 2.060606 / DD $3.30.
+
+V72 untouched earlier period: 23 trades / 8W / 15L / +$4.11 / PF 1.250457 / DD $10.23. It passed net, PF, positive-month and ex-best requirements but failed the fixed DD <=$5 gate. Unchanged EURUSD is rejected for promotion; no post-hoc rescue tuning on V72.
 
 ### KL-09 — GBPUSD direct portability is rejected
 
@@ -205,6 +209,6 @@ GBPUSD: 19 trades / 3W / 16L / -$14.43 / PF 0.171166 / DD $16.32 / zero positive
 - Do not equate slower losses with positive edge.
 - Do not pool FX pairs into one strategy just because all are Forex.
 - Preregister untouched validation gates before running them; never rescue a failed holdout by post-hoc threshold changes.
-- When a source is hash-pinned, collector/output paths must match the source's actual telemetry root; do not invent a new root in the harness without changing and re-pinning the source.
+- A positive net result is not a PASS when a preregistered risk-path gate fails.
 - SHORT remains disabled unless separately researched and explicitly approved.
 - REAL money remains fail-closed until a separate explicit deployment/risk decision.
