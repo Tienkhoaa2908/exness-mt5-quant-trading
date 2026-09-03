@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 import importlib.util
 import os
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
 
 EXPECTED_BRANCH = "agent/v72-eurusd-independent-validation"
@@ -15,6 +17,9 @@ TO_DATE = "2025.09.01"
 REAL_MODEL = 4
 EXPERT = "V71FxPortabilityLong"
 EXPECTED_SOURCE_SHA256 = "32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c"
+# The exact pinned V71 source writes FILE_COMMON telemetry here. V72 must read the
+# same root; changing the source root would change the pinned source SHA.
+SOURCE_COMMON_DIR = "v71_fx_portability"
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -70,11 +75,81 @@ def configure_runtime():
     fixed.install_mt5_locator_compat(runner.base)
     fixed.install_compile_diagnostics(runner)
     runner.OUT = OUT
-    runner.COMMON_DIR = "v72_eurusd_independent_validation"
+    # Exact V71 source is hash-pinned and hardcodes mt5_quant\\v71_fx_portability.
+    # Point the reused harness at that exact telemetry root instead of inventing a
+    # V72 root that the EA never writes to.
+    runner.COMMON_DIR = SOURCE_COMMON_DIR
     runner.EXPECTED_BRANCH = EXPECTED_BRANCH
     runner.PERIOD = "M15"
     runner.SYMBOL = SYMBOL
     return runner
+
+
+def parse_time(raw: str | None) -> datetime | None:
+    value = (raw or "").strip()
+    for fmt in ("%Y.%m.%d %H:%M:%S", "%Y.%m.%d %H:%M", "%Y.%m.%d"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            pass
+    return None
+
+
+def read_times(path: Path) -> list[datetime]:
+    if not path.is_file() or path.stat().st_size <= 0:
+        return []
+    with path.open("r", encoding="utf-8-sig", errors="replace", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    out: list[datetime] = []
+    for row in rows:
+        dt = parse_time(row.get("time"))
+        if dt is not None:
+            out.append(dt)
+    return out
+
+
+def recover_existing_v72_evidence(runner, common: Path, label: str) -> Path | None:
+    """Recover the tester pass that completed before the old runner looked in the wrong root.
+
+    Recovery is fail-closed: the pinned V71 telemetry root is accepted only when the three
+    primary CSVs exist and every timestamped row belongs to the preregistered V72 period.
+    Stale V71 Sep-2025+ evidence therefore cannot be silently reused.
+    """
+    root = common / "mt5_quant" / SOURCE_COMMON_DIR
+    primary = ("V64_ENTRY_EVAL.csv", "V64_EVENTS.csv", "V64_DEALS.csv")
+    missing = [name for name in primary if not (root / name).is_file() or (root / name).stat().st_size <= 0]
+    if missing:
+        print(f"V72_EURUSD_EXISTING_EVIDENCE_CHECK=MISS root={root} missing={','.join(missing)}")
+        return None
+
+    eval_times = read_times(root / "V64_ENTRY_EVAL.csv")
+    all_times: list[datetime] = []
+    for name in primary:
+        all_times.extend(read_times(root / name))
+    if not eval_times or not all_times:
+        print(f"V72_EURUSD_EXISTING_EVIDENCE_CHECK=MISS root={root} reason=no_timestamped_rows")
+        return None
+
+    lower = datetime.strptime(FROM_DATE, "%Y.%m.%d")
+    # Tester ToDate handling can include timestamps on the named boundary date, so allow
+    # that calendar day but nothing beyond it.
+    upper = datetime.strptime(TO_DATE, "%Y.%m.%d") + timedelta(days=1)
+    first = min(all_times)
+    last = max(all_times)
+    if first < lower or last >= upper:
+        print(
+            "V72_EURUSD_EXISTING_EVIDENCE_CHECK=REJECT "
+            f"root={root} first={first} last={last} allowed=[{lower},{upper})"
+        )
+        return None
+
+    print(
+        "V72_EURUSD_EXISTING_EVIDENCE_CHECK=PASS "
+        f"root={root} first={first} last={last} eval_rows={len(eval_times)}"
+    )
+    result = runner.copy_run(root, label)
+    print(f"V72_EURUSD_TEST_RECOVERED_EXISTING=1 evidence={result}")
+    return result
 
 
 def main() -> int:
@@ -110,11 +185,15 @@ def main() -> int:
     runner.compile_source(source, digest, data, expert_dir, EXPERT)
 
     label = "v72_eurusdm_untouched_long"
-    root = runner.reset_common(common, label)
-    ini = runner.write_config(data, EXPERT, FROM_DATE, TO_DATE, label, REAL_MODEL)
-    print(f"V72_EURUSD_TEST_START symbol={SYMBOL} from={FROM_DATE} to={TO_DATE}")
-    result = runner.run_terminal(root, ini, label, REAL_MODEL, timeout=5400)
-    print(f"V72_EURUSD_TEST_DONE evidence={result}")
+    result = recover_existing_v72_evidence(runner, common, label)
+    if result is None:
+        root = runner.reset_common(common, label)
+        ini = runner.write_config(data, EXPERT, FROM_DATE, TO_DATE, label, REAL_MODEL)
+        print(f"V72_EURUSD_TEST_START symbol={SYMBOL} from={FROM_DATE} to={TO_DATE}")
+        result = runner.run_terminal(root, ini, label, REAL_MODEL, timeout=5400)
+        print(f"V72_EURUSD_TEST_DONE evidence={result}")
+    else:
+        print("V72_EURUSD_TEST_RERUN=0")
 
     output = OUT / "v72_eurusd_validation.json"
     summary = OUT / "V72_EURUSD_VALIDATION_SUMMARY.txt"
