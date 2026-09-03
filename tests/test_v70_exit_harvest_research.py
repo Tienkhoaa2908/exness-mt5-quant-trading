@@ -197,10 +197,59 @@ def test_existing_evidence_reanalysis_is_source_pinned_and_skips_tester() -> Non
     assert 'REANALYZE_ENV = "V70_REANALYZE_EXISTING"' in src
     assert "V70_EXISTING_EVIDENCE_SOURCE_IDENTITY=PASS" in src
     assert "V70_EXISTING_EVIDENCE_MONTHS=PASS" in src
+    assert "V70_EXISTING_EVIDENCE_LIFECYCLE=PASS" in src
     assert "V70_EXISTING_EVIDENCE_REANALYSIS" in src
     assert "builder.transform()" in src
     assert '"V64_DEALS.csv", "V64_EVENTS.csv"' in src
+    assert "analyzer.analyze_run(run_dir)" in src
+    assert "events_text" not in src
     assert src.index("if reanalyze_existing:") < src.index("data = runner.base.find_mt5_data_dir()")
+
+
+def test_existing_evidence_zero_trade_month_needs_zero_shadows_not_fake_lifecycle() -> None:
+    m = load(RUNTIME, "v70_exit_runtime_zero_trade_month_test")
+    old_out = m.OUT
+    old_months = m.REPLAY_MONTHS
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            m.OUT = Path(td)
+            m.REPLAY_MONTHS = [("zero", "2026.02.01", "2026.03.01")]
+            run_dir = m.OUT / "holdout_zero_long"
+            run_dir.mkdir(parents=True)
+            (run_dir / "V64_DEALS.csv").write_text(
+                "time,entry,profit,commission,swap,fee,price,reason\n",
+                encoding="utf-8",
+            )
+            (run_dir / "V64_EVENTS.csv").write_text(
+                "time,event,detail,value1,value2,value3\n",
+                encoding="utf-8",
+            )
+            dirs = m.existing_run_dirs()
+            assert dirs == [run_dir]
+
+            m.REPLAY_MONTHS = [("trade", "2025.09.01", "2025.10.01")]
+            traded = m.OUT / "holdout_trade_long"
+            traded.mkdir(parents=True)
+            (traded / "V64_DEALS.csv").write_text(
+                "time,entry,profit,commission,swap,fee,price,reason\n"
+                "2025.09.01 00:00:01,0,0,-0.10,0,0,3500,0\n"
+                "2025.09.01 00:01:01,1,1.00,-0.05,0,0,3501,0\n",
+                encoding="utf-8",
+            )
+            (traded / "V64_EVENTS.csv").write_text(
+                "time,event,detail,value1,value2,value3\n",
+                encoding="utf-8",
+            )
+            try:
+                m.existing_run_dirs()
+            except RuntimeError as exc:
+                assert "trade/shadow integrity failure" in str(exc)
+                assert "trade/shadow count mismatch trades=1 shadows=0" in str(exc)
+            else:
+                raise AssertionError("traded month without V70 lifecycle must fail closed")
+    finally:
+        m.OUT = old_out
+        m.REPLAY_MONTHS = old_months
 
 
 def test_runtime_is_exact_head_tester_only_long_only() -> None:
