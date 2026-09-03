@@ -39,19 +39,18 @@ def make_run(root: Path, pnls: list[float]) -> None:
     write_csv(root / "V64_ENTRY_EVAL.csv", ["time"], [{"time": "2024.09.01 00:00:00"}])
 
 
-def test_preregistered_acceptance_pass_and_ex_best_guard() -> None:
+def test_preregistered_acceptance_and_ex_best_guard() -> None:
     mod = load(ANALYZER, "v72_analyzer_test")
     with tempfile.TemporaryDirectory() as td:
         root = Path(td)
-        make_run(root, [3.5, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0])
+        make_run(root, [3.5, 2.0, 2.0, 1.0, -1.0, -1.0, -1.0, -1.0])
         result = mod.analyze(root)
         assert result["metrics"]["trades"] == 8
         assert result["metrics"]["net_usd"] > 0
         assert result["metrics"]["ex_best_trade_net_usd"] > 0
-        assert result["classification"] == "INSUFFICIENT_SAMPLE" or result["classification"] in {"PASS", "FAIL"}
         # One synthetic month intentionally cannot satisfy the positive-month gate.
         assert result["classification"] == "FAIL"
-    print("PASS test_preregistered_acceptance_pass_and_ex_best_guard")
+    print("PASS test_preregistered_acceptance_and_ex_best_guard")
 
 
 def test_insufficient_sample_is_not_false_pass() -> None:
@@ -90,7 +89,7 @@ def test_launcher_is_one_pass_fail_closed() -> None:
 
 
 if __name__ == "__main__":
-    test_preregistered_acceptance_pass_and_ex_best_guard()
+    test_preregistered_acceptance_and_ex_best_guard()
     test_insufficient_sample_is_not_false_pass()
     test_runner_is_exact_source_untouched_long_only()
     test_launcher_is_one_pass_fail_closed()
