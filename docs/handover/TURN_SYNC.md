@@ -1,97 +1,103 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 07:45 (+07)
+Updated: 2026-09-03 08:00 (+07)
 
 ## User input
 
-Operator ran the focused V70 accepted-baseline raw-deal audit at exact checkpoint:
+User requested moving beyond XAUUSD and testing Forex pairs because gold moves quickly and fast losses may be difficult to avoid structurally on that instrument.
 
-`79e48be0469bf4324ee11b7e2708e980b62caa76`
+## State read before work
 
-The accepted V69 ZIP identity passed exactly:
+Resolved exact pre-change remote HEAD on `agent/v70-exit-harvest-research`:
 
-`e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb`
+`bf2b30985432893dd57875dc2950819b939be606`
 
-Audit result:
+Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md` and checked exact-head CI. All six pre-change checks were completed successfully.
 
-- `V70_BASELINE_AUDIT_TRADES=accepted:24 v70:24`;
-- accepted net `7.14`, V70 net `6.44`, delta `-0.70`;
-- classification `SAME_EXIT_TIMES_VALUE_DRIFT`;
-- difference classes `{"EXIT_COST_DRIFT": 1}`;
-- only Sep differs; Oct-Jan are identical and Feb-May remain zero-trade;
-- affected exit is Sep trade index 4 at `2025.09.21 22:05:00`;
-- accepted/current price `3687.969` identical;
-- accepted/current gross profit `$3.64` identical;
-- accepted/current reason `5` identical;
-- accepted swap `$0.00`, V70 swap `-$0.70`;
-- commission and fee remain zero.
+V70 remained closed research-only / no exit promotion. Frozen V69 safety/identity remained unchanged.
 
-`V70_BASELINE_DRIFT_AUDIT=PASS`.
+## Research decision
 
-## Classification
+Create a separate cross-symbol successor rather than mutating frozen V69 or retuning XAU thresholds.
 
-The previous suspicion that the V70 observation hook might have changed exit timing is rejected by the raw evidence for this mismatch. The -$0.70 is entirely an exit-cost/swap value drift with unchanged tested exit timestamp, price, gross profit and reason.
+New branch:
 
-The audit supports a conservative interpretation: historical financing/cost data or tester cost modeling changed between the accepted V69 run and the current V70 run. It does not identify the exact external source of that swap-table change.
+`agent/v71-fx-portability-research`
 
-Accepted V69 remains frozen at +$7.14. Current V70 policy economics should be compared to the same-run +$6.44 baseline; do not rewrite historical V69 results.
+V71 asks a narrow question: does the exact V69 LONG setup/entry/real-exit logic transfer to major FX symbols when nominal lot and cash-risk budget are held constant?
 
-## Code action
+The first pass intentionally performs **no symbol-specific retuning**. This prevents optimization leakage and makes the comparison interpretable.
 
-The V70 runtime baseline gate was corrected without changing strategy semantics.
+## Default campaign
 
-Old behavior:
+One compile, five full-period real-tick Strategy Tester passes:
 
-- any current baseline outside `7.14 +/- 0.05` failed, even when raw execution identity was unchanged and only historical costs drifted.
+1. `XAUUSDm` — contemporaneous control;
+2. `EURUSDm`;
+3. `GBPUSDm`;
+4. `USDJPYm`;
+5. `AUDUSDm`.
 
-New behavior:
+Each pass covers `2025.09.01 -> 2026.06.01`, M15, LONG only, Model=4.
 
-- exact +7.14 still passes normally;
-- a non-identical current net requires the hash-pinned accepted V69 raw audit;
-- accepted ZIP must reproduce 24 trades and about +$7.14;
-- current analyzer net must exactly match current raw-audit net;
-- only `SAME_EXIT_TIMES_VALUE_DRIFT` is considered;
-- difference classes must be exactly `EXIT_COST_DRIFT`;
-- each differing row is independently checked for identical exit time, price, gross profit and reason;
-- any cohort, timing, price, gross-profit or reason change fails closed.
+V69 cash/geometry contract remains unchanged:
 
-The accepted-net tolerance was not widened. No V69/V70 entry, actual exit, LONG-only, SHORT or REAL semantic changed.
+- lot 0.01;
+- stop-risk band $0.85-$1.10;
+- emergency $1.20;
+- target $3.50;
+- risk/spread >=4;
+- separation $1.30;
+- confirm age >=30 seconds.
 
-Regression tests now cover:
+No V70 TIERED exit is activated. SHORT remains disabled. REAL authorization remains false.
 
-- exact accepted baseline;
-- cost-only drift accepted only with raw audit;
-- non-identical baseline without audit rejected;
-- price drift rejected;
-- timing drift rejected;
-- hidden exit-reason change rejected;
-- existing lifecycle and zero-trade protections retained.
+## Code implemented
 
-Dedicated V70 CI passed on the code checkpoint before final handover synchronization.
+Added:
 
-## Economic decision
+- `scripts/build_v71_fx_portability_source.py`;
+- `scripts/analyze_v71_fx_portability.py`;
+- `runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH.py`;
+- `runtime/v71_fx_portability_research/RUN_V71_FX_PORTABILITY_RESEARCH_GIT_BASH.sh`;
+- `tests/test_v71_fx_portability_research.py`;
+- `.github/workflows/v71_fx_portability_quality.yml`.
 
-Same-run policy results from the corrected V70 evidence remain:
+Builder regression normalizes V71 metadata back to V69 and requires exact source equality with `parent.transform(1)`. Therefore V71 cannot silently change decision semantics while claiming portability.
 
-- BASELINE_200_100: `+$6.48`, delta `+$0.04`, PF `1.419689`, DD `$3.65`;
-- EARLY_100_025: `+$7.08`, delta `+$0.64`, PF `1.494759`, DD `$3.27`, 2 changed trades;
-- MID_150_050: `+$6.44`, delta `$0.00`;
-- TIERED_100_025_200_100: `+$7.12`, delta `+$0.68`, PF `1.497554`, DD `$3.27`, 4 changed trades.
+The runner uses one full-period pass per symbol instead of monthly tester passes. Analyzer reconstructs month-level PnL afterward and reports per symbol:
 
-Decision: no exit-policy semantic promotion from V70. TIERED remains the strongest candidate, but +$0.68 on a reused 24-trade development sample, with only four changed trades and only +$0.04 incremental benefit over EARLY, is not enough to justify mutating the frozen/forward exit contract.
+- trades/wins/losses;
+- net/PF/realized DD;
+- explicit costs;
+- fast losses <=60 seconds and share;
+- positive/negative/flat month count;
+- month breakdown;
+- event funnel;
+- top evaluation rejects;
+- FX ranking with XAU kept as same-run control.
 
-V70 exit-harvest is therefore closed as research-only / no promotion. The next successor research should target the larger verified weaknesses: fast-loss avoidance, regime/session breadth, breakout-retest follow-through and post-retest entry quality.
+`V71_FX_SYMBOLS` can override the default comma-separated symbol list if broker naming differs, but XAU control is automatically retained.
+
+## CI status during implementation
+
+At code checkpoint `a6782f7334190cc678760a0cb54e624f64757e78`, the new `v71-fx-portability-static` workflow completed successfully. Legacy V69/V70 checks observed at that checkpoint had no failures; final exact-head CI must still be rechecked after handover synchronization.
 
 ## Safety
 
-SHORT remains disabled/rejected.
-REAL money remains unauthorized.
-No Strategy Tester rerun is required for this V70 resolution.
+`V71_V69_LONG_STRATEGY_EQUIVALENT=1`
+`V71_FX_ENTRY_RETUNE=0`
+`V71_FX_EXIT_RETUNE=0`
+`SHORT_ENABLED=0`
+`REAL_MONEY_AUTHORIZED=0`
 
-## Next action
+## Next operator action
 
-1. Require all exact-head workflows to complete successfully after final handover synchronization.
-2. Do not ask the operator to rerun V70 merely to reproduce already-established evidence.
-3. Start the next successor research on a separate branch focused on LONG entry/re-entry quality.
-4. Retain TIERED as shadow-only candidate for later independent/prospective validation.
-5. Do not enable SHORT and do not authorize REAL money.
+After final exact-head CI is fully green:
+
+1. close MT5 and MetaEditor;
+2. fast-forward to the final V71 HEAD;
+3. run the single V71 launcher;
+4. return the final `V71_FX_RESULTS`, `V71_FX_RANKING`, `V71_FX_BY_MONTH`, `V71_FX_EVENT_FUNNEL` and PASS markers.
+
+If a symbol such as `EURUSDm` is not available on the broker account, classify it as broker symbol naming/availability only and adjust the symbol list. Do not retune strategy thresholds to solve a symbol-name failure.
