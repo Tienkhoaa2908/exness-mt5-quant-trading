@@ -1,70 +1,85 @@
 # TURN SYNC — LATEST PROJECT TURN
 
-Updated: 2026-09-03 15:45 (+07)
+Updated: 2026-09-03 16:40 (+07)
 
 ## User input
 
-User uploaded plain-text V71 raw review bundles for EURUSDm, GBPUSDm and XAUUSDm after repeated ZIP mount failures. No separate typed request was supplied; continue the previously requested deep raw-evidence review and next research action.
+User ran the preregistered one-pass V72 EURUSD untouched validation. Build, source hash, compile and MT5 tester process completed, but the launcher failed after MT5 exited because `V64_ENTRY_EVAL.csv` was not found in the collector root. User explicitly noted that the tester appeared to finish but no output was produced.
 
 ## State read before work
 
-Fresh-resolved pre-turn remote HEAD on `agent/v71-fx-portability-research`:
+Fresh-resolved pre-turn remote HEAD on `agent/v72-eurusd-independent-validation`:
 
-`1933b73c08f082ddc227f9d7a5e437be6b1fdc92`
+`e22da3f4ec24840db4eb735a14a3725921e944a1`
 
-Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent commits and exact-head CI. Pre-turn exact-head CI was 7/7 completed success.
+Read `OPERATING_PROTOCOL.md`, `CURRENT_STATE.md`, `KNOWN_FAILURES.md`, `TURN_SYNC.md`, recent branch state and exact-head CI. Pre-turn exact-head CI was green.
 
-## Raw evidence reviewed
+## Operator evidence inspected
 
-Plain-text `V64_DEALS.csv`, `V64_EVENTS.csv` and `V64_ENTRY_EVAL.csv` are readable for EURUSDm, GBPUSDm and XAUUSDm.
+The V72 run showed:
 
-Confirmed aggregate identity remains:
+- exact branch/HEAD guard PASS;
+- Python 3.12 selected;
+- V72 static tests PASS count=4;
+- secret scan PASS;
+- MT5 locator PASS;
+- exact V71 source generated with SHA256 `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
+- MetaEditor compile `0 errors, 0 warnings`;
+- tester config `EURUSDm`, M15, Model=4, `2024.09.01 -> 2025.09.01`;
+- MT5 tester process returned `rc=0`;
+- failure occurred only afterward in `copy_run()` because the expected root was empty:
+  `V64 run v72_eurusdm_untouched_long missing V64_ENTRY_EVAL.csv; root_listing=`.
 
-- EURUSDm: 8 trades, 4W/4L, +$4.55, PF 2.060606, DD $3.30.
-- GBPUSDm: 19 trades, 3W/16L, -$14.43, PF 0.171166, DD $16.32.
-- XAUUSDm: 24 trades, 10W/14L, +$6.44 contemporaneous, PF 1.417098, DD $3.65.
+## Root cause
 
-Raw contrast:
+This is a harness/telemetry path mismatch, not strategy evidence and not a broker/tester failure.
 
-- normalized losing-trade size is nearly identical: EUR average loss -$1.0725 versus GBP -$1.088125;
-- EUR average winner +$2.21 versus GBP +$0.9933;
-- EUR has 4 PROFIT_LOCK events / 8 trades and two full target exits (`reason=5`); GBP has 3 PROFIT_LOCK events / 19 trades and zero full target exits;
-- therefore GBP's observed failure is weak post-entry favorable follow-through, not an obviously too-tight dollar stop;
-- the prior <=60-second metric was too narrow across instruments: GBP has 0/16 losses <=60 seconds but 8/16 = 50% <=15 minutes; EUR has 0/4 <=15 minutes; XAU remains the ultra-fast case at 10/14 <=60 seconds;
-- both BREAKOUT_RETEST_BOS and PULLBACK_SWEEP_BOS occur around winners and losers, so the small raw sample does not justify archetype pruning;
-- naive time-of-day exclusion is also not justified: around 2026-01-27 15:22 both EUR and GBP lost while AUDUSD won under the same no-retune strategy family.
+The exact hash-pinned V71 strategy source hardcodes FILE_COMMON telemetry root:
 
-## Action taken
+`mt5_quant\\v71_fx_portability`
 
-Created successor branch:
+The original V72 runner incorrectly set the reused V64 collector root to:
 
-`agent/v72-eurusd-independent-validation`
+`mt5_quant\\v72_eurusd_independent_validation`
 
-V72 does not retune EURUSD. It validates the exact V71/V69 LONG candidate on an earlier temporal period not used in the V71 EURUSD screen.
+Therefore the tester wrote to the V71 root while Python inspected the empty V72 root.
 
-Prepared tooling:
+## Fix implemented
 
-- `scripts/analyze_v72_eurusd_validation.py`;
-- `runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py`;
-- `runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION_GIT_BASH.sh`;
-- `tests/test_v72_eurusd_independent_validation.py`;
-- `.github/workflows/v72_eurusd_independent_validation_quality.yml`.
+Updated V72 runner so `runner.COMMON_DIR` is derived from:
 
-V72 contract:
+`SOURCE_COMMON_DIR = "v71_fx_portability"`
 
-- EURUSDm M15 real ticks;
-- one tester pass only;
-- `2024.09.01 -> 2025.09.01`;
-- exact V71 builder output pinned to source SHA256 `32615744d81e48be9f95638a8062e590b690bf1ec56437dc3293fda4bb202e7c`;
-- entry retune 0; exit retune 0; SHORT 0; REAL 0.
+This preserves the exact pinned V71 source SHA and does not alter strategy semantics.
 
-Preregistered classification before the tester result is visible:
+Added fail-closed recovery before any new tester launch:
+
+1. inspect `Common/Files/mt5_quant/v71_fx_portability`;
+2. require primary `V64_ENTRY_EVAL.csv`, `V64_EVENTS.csv`, `V64_DEALS.csv`;
+3. parse timestamped rows;
+4. recover only if all timestamps fall inside the preregistered `2024.09.01 -> 2025.09.01` validation period;
+5. if valid, copy/analyze the existing completed run and print `V72_EURUSD_TEST_RERUN=0`;
+6. if stale V71 Sep-2025+ or mixed-period evidence is found, reject recovery, archive that source root and then run one fresh tester pass automatically.
+
+Regression tests were expanded from 4 to 6 and now guard:
+
+- pinned V71 source root and V72 collector-root alignment;
+- successful recovery of valid untouched-period evidence without tester rerun;
+- rejection of stale V71-period evidence.
+
+V72-specific CI passed on the code/test fix commit before documentation sync.
+
+## Economic status
+
+No V72 PASS/FAIL/INSUFFICIENT_SAMPLE classification is recorded yet. The first tester process completed, but its raw evidence still needs to be recovered/analyzed by the corrected launcher.
+
+The preregistered acceptance gate remains unchanged:
 
 - <8 trades -> `INSUFFICIENT_SAMPLE`;
-- otherwise PASS requires net >0, PF >=1.25, max realized DD <=$5.00, >=2 positive months and ex-best-trade net >0;
+- otherwise PASS requires net >0, PF >=1.25, DD <=$5.00, >=2 positive months, ex-best-trade net >0;
 - otherwise `FAIL`.
 
-Initial V72 CI correctly caught a synthetic fixture error in the test itself; only the fixture was corrected. The acceptance logic was not changed. The V72-specific check on the corrected commit passed.
+No threshold was altered after seeing the failed collector output.
 
 ## Safety
 
@@ -75,4 +90,4 @@ Initial V72 CI correctly caught a synthetic fixture error in the test itself; on
 
 ## Next operator action
 
-After final exact-head CI is fully green, run the single V72 EURUSD tester validation. Do not alter the preregistered thresholds after seeing the result. No GBP retune, no SHORT activation and no REAL authorization.
+After final exact-head CI is green, run the corrected V72 launcher once. It should recover the already-completed run and avoid tester rerun if the source-root timestamps match the preregistered period. Only if recovery is rejected as stale/mixed should it perform a fresh tester pass.
