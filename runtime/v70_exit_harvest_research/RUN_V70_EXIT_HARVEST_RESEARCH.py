@@ -180,19 +180,41 @@ def require_shadow_integrity(result: dict, *, emit: bool = True) -> None:
 
 
 def existing_run_dirs() -> list[Path]:
+    analyzer = load(ANALYZER, "v70_analyzer_for_existing_evidence_integrity")
     run_dirs: list[Path] = []
+    matched_trades = 0
+    traded_months = 0
+    zero_trade_months = 0
     for month, _, _ in REPLAY_MONTHS:
         run_dir = OUT / f"holdout_{month}_long"
         for filename in ("V64_DEALS.csv", "V64_EVENTS.csv"):
             path = run_dir / filename
             if not path.is_file() or path.stat().st_size <= 0:
                 raise RuntimeError(f"V70 existing evidence missing or empty: {path}")
-        events_text = (run_dir / "V64_EVENTS.csv").read_text(
-            encoding="utf-8-sig", errors="replace"
+        try:
+            trades, _legacy = analyzer.analyze_run(run_dir)
+        except Exception as exc:
+            raise RuntimeError(
+                f"V70 existing evidence trade/shadow integrity failure month={month}: {exc}"
+            ) from exc
+        trade_count = len(trades)
+        matched_trades += trade_count
+        if trade_count > 0:
+            traded_months += 1
+        else:
+            zero_trade_months += 1
+        print(
+            "V70_EXISTING_EVIDENCE_MONTH=PASS "
+            f"month={month} matched_trades={trade_count}"
         )
-        if "V70_EXIT_SHADOW_START" not in events_text or "V70_EXIT_SHADOW_END" not in events_text:
-            raise RuntimeError(f"V70 existing evidence lacks exit-shadow lifecycle: {run_dir}")
         run_dirs.append(run_dir)
+    if matched_trades <= 0:
+        raise RuntimeError("V70 existing evidence contains no matched trades across replay months")
+    print(
+        "V70_EXISTING_EVIDENCE_LIFECYCLE=PASS "
+        f"matched_trades={matched_trades} traded_months={traded_months} "
+        f"zero_trade_months={zero_trade_months}"
+    )
     return run_dirs
 
 
