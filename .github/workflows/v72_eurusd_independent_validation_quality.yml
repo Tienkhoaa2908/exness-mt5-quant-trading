@@ -1,0 +1,38 @@
+name: v72-eurusd-independent-validation-quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  v72-eurusd-independent-validation-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python compile
+        run: |
+          python -m py_compile \
+            scripts/analyze_v72_eurusd_validation.py \
+            runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py \
+            tests/test_v72_eurusd_independent_validation.py
+      - name: Shell syntax
+        run: bash -n runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION_GIT_BASH.sh
+      - name: V72 tests
+        run: python tests/test_v72_eurusd_independent_validation.py
+      - name: Safety and methodology contract
+        run: |
+          grep -Fq 'FROM_DATE = "2024.09.01"' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'TO_DATE = "2025.09.01"' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'V72_EURUSD_ENTRY_RETUNE=0' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'V72_EURUSD_EXIT_RETUNE=0' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'V72_SHORT_ENABLED=0' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'REAL_MONEY_AUTHORIZED=0' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION.py
+          grep -Fq 'V72_EURUSD_TESTER_RUNS=1' runtime/v72_eurusd_independent_validation/RUN_V72_EURUSD_INDEPENDENT_VALIDATION_GIT_BASH.sh
+      - name: Secret scan
+        run: python scripts/secret_scan.py .
