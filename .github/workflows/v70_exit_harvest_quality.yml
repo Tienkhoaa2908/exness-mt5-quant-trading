@@ -20,12 +20,16 @@ jobs:
           python -m py_compile \
             scripts/build_v70_exit_harvest_shadow_source.py \
             scripts/analyze_v70_exit_harvest_shadow.py \
+            scripts/audit_v70_baseline_drift_against_accepted_v69.py \
             runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py \
-            tests/test_v70_exit_harvest_research.py
+            tests/test_v70_exit_harvest_research.py \
+            tests/test_v70_baseline_drift_audit.py
       - name: Shell syntax
         run: bash -n runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh
       - name: V70 exit-harvest tests
         run: python tests/test_v70_exit_harvest_research.py
+      - name: V70 accepted baseline drift audit tests
+        run: python tests/test_v70_baseline_drift_audit.py
       - name: Safety and methodology contract
         run: |
           grep -Fq 'V70_ENTRY_SEMANTICS_CHANGED=0' scripts/build_v70_exit_harvest_shadow_source.py
@@ -36,5 +40,6 @@ jobs:
           grep -Fq 'V70_EXIT_HARVEST_EXPECTED_HEAD is required' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH_GIT_BASH.sh
           grep -Fq 'V70_SHORT_ENABLED=0' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py
           grep -Fq 'REAL_MONEY_AUTHORIZED=0' runtime/v70_exit_harvest_research/RUN_V70_EXIT_HARVEST_RESEARCH.py
+          grep -Fq 'e35306d604fe07ec6e2606e51c49c699b3c029be93b859e48abf74bc970f2acb' scripts/audit_v70_baseline_drift_against_accepted_v69.py
       - name: Secret scan
         run: python scripts/secret_scan.py .
